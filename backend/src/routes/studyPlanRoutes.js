@@ -1,13 +1,7 @@
-const express = require('express');
-const {
-  getStudyPlans,
-  createStudyPlan,
-  updateStudyPlan,
-} = require('../controllers/studyPlanController');
+const router = require("express").Router();
+const { generatePlan, getPlans } = require("../controllers/studyPlanController");
 
-const router = express.Router();
-
-router.route('/').get(getStudyPlans).post(createStudyPlan);
-router.route('/:id').put(updateStudyPlan);
+router.post("/generate", generatePlan);
+router.get("/", getPlans);
 
 module.exports = router;

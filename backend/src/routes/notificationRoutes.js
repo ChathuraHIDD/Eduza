@@ -1,13 +1,7 @@
-const express = require('express');
-const {
-  getNotifications,
-  createNotification,
-  markNotificationRead,
-} = require('../controllers/notificationController');
+const router = require("express").Router();
+const { createNotification, getNotifications } = require("../controllers/notificationController");
 
-const router = express.Router();
-
-router.route('/').get(getNotifications).post(createNotification);
-router.route('/:id/read').patch(markNotificationRead);
+router.post("/", createNotification);
+router.get("/", getNotifications);
 
 module.exports = router;

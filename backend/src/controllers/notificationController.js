@@ -1,34 +1,25 @@
-const Notification = require('../models/Notification');
-const asyncHandler = require('../middleware/asyncHandler');
+const Notification = require("../models/Notification");
+const asyncHandler = require("../middleware/asyncHandler");
 
-const getNotifications = asyncHandler(async (req, res) => {
-  const notifications = await Notification.find();
-  res.json(notifications);
-});
+// POST /api/notifications
+exports.createNotification = asyncHandler(async (req, res) => {
+  const { studentId, channel, title, message, scheduledFor } = req.body;
 
-const createNotification = asyncHandler(async (req, res) => {
-  const notification = await Notification.create(req.body);
-  res.status(201).json(notification);
-});
-
-const markNotificationRead = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const notification = await Notification.findByIdAndUpdate(
-    id,
-    { read: true },
-    { new: true }
-  );
-
-  if (!notification) {
-    res.status(404);
-    throw new Error('Notification not found');
+  if (!channel || !title || !message) {
+    res.status(400);
+    throw new Error("channel, title, message are required");
   }
 
-  res.json(notification);
+  const n = await Notification.create({ studentId, channel, title, message, scheduledFor });
+  res.status(201).json(n);
 });
 
-module.exports = {
-  getNotifications,
-  createNotification,
-  markNotificationRead,
-};
+// GET /api/notifications?status=PENDING
+exports.getNotifications = asyncHandler(async (req, res) => {
+  const { status } = req.query;
+  const filter = {};
+  if (status) filter.status = status;
+
+  const list = await Notification.find(filter).sort({ createdAt: -1 });
+  res.json(list);
+});

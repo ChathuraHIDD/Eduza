@@ -1,13 +1,8 @@
-const express = require('express');
-const {
-  getSupportTickets,
-  createSupportTicket,
-  updateSupportTicketStatus,
-} = require('../controllers/supportController');
+const router = require("express").Router();
+const { createTicket, getTickets, updateTicketStatus } = require("../controllers/supportController");
 
-const router = express.Router();
-
-router.route('/').get(getSupportTickets).post(createSupportTicket);
-router.route('/:id').patch(updateSupportTicketStatus);
+router.post("/", createTicket);
+router.get("/", getTickets);
+router.patch("/:id/status", updateTicketStatus);
 
 module.exports = router;

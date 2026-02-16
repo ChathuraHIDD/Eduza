@@ -1,30 +1,34 @@
-const CalendarEvent = require('../models/CalendarEvent');
-const asyncHandler = require('../middleware/asyncHandler');
+const CalendarEvent = require("../models/CalendarEvent");
+const asyncHandler = require("../middleware/asyncHandler");
 
-const getEvents = asyncHandler(async (req, res) => {
-  const events = await CalendarEvent.find();
-  res.json(events);
-});
+// POST /api/calendar
+exports.createEvent = asyncHandler(async (req, res) => {
+  const { studentId, title, description, start, end, type, reminders } = req.body;
 
-const createEvent = asyncHandler(async (req, res) => {
-  const event = await CalendarEvent.create(req.body);
-  res.status(201).json(event);
-});
-
-const deleteEvent = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const event = await CalendarEvent.findByIdAndDelete(id);
-
-  if (!event) {
-    res.status(404);
-    throw new Error('Event not found');
+  if (!title || !start || !end) {
+    res.status(400);
+    throw new Error("title, start, end are required");
   }
 
-  res.json({ message: 'Event removed' });
+  const ev = await CalendarEvent.create({
+    studentId,
+    title,
+    description,
+    start,
+    end,
+    type,
+    reminders,
+  });
+
+  res.status(201).json(ev);
 });
 
-module.exports = {
-  getEvents,
-  createEvent,
-  deleteEvent,
-};
+// GET /api/calendar?studentId=xxx
+exports.getEvents = asyncHandler(async (req, res) => {
+  const { studentId } = req.query;
+  const filter = {};
+  if (studentId) filter.studentId = studentId;
+
+  const list = await CalendarEvent.find(filter).sort({ start: 1 });
+  res.json(list);
+});

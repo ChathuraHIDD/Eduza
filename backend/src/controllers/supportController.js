@@ -1,34 +1,49 @@
-const SupportTicket = require('../models/SupportTicket');
-const asyncHandler = require('../middleware/asyncHandler');
+const SupportTicket = require("../models/SupportTicket");
+const asyncHandler = require("../middleware/asyncHandler");
 
-const getSupportTickets = asyncHandler(async (req, res) => {
-  const tickets = await SupportTicket.find();
-  res.json(tickets);
-});
+// POST /api/support
+exports.createTicket = asyncHandler(async (req, res) => {
+  const { studentId, type, topic, message, priority } = req.body;
 
-const createSupportTicket = asyncHandler(async (req, res) => {
-  const ticket = await SupportTicket.create(req.body);
+  if (!type || !topic || !message) {
+    res.status(400);
+    throw new Error("type, topic, message are required");
+  }
+
+  const ticket = await SupportTicket.create({ studentId, type, topic, message, priority });
+
+  // Here later: if OFFICER -> trigger email/sms alert to officer/admin
+
   res.status(201).json(ticket);
 });
 
-const updateSupportTicketStatus = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const ticket = await SupportTicket.findByIdAndUpdate(
-    id,
-    { status: req.body.status },
-    { new: true }
-  );
+// GET /api/support?status=OPEN
+exports.getTickets = asyncHandler(async (req, res) => {
+  const { status, type } = req.query;
+  const filter = {};
+  if (status) filter.status = status;
+  if (type) filter.type = type;
 
-  if (!ticket) {
-    res.status(404);
-    throw new Error('Support ticket not found');
-  }
-
-  res.json(ticket);
+  const list = await SupportTicket.find(filter).sort({ createdAt: -1 });
+  res.json(list);
 });
 
-module.exports = {
-  getSupportTickets,
-  createSupportTicket,
-  updateSupportTicketStatus,
-};
+// PATCH /api/support/:id/status
+exports.updateTicketStatus = asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  const allowed = ["OPEN", "IN_PROGRESS", "CLOSED"];
+  if (!allowed.includes(status)) {
+    res.status(400);
+    throw new Error("Invalid status");
+  }
+
+  const ticket = await SupportTicket.findById(req.params.id);
+  if (!ticket) {
+    res.status(404);
+    throw new Error("Ticket not found");
+  }
+
+  ticket.status = status;
+  await ticket.save();
+  res.json(ticket);
+});

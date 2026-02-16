@@ -1,8 +1,12 @@
-const express = require('express');
-const { getFeedback, createFeedback } = require('../controllers/feedbackController');
+const router = require("express").Router();
+const {
+  createFeedback,
+  getFeedbacks,
+  updateFeedbackStatus,
+} = require("../controllers/feedbackController");
 
-const router = express.Router();
-
-router.route('/').get(getFeedback).post(createFeedback);
+router.post("/", createFeedback);
+router.get("/", getFeedbacks);
+router.patch("/:id/status", updateFeedbackStatus);
 
 module.exports = router;

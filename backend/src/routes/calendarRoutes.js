@@ -1,9 +1,7 @@
-const express = require('express');
-const { getEvents, createEvent, deleteEvent } = require('../controllers/calendarController');
+const router = require("express").Router();
+const { createEvent, getEvents } = require("../controllers/calendarController");
 
-const router = express.Router();
-
-router.route('/').get(getEvents).post(createEvent);
-router.route('/:id').delete(deleteEvent);
+router.post("/", createEvent);
+router.get("/", getEvents);
 
 module.exports = router;

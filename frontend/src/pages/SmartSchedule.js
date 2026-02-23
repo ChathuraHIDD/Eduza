@@ -1,274 +1,248 @@
 import { useState } from 'react'
+import AssignmentModal from '../components/schedule/AssignmentModal'
+import ScheduleResult from '../components/schedule/ScheduleResult'
 
-const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-const shortDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-
-const schedule = {
-  Monday: [
-    { time: '08:00', end: '09:30', subject: 'Advanced Web Development', type: 'Lecture', room: 'Hall A-12', color: '#f97316' },
-    { time: '10:00', end: '11:00', subject: 'Data Structures', type: 'Tutorial', room: 'Lab B-4', color: '#3b82f6' },
-    { time: '14:00', end: '15:30', subject: 'Cloud Computing', type: 'Lecture', room: 'Hall D-7', color: '#a855f7' },
-  ],
-  Tuesday: [
-    { time: '09:00', end: '10:30', subject: 'UI/UX Design', type: 'Workshop', room: 'Studio C', color: '#22c55e' },
-    { time: '13:00', end: '14:00', subject: 'Advanced Web Development', type: 'Tutorial', room: 'Lab A-3', color: '#f97316' },
-  ],
-  Wednesday: [
-    { time: '08:00', end: '09:30', subject: 'Data Structures', type: 'Lecture', room: 'Hall B-2', color: '#3b82f6' },
-    { time: '11:00', end: '12:30', subject: 'Cloud Computing', type: 'Lab', room: 'Cloud Lab', color: '#a855f7' },
-    { time: '15:00', end: '16:30', subject: 'UI/UX Design', type: 'Lecture', room: 'Hall C-1', color: '#22c55e' },
-  ],
-  Thursday: [
-    { time: '09:30', end: '11:00', subject: 'Advanced Web Development', type: 'Lecture', room: 'Hall A-12', color: '#f97316' },
-    { time: '13:30', end: '14:30', subject: 'Data Structures', type: 'Lab', room: 'Lab B-4', color: '#3b82f6' },
-  ],
-  Friday: [
-    { time: '10:00', end: '11:30', subject: 'Cloud Computing', type: 'Lecture', room: 'Hall D-7', color: '#a855f7' },
-    { time: '14:00', end: '16:00', subject: 'UI/UX Design', type: 'Workshop', room: 'Studio C', color: '#22c55e' },
-  ],
-}
-
-const assignments = [
-  { subject: 'Web Development', title: 'Build a REST API', due: 'Tomorrow', priority: 'High', color: '#f97316' },
-  { subject: 'Data Structures', title: 'Binary Tree Implementation', due: 'In 3 days', priority: 'Medium', color: '#3b82f6' },
-  { subject: 'UI/UX Design', title: 'Wireframe Prototype', due: 'Next week', priority: 'Low', color: '#22c55e' },
+const scheduleTypes = [
+  {
+    id: 'assignment',
+    label: 'Assignment',
+    description: 'Plan and track your assignment progress day by day',
+    icon: (
+      <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+        <polyline points="10 9 9 9 8 9" />
+      </svg>
+    ),
+    color: '#f97316',
+    available: true,
+  },
+  {
+    id: 'mid-exam',
+    label: 'Semester Mid Exam',
+    description: 'Smart revision plan for your mid-semester exams',
+    icon: (
+      <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+      </svg>
+    ),
+    color: '#3b82f6',
+    available: false,
+  },
+  {
+    id: 'final-exam',
+    label: 'Semester Final Exam',
+    description: 'Comprehensive plan for your final semester exams',
+    icon: (
+      <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+    ),
+    color: '#ef4444',
+    available: false,
+  },
+  {
+    id: 'whole-semester',
+    label: 'Whole Semester',
+    description: 'Full semester roadmap across all your modules',
+    icon: (
+      <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+    ),
+    color: '#22c55e',
+    available: false,
+  },
+  {
+    id: 'other-exam',
+    label: 'Other Exam',
+    description: 'Custom schedule for quizzes, tests, or external exams',
+    icon: (
+      <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
+    ),
+    color: '#a855f7',
+    available: false,
+  },
+  {
+    id: 'other-activity',
+    label: 'Other Activity',
+    description: 'Plan presentations, projects, and any other activities',
+    icon: (
+      <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
+      </svg>
+    ),
+    color: '#06b6d4',
+    available: false,
+  },
 ]
 
-const priorityColors = {
-  High: '#ef4444',
-  Medium: '#f97316',
-  Low: '#22c55e',
-}
-
 function SmartSchedule() {
-  const [selectedDay, setSelectedDay] = useState('Monday')
-  const todayIndex = new Date().getDay() - 1
-  const currentDate = new Date()
+  const [modalOpen, setModalOpen] = useState(false)
+  const [generatedSchedule, setGeneratedSchedule] = useState(null)
 
-  const getDateForDay = (index) => {
-    const d = new Date(currentDate)
-    const diff = index - (currentDate.getDay() - 1)
-    d.setDate(d.getDate() + diff)
-    return d.getDate()
+  const handleTypeSelect = (type) => {
+    if (!type.available) return
+    if (type.id === 'assignment') setModalOpen(true)
+  }
+
+  const handleGenerate = (scheduleData) => {
+    setModalOpen(false)
+    setGeneratedSchedule(scheduleData)
+  }
+
+  const handleReset = () => {
+    setGeneratedSchedule(null)
+  }
+
+  if (generatedSchedule) {
+    return <ScheduleResult data={generatedSchedule} onBack={handleReset} />
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ maxWidth: 960, margin: '0 auto' }}>
       {/* Header */}
       <div style={{
-        background: 'linear-gradient(135deg, #1a1a1a, #1e1408)',
+        background: 'linear-gradient(135deg, #1a1a1a 0%, #1e1408 100%)',
         border: '1px solid #2a2010',
         borderRadius: 18,
-        padding: '1.5rem 2rem',
-        marginBottom: '1.5rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        padding: '1.75rem 2rem',
+        marginBottom: '2rem',
+        position: 'relative',
+        overflow: 'hidden',
       }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#f5f5f5', letterSpacing: '-0.5px' }}>
-            Smart Schedule
-          </h2>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>
-            AI-powered weekly planner · {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-          </p>
-        </div>
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: 'rgba(249,115,22,0.1)',
-          border: '1px solid rgba(249,115,22,0.2)',
-          borderRadius: 10,
-          padding: '8px 14px',
-        }}>
-          <svg width="16" height="16" fill="none" stroke="#f97316" strokeWidth="2" viewBox="0 0 24 24">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-          </svg>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#f97316' }}>AI Optimized</span>
+          position: 'absolute', right: -40, top: -40,
+          width: 200, height: 200, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%)',
+        }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '0.5rem' }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: 'rgba(249,115,22,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="18" height="18" fill="none" stroke="#f97316" strokeWidth="2" viewBox="0 0 24 24">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#f97316', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            AI-Powered
+          </span>
         </div>
+        <h2 style={{ margin: '0 0 6px', fontSize: 26, fontWeight: 800, color: '#f5f5f5', letterSpacing: '-0.5px' }}>
+          Smart Schedule
+        </h2>
+        <p style={{ margin: 0, fontSize: 14, color: '#666', lineHeight: 1.6 }}>
+          Select a schedule type below. Our AI will generate a personalised, day-by-day study plan tailored to your goals.
+        </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '1.5rem' }}>
-        {/* Weekly schedule */}
-        <div>
-          {/* Day selector */}
-          <div style={{
-            display: 'flex', gap: '0.5rem',
-            background: '#1a1a1a', border: '1px solid #242424',
-            borderRadius: 14, padding: '0.5rem',
-            marginBottom: '1rem',
-          }}>
-            {days.map((day, i) => (
-              <button
-                key={day}
-                onClick={() => setSelectedDay(day)}
-                style={{
-                  flex: 1, padding: '8px 4px', borderRadius: 10, border: 'none',
-                  cursor: 'pointer',
-                  background: selectedDay === day ? 'linear-gradient(135deg, #f97316, #c2410c)' : 'transparent',
-                  color: selectedDay === day ? '#fff' : '#666',
-                  fontWeight: selectedDay === day ? 700 : 400,
-                  fontSize: 13,
-                  transition: 'all 0.15s',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                }}
-              >
-                <span style={{ fontSize: 11, opacity: 0.8 }}>{shortDays[i]}</span>
-                <span>{getDateForDay(i)}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Classes for selected day */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {(schedule[selectedDay] || []).length === 0 && (
+      {/* Schedule type grid */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: '1rem',
+      }}>
+        {scheduleTypes.map((type) => (
+          <button
+            key={type.id}
+            onClick={() => handleTypeSelect(type)}
+            disabled={!type.available}
+            style={{
+              background: '#1a1a1a',
+              border: `1px solid ${type.available ? '#2a2a2a' : '#1e1e1e'}`,
+              borderRadius: 16,
+              padding: '1.5rem',
+              cursor: type.available ? 'pointer' : 'not-allowed',
+              textAlign: 'left',
+              transition: 'all 0.2s ease',
+              opacity: type.available ? 1 : 0.5,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+            onMouseEnter={(e) => {
+              if (!type.available) return
+              e.currentTarget.style.border = `1px solid ${type.color}55`
+              e.currentTarget.style.background = `${type.color}08`
+              e.currentTarget.style.transform = 'translateY(-2px)'
+            }}
+            onMouseLeave={(e) => {
+              if (!type.available) return
+              e.currentTarget.style.border = '1px solid #2a2a2a'
+              e.currentTarget.style.background = '#1a1a1a'
+              e.currentTarget.style.transform = 'translateY(0)'
+            }}
+          >
+            {/* Available badge */}
+            {type.available && (
               <div style={{
-                background: '#1a1a1a', border: '1px solid #242424',
-                borderRadius: 14, padding: '3rem',
-                textAlign: 'center', color: '#555', fontSize: 14,
-              }}>
-                No classes scheduled for this day
+                position: 'absolute', top: 12, right: 12,
+                fontSize: 10, fontWeight: 700,
+                background: 'rgba(249,115,22,0.15)',
+                color: '#f97316', padding: '2px 8px', borderRadius: 20,
+                letterSpacing: '0.05em',
+              }}>AVAILABLE</div>
+            )}
+            {!type.available && (
+              <div style={{
+                position: 'absolute', top: 12, right: 12,
+                fontSize: 10, fontWeight: 600,
+                background: '#1e1e1e', color: '#555',
+                padding: '2px 8px', borderRadius: 20,
+                letterSpacing: '0.05em',
+              }}>COMING SOON</div>
+            )}
+
+            {/* Icon */}
+            <div style={{
+              width: 54, height: 54, borderRadius: 14,
+              background: `${type.color}18`,
+              border: `1.5px solid ${type.color}30`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: type.color,
+              marginBottom: '1rem',
+            }}>
+              {type.icon}
+            </div>
+
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#f0f0f0', marginBottom: 6 }}>
+              {type.label}
+            </div>
+            <div style={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
+              {type.description}
+            </div>
+
+            {type.available && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: '1rem' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: type.color }}>Get Started</span>
+                <svg width="14" height="14" fill="none" stroke={type.color} strokeWidth="2.5" viewBox="0 0 24 24">
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
               </div>
             )}
-            {(schedule[selectedDay] || []).map((cls, i) => (
-              <div key={i} style={{
-                background: '#1a1a1a',
-                border: '1px solid #242424',
-                borderLeft: `4px solid ${cls.color}`,
-                borderRadius: 14,
-                padding: '1.1rem 1.25rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-              }}>
-                <div style={{
-                  width: 48, minWidth: 48, height: 48,
-                  borderRadius: 12,
-                  background: `${cls.color}18`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <svg width="20" height="20" fill="none" stroke={cls.color} strokeWidth="1.8" viewBox="0 0 24 24">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#f0f0f0', marginBottom: 3 }}>{cls.subject}</div>
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    <span style={{
-                      fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
-                      background: `${cls.color}22`, color: cls.color,
-                    }}>{cls.type}</span>
-                    <span style={{ fontSize: 12, color: '#555' }}>📍 {cls.room}</span>
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#f0f0f0' }}>{cls.time}</div>
-                  <div style={{ fontSize: 11, color: '#555' }}>to {cls.end}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Week overview mini-grid */}
-          <div style={{ marginTop: '1.5rem' }}>
-            <h3 style={{ margin: '0 0 0.75rem', fontSize: 15, fontWeight: 700, color: '#f0f0f0' }}>
-              Week at a Glance
-            </h3>
-            <div style={{
-              background: '#1a1a1a', border: '1px solid #242424',
-              borderRadius: 14, overflow: 'hidden',
-            }}>
-              {days.map((day, di) => (
-                <div
-                  key={day}
-                  onClick={() => setSelectedDay(day)}
-                  style={{
-                    display: 'flex', alignItems: 'center',
-                    padding: '0.75rem 1rem', cursor: 'pointer',
-                    borderBottom: di < days.length - 1 ? '1px solid #1e1e1e' : 'none',
-                    background: selectedDay === day ? 'rgba(249,115,22,0.05)' : 'transparent',
-                  }}
-                >
-                  <span style={{
-                    width: 80, fontSize: 13, fontWeight: selectedDay === day ? 600 : 400,
-                    color: selectedDay === day ? '#f97316' : '#777',
-                  }}>{day}</span>
-                  <div style={{ display: 'flex', gap: '6px', flex: 1, flexWrap: 'wrap' }}>
-                    {(schedule[day] || []).map((cls, i) => (
-                      <span key={i} style={{
-                        fontSize: 11, padding: '2px 8px', borderRadius: 20,
-                        background: `${cls.color}22`, color: cls.color,
-                        fontWeight: 500,
-                      }}>{cls.subject.split(' ')[0]}</span>
-                    ))}
-                    {(schedule[day] || []).length === 0 && (
-                      <span style={{ fontSize: 12, color: '#444' }}>—</span>
-                    )}
-                  </div>
-                  <span style={{ fontSize: 12, color: '#555', flexShrink: 0 }}>
-                    {(schedule[day] || []).length} class{(schedule[day] || []).length !== 1 ? 'es' : ''}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar: Assignments */}
-        <div>
-          <h3 style={{ margin: '0 0 0.75rem', fontSize: 15, fontWeight: 700, color: '#f0f0f0' }}>
-            Upcoming Deadlines
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {assignments.map((a, i) => (
-              <div key={i} style={{
-                background: '#1a1a1a', border: '1px solid #242424',
-                borderRadius: 12, padding: '1rem',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{
-                    fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
-                    background: `${a.color}22`, color: a.color,
-                  }}>{a.subject}</span>
-                  <span style={{
-                    fontSize: 11, fontWeight: 600,
-                    color: priorityColors[a.priority],
-                  }}>{a.priority}</span>
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#f0f0f0', marginBottom: 4 }}>{a.title}</div>
-                <div style={{ fontSize: 12, color: '#555' }}>Due: {a.due}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Stats */}
-          <div style={{ marginTop: '1.25rem' }}>
-            <h3 style={{ margin: '0 0 0.75rem', fontSize: 15, fontWeight: 700, color: '#f0f0f0' }}>
-              This Week
-            </h3>
-            <div style={{
-              background: '#1a1a1a', border: '1px solid #242424',
-              borderRadius: 12, padding: '1rem',
-              display: 'flex', flexDirection: 'column', gap: '0.75rem',
-            }}>
-              {[
-                { label: 'Total Classes', value: Object.values(schedule).flat().length },
-                { label: 'Study Hours', value: '18h 30m' },
-                { label: 'Free Slots', value: '6 slots' },
-              ].map((stat) => (
-                <div key={stat.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, color: '#666' }}>{stat.label}</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#f0f0f0' }}>{stat.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+          </button>
+        ))}
       </div>
+
+      {/* Assignment modal */}
+      {modalOpen && (
+        <AssignmentModal
+          onClose={() => setModalOpen(false)}
+          onGenerate={handleGenerate}
+        />
+      )}
     </div>
   )
 }

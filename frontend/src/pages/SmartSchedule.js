@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import AssignmentModal from '../components/schedule/AssignmentModal'
 import ScheduleResult from '../components/schedule/ScheduleResult'
+import MidExamModal from '../components/schedule/MidExamModal'
+import MidExamResult from '../components/schedule/MidExamResult'
 
 const scheduleTypes = [
   {
@@ -30,7 +32,7 @@ const scheduleTypes = [
       </svg>
     ),
     color: '#3b82f6',
-    available: false,
+    available: true,
   },
   {
     id: 'final-exam',
@@ -89,24 +91,40 @@ const scheduleTypes = [
 
 function SmartSchedule() {
   const [modalOpen, setModalOpen] = useState(false)
+  const [midExamModalOpen, setMidExamModalOpen] = useState(false)
   const [generatedSchedule, setGeneratedSchedule] = useState(null)
+  const [scheduleType, setScheduleType] = useState(null)
 
   const handleTypeSelect = (type) => {
     if (!type.available) return
     if (type.id === 'assignment') setModalOpen(true)
+    if (type.id === 'mid-exam') setMidExamModalOpen(true)
   }
 
   const handleGenerate = (scheduleData) => {
     setModalOpen(false)
+    setMidExamModalOpen(false)
+    setScheduleType('assignment')
+    setGeneratedSchedule(scheduleData)
+  }
+
+  const handleMidExamGenerate = (scheduleData) => {
+    setMidExamModalOpen(false)
+    setScheduleType('mid-exam')
     setGeneratedSchedule(scheduleData)
   }
 
   const handleReset = () => {
     setGeneratedSchedule(null)
+    setScheduleType(null)
   }
 
-  if (generatedSchedule) {
+  if (generatedSchedule && scheduleType === 'assignment') {
     return <ScheduleResult data={generatedSchedule} onBack={handleReset} />
+  }
+
+  if (generatedSchedule && scheduleType === 'mid-exam') {
+    return <MidExamResult data={generatedSchedule} onBack={handleReset} />
   }
 
   return (
@@ -241,6 +259,14 @@ function SmartSchedule() {
         <AssignmentModal
           onClose={() => setModalOpen(false)}
           onGenerate={handleGenerate}
+        />
+      )}
+
+      {/* Mid Exam modal */}
+      {midExamModalOpen && (
+        <MidExamModal
+          onClose={() => setMidExamModalOpen(false)}
+          onGenerate={handleMidExamGenerate}
         />
       )}
     </div>

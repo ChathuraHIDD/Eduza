@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 
 import numpy as np
+import pandas as pd
 from pymongo import MongoClient
 import certifi
 
@@ -11,12 +12,12 @@ import joblib
 
 load_dotenv()
 
-MONGO_URI = os.getenv("MONGO_URI")
+MONGO_URI = os.getenv("MONGO_URI")  # can be None; we will fallback to CSV
 DB_NAME = os.getenv("DB_NAME", "eduza")
 MODEL_PATH = os.getenv("MODEL_PATH", "models/task_duration_model.pkl")
 
-if not MONGO_URI:
-    raise ValueError("MONGO_URI is not set. Check ml-service/.env")
+# CSV fallback (Kaggle transformed)
+CSV_PATH = os.getenv("CSV_PATH", "data/eduza_task_duration_training_ready.csv")
 
 os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
 
@@ -44,14 +45,12 @@ def make_mongo_client(uri: str) -> MongoClient:
     )
 
 
-def build_rows(db, sessions_col="studysessions", logs_col="progresslogs"):
+def build_rows_from_mongo(db, sessions_col="studysessions", logs_col="progresslogs"):
     """
-    Builds training rows from:
-      - sessions collection (completed stopwatch sessions)
+    Builds training rows from Mongo:
+      - sessions collection (stopwatch sessions)
       - progress logs collection (progress% snapshots)
     """
-
-    # Load data
     sessions = list(db[sessions_col].find({}).sort("startTime", 1))
     logs = list(db[logs_col].find({}).sort("recordedAt", 1))
 
@@ -110,27 +109,26 @@ def build_rows(db, sessions_col="studysessions", logs_col="progresslogs"):
 
         pace = dur_min / progress_gain  # minutes per 1% progress
 
-        # Milestone target (you can change later)
+        # milestone target for Mongo training
         target = 70.0
         current = p1
         delta = target - current
         if delta <= 0:
             continue
 
-        # Label: estimated minutes to reach target (approx)
+        # label = estimated minutes to reach target
         y = pace * delta
 
-        # placeholders until you store them in DB
-        difficulty = 2.0     # 1 easy, 2 medium, 3 hard
-        daily_hours = 3.0    # daily available hours
+        difficulty = 2.0
+        daily_hours = 3.0
 
         X = [
-            current,     # current_progress
-            target,      # target_progress
-            delta,       # delta_progress
-            pace,        # past_study_pace
-            difficulty,  # difficulty encoded
-            daily_hours, # daily available hours
+            current,
+            target,
+            delta,
+            pace,
+            difficulty,
+            daily_hours,
         ]
 
         rows_X.append(X)
@@ -139,42 +137,56 @@ def build_rows(db, sessions_col="studysessions", logs_col="progresslogs"):
     return np.array(rows_X), np.array(rows_y)
 
 
-def main():
-    client = make_mongo_client(MONGO_URI)
+def load_rows_from_csv(csv_path: str):
+    """
+    Loads Kaggle-transformed training-ready CSV.
+    Must include columns:
+      current_progress, target_progress, delta_progress, past_study_pace,
+      difficulty, daily_hours, minutes_needed
+    """
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"CSV not found at: {csv_path}")
 
-    # Quick ping so you immediately know if connection is OK
-    try:
-        print("Mongo ping:", client.admin.command("ping"))
-    except Exception as e:
-        print("❌ Mongo connection failed.")
-        print("Reason:", str(e))
-        print("\n✅ Checklist:")
-        print("- Atlas Network Access allows your IP (or 0.0.0.0/0 temporarily)")
-        print("- Cluster is running (not paused)")
-        print("- MONGO_URI includes /eduza and correct password")
-        return
+    df = pd.read_csv(csv_path)
 
-    db = client[DB_NAME]
+    needed_cols = [
+        "current_progress",
+        "target_progress",
+        "delta_progress",
+        "past_study_pace",
+        "difficulty",
+        "daily_hours",
+        "minutes_needed",
+    ]
 
-    # Helpful: verify collections exist
-    collections = db.list_collection_names()
-    print("✅ Collections in DB:", collections)
+    missing = [c for c in needed_cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"CSV missing columns: {missing}")
 
-    # Try to build dataset
-    try:
-        X, y = build_rows(db, sessions_col="studysessions", logs_col="progresslogs")
-    except Exception as e:
-        print("❌ Failed while reading collections.")
-        print("Reason:", str(e))
-        print("\nTip: Your collection names might be different.")
-        print("Check the printed collection list above and update sessions_col/logs_col.")
-        return
+    df = df.dropna(subset=needed_cols)
 
+    X = df[
+        [
+            "current_progress",
+            "target_progress",
+            "delta_progress",
+            "past_study_pace",
+            "difficulty",
+            "daily_hours",
+        ]
+    ].values
+
+    y = df["minutes_needed"].values
+
+    return X, y
+
+
+def train_and_save(X, y):
     if len(X) < 30:
-        print(f"⚠️ Not enough training samples: {len(X)}")
-        print("Use the app more to create completed sessions + progress logs.")
-        print("Also confirm collections are exactly: 'studysessions' and 'progresslogs'.")
+        print(f"❌ Not enough training samples: {len(X)} (need at least 30)")
         return
+
+    print("✅ Training samples:", len(X))
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
@@ -186,6 +198,7 @@ def main():
         max_depth=None,
         min_samples_split=2,
     )
+
     model.fit(X_train, y_train)
 
     score = model.score(X_test, y_test)
@@ -193,6 +206,49 @@ def main():
 
     joblib.dump(model, MODEL_PATH)
     print("✅ Saved model to:", MODEL_PATH)
+
+
+def main():
+    X = None
+    y = None
+
+    # ---------- Try Mongo first ----------
+    if MONGO_URI:
+        try:
+            client = make_mongo_client(MONGO_URI)
+            print("Mongo ping:", client.admin.command("ping"))
+
+            db = client[DB_NAME]
+            print("✅ Collections in DB:", db.list_collection_names())
+
+            X_m, y_m = build_rows_from_mongo(db)
+
+            if X_m is not None and len(X_m) >= 30:
+                print("✅ Using MongoDB data for training.")
+                X, y = X_m, y_m
+            else:
+                print(f"⚠ Mongo samples not enough: {0 if X_m is None else len(X_m)}")
+                print("➡ Switching to CSV dataset...")
+
+        except Exception as e:
+            print("⚠ Mongo failed, switching to CSV.")
+            print("Reason:", str(e))
+
+    else:
+        print("⚠ MONGO_URI not set, using CSV dataset...")
+
+    # ---------- Fallback to CSV ----------
+    if X is None or len(X) < 30:
+        try:
+            X, y = load_rows_from_csv(CSV_PATH)
+            print(f"✅ Loaded CSV dataset: {CSV_PATH}")
+        except Exception as e:
+            print("❌ CSV loading failed.")
+            print("Reason:", str(e))
+            return
+
+    # ---------- Train ----------
+    train_and_save(X, y)
 
 
 if __name__ == "__main__":

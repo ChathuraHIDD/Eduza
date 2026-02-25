@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 const pageTitles = {
   '/': 'Dashboard',
   '/smart-schedule': 'Smart Schedule',
+  '/stress-hub': 'Stress Management Hub',
   '/profile': 'My Profile',
   '/lecture-profile': 'Lecture Profile',
 }

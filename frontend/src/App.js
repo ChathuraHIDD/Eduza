@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import SmartSchedule from './pages/SmartSchedule'
 import Profile from './pages/Profile'
 import LectureProfile from './pages/LectureProfile'
+import StressHub from './pages/StressHub'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="smart-schedule" element={<SmartSchedule />} />
+          <Route path="stress-hub" element={<StressHub />} />
           <Route path="profile" element={<Profile />} />
           <Route path="lecture-profile" element={<LectureProfile />} />
         </Route>

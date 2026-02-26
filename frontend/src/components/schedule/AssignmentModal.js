@@ -59,6 +59,7 @@ function AssignmentModal({ onClose, onGenerate }) {
   const [form, setForm] = useState({
     subject: '',
     dueDate: '',
+    currentProgress: 0, // ✅ NEW
     hoursPerDay: 3,
     studyTime: '',
     performanceType: 'grade',
@@ -78,6 +79,7 @@ function AssignmentModal({ onClose, onGenerate }) {
       if (!form.subject.trim()) errs.subject = 'Subject is required'
       if (!form.dueDate) errs.dueDate = 'Due date is required'
       else if (new Date(form.dueDate) <= new Date()) errs.dueDate = 'Due date must be in the future'
+      if (form.currentProgress < 0 || form.currentProgress > 100) errs.currentProgress = 'Progress must be between 0 and 100'
     }
     if (step === 1) {
       if (!form.studyTime) errs.studyTime = 'Please select your study preference'
@@ -97,13 +99,13 @@ function AssignmentModal({ onClose, onGenerate }) {
 
   const handleSubmit = () => {
     const schedule = generateAssignmentSchedule(form)
-    onGenerate(schedule)
+    // ✅ keep currentProgress inside returned data (so ScheduleResult can show it)
+    onGenerate({ ...schedule, currentProgress: form.currentProgress })
   }
 
   const today = new Date().toISOString().split('T')[0]
 
   return (
-    // Backdrop
     <div
       onClick={onClose}
       style={{
@@ -114,7 +116,6 @@ function AssignmentModal({ onClose, onGenerate }) {
         backdropFilter: 'blur(4px)',
       }}
     >
-      {/* Modal panel */}
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -128,7 +129,6 @@ function AssignmentModal({ onClose, onGenerate }) {
           position: 'relative',
         }}
       >
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.75rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -168,7 +168,6 @@ function AssignmentModal({ onClose, onGenerate }) {
 
         <StepIndicator current={step} />
 
-        {/* Step 0 — Details */}
         {step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <Field label="Module / Subject" error={errors.subject} required>
@@ -189,13 +188,39 @@ function AssignmentModal({ onClose, onGenerate }) {
                 style={{ ...inputStyle(!!errors.dueDate), colorScheme: 'dark' }}
               />
             </Field>
+
+            {/* ✅ NEW: Current progress slider */}
+            <Field label="Current progress (so far) %" error={errors.currentProgress} hint="If you already started, set your current completion level">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: 4 }}>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={form.currentProgress}
+                  onChange={(e) => set('currentProgress', Number(e.target.value))}
+                  style={{ flex: 1, accentColor: '#f97316', cursor: 'pointer' }}
+                />
+                <div style={{
+                  minWidth: 64, height: 40,
+                  background: 'rgba(59,130,246,0.10)',
+                  border: '1.5px solid rgba(59,130,246,0.25)',
+                  borderRadius: 10,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 16, fontWeight: 800, color: '#3b82f6',
+                }}>
+                  {form.currentProgress}%
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                <span style={{ fontSize: 11, color: '#444' }}>0%</span>
+                <span style={{ fontSize: 11, color: '#444' }}>100%</span>
+              </div>
+            </Field>
           </div>
         )}
 
-        {/* Step 1 — Study Habits */}
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Hours per day */}
             <Field label="Study hours you can manage per day" hint="Be realistic — consistency beats intensity">
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: 4 }}>
                 <input
@@ -222,22 +247,11 @@ function AssignmentModal({ onClose, onGenerate }) {
               </div>
             </Field>
 
-            {/* Study time preference */}
             <Field label="When do you study best?" error={errors.studyTime} required>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: 4 }}>
                 {[
-                  {
-                    id: 'morning',
-                    label: 'Morning Person',
-                    sub: 'Study from ~8:00 AM',
-                    emoji: '🌅',
-                  },
-                  {
-                    id: 'night',
-                    label: 'Night Owl',
-                    sub: 'Study from ~7:00 PM',
-                    emoji: '🌙',
-                  },
+                  { id: 'morning', label: 'Morning Person', sub: 'Study from ~8:00 AM', emoji: '🌅' },
+                  { id: 'night', label: 'Night Owl', sub: 'Study from ~7:00 PM', emoji: '🌙' },
                 ].map((opt) => (
                   <button
                     key={opt.id}
@@ -263,10 +277,8 @@ function AssignmentModal({ onClose, onGenerate }) {
           </div>
         )}
 
-        {/* Step 2 — Target */}
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Toggle grade vs mark */}
             <Field label="How would you like to set your target?">
               <div style={{
                 display: 'flex', gap: 0,
@@ -293,7 +305,6 @@ function AssignmentModal({ onClose, onGenerate }) {
               </div>
             </Field>
 
-            {/* Grade selector */}
             {form.performanceType === 'grade' && (
               <Field label="Select your expected grade" error={errors.grade} required>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: 4 }}>
@@ -316,7 +327,6 @@ function AssignmentModal({ onClose, onGenerate }) {
               </Field>
             )}
 
-            {/* Mark slider */}
             {form.performanceType === 'mark' && (
               <Field label="Set your target mark out of 100">
                 <div style={{ marginTop: 8 }}>
@@ -339,15 +349,10 @@ function AssignmentModal({ onClose, onGenerate }) {
                     onChange={(e) => set('mark', Number(e.target.value))}
                     style={{ width: '100%', accentColor: markColor(form.mark), cursor: 'pointer' }}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                    <span style={{ fontSize: 11, color: '#444' }}>0</span>
-                    <span style={{ fontSize: 11, color: '#444' }}>100</span>
-                  </div>
                 </div>
               </Field>
             )}
 
-            {/* Summary preview */}
             <div style={{
               background: '#111',
               border: '1px solid #1e1e1e',
@@ -360,6 +365,7 @@ function AssignmentModal({ onClose, onGenerate }) {
               {[
                 { label: 'Subject', value: form.subject },
                 { label: 'Due', value: form.dueDate ? new Date(form.dueDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—' },
+                { label: 'Current', value: `${form.currentProgress}%` }, // ✅ NEW
                 { label: 'Daily Hours', value: `${form.hoursPerDay}h/day` },
                 { label: 'Study Time', value: form.studyTime === 'morning' ? '🌅 Morning' : form.studyTime === 'night' ? '🌙 Night' : '—' },
               ].map((item) => (
@@ -372,7 +378,6 @@ function AssignmentModal({ onClose, onGenerate }) {
           </div>
         )}
 
-        {/* Footer buttons */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2rem', gap: '0.75rem' }}>
           <button
             onClick={() => step === 0 ? onClose() : setStep((s) => s - 1)}
@@ -402,8 +407,6 @@ function AssignmentModal({ onClose, onGenerate }) {
     </div>
   )
 }
-
-// ── helpers ──────────────────────────────────────────────────────────────────
 
 function Field({ label, hint, error, required, children }) {
   return (

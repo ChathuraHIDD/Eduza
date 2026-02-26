@@ -3,6 +3,8 @@ import AssignmentModal from '../components/schedule/AssignmentModal'
 import ScheduleResult from '../components/schedule/ScheduleResult'
 import MidExamModal from '../components/schedule/MidExamModal'
 import MidExamResult from '../components/schedule/MidExamResult'
+import FinalExamModal from '../components/schedule/FinalExamModal'
+import FinalExamResult from '../components/schedule/FinalExamResult'
 
 const scheduleTypes = [
   {
@@ -45,7 +47,7 @@ const scheduleTypes = [
       </svg>
     ),
     color: '#ef4444',
-    available: false,
+    available: true,
   },
   {
     id: 'whole-semester',
@@ -140,6 +142,7 @@ async function predictTaskDuration({ current_progress, target_progress, past_stu
 function SmartSchedule() {
   const [modalOpen, setModalOpen] = useState(false)
   const [midExamModalOpen, setMidExamModalOpen] = useState(false)
+  const [finalExamModalOpen, setFinalExamModalOpen] = useState(false)
   const [generatedSchedule, setGeneratedSchedule] = useState(null)
   const [scheduleType, setScheduleType] = useState(null)
 
@@ -151,6 +154,7 @@ function SmartSchedule() {
     if (!type.available) return
     if (type.id === 'assignment') setModalOpen(true)
     if (type.id === 'mid-exam') setMidExamModalOpen(true)
+    if (type.id === 'final-exam') setFinalExamModalOpen(true)
   }
 
   // ✅ assignment generate (now includes ML prediction)
@@ -228,9 +232,16 @@ function SmartSchedule() {
     setGeneratedSchedule(scheduleData)
   }
 
+  const handleFinalExamGenerate = (scheduleData) => {
+    setFinalExamModalOpen(false)
+    setScheduleType('final-exam')
+    setGeneratedSchedule(scheduleData)
+  }
+
   const handleReset = () => {
     setGeneratedSchedule(null)
     setScheduleType(null)
+    setFinalExamModalOpen(false)
     setMlLoading(false)
     setMlError('')
   }
@@ -275,6 +286,10 @@ function SmartSchedule() {
 
   if (generatedSchedule && scheduleType === 'mid-exam') {
     return <MidExamResult data={generatedSchedule} onBack={handleReset} />
+  }
+
+  if (generatedSchedule && scheduleType === 'final-exam') {
+    return <FinalExamResult data={generatedSchedule} onBack={handleReset} />
   }
 
   return (
@@ -417,6 +432,14 @@ function SmartSchedule() {
         <MidExamModal
           onClose={() => setMidExamModalOpen(false)}
           onGenerate={handleMidExamGenerate}
+        />
+      )}
+
+      {/* Final Exam modal */}
+      {finalExamModalOpen && (
+        <FinalExamModal
+          onClose={() => setFinalExamModalOpen(false)}
+          onGenerate={handleFinalExamGenerate}
         />
       )}
     </div>

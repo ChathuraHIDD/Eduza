@@ -3,6 +3,8 @@ import AssignmentModal from '../components/schedule/AssignmentModal'
 import ScheduleResult from '../components/schedule/ScheduleResult'
 import MidExamModal from '../components/schedule/MidExamModal'
 import MidExamResult from '../components/schedule/MidExamResult'
+import FinalExamModal from '../components/schedule/FinalExamModal'
+import FinalExamResult from '../components/schedule/FinalExamResult'
 
 const scheduleTypes = [
   {
@@ -45,7 +47,7 @@ const scheduleTypes = [
       </svg>
     ),
     color: '#ef4444',
-    available: false,
+    available: true,
   },
   {
     id: 'whole-semester',
@@ -89,23 +91,139 @@ const scheduleTypes = [
   },
 ]
 
+// ---- ML helpers (no UI change needed) ----
+function gradeToTargetPercent(grade) {
+  const map = {
+    'A+': 90,
+    'A': 85,
+    'B+': 78,
+    'B': 72,
+    'C+': 65,
+    'C': 60,
+    'D': 50,
+    'F': 40,
+  }
+  return map[grade] ?? 70
+}
+
+function deriveDifficultyFromTarget(targetPercent) {
+  // simple rule: higher target -> more difficult
+  if (targetPercent >= 85) return 3
+  if (targetPercent >= 65) return 2
+  return 1
+}
+
+async function predictTaskDuration({ current_progress, target_progress, past_study_pace, difficulty, daily_hours }) {
+  const baseUrl = (import.meta?.env?.VITE_API_URL || 'http://localhost:5001').replace(/\/$/, '')
+
+  const res = await fetch(`${baseUrl}/api/ml/task-duration/predict`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      current_progress,
+      target_progress,
+      past_study_pace,
+      difficulty,
+      daily_hours,
+    }),
+  })
+
+  const payload = await res.json().catch(() => ({}))
+
+  if (!res.ok) {
+    const msg = payload?.message || payload?.error || 'Prediction failed'
+    throw new Error(msg)
+  }
+
+  // expected: { predicted_minutes: number }
+  return payload
+}
+
 function SmartSchedule() {
   const [modalOpen, setModalOpen] = useState(false)
   const [midExamModalOpen, setMidExamModalOpen] = useState(false)
+  const [finalExamModalOpen, setFinalExamModalOpen] = useState(false)
   const [generatedSchedule, setGeneratedSchedule] = useState(null)
   const [scheduleType, setScheduleType] = useState(null)
+
+  // optional UI state (won't break anything)
+  const [mlLoading, setMlLoading] = useState(false)
+  const [mlError, setMlError] = useState('')
 
   const handleTypeSelect = (type) => {
     if (!type.available) return
     if (type.id === 'assignment') setModalOpen(true)
     if (type.id === 'mid-exam') setMidExamModalOpen(true)
+    if (type.id === 'final-exam') setFinalExamModalOpen(true)
   }
 
-  const handleGenerate = (scheduleData) => {
+  // ✅ assignment generate (now includes ML prediction)
+  const handleGenerate = async (scheduleData) => {
     setModalOpen(false)
     setMidExamModalOpen(false)
     setScheduleType('assignment')
+    setMlError('')
     setGeneratedSchedule(scheduleData)
+
+    // --- derive ML inputs from modal form (scheduleData usually contains these) ---
+    // NOTE: scheduleEngine output should include subject, hoursPerDay, targetLabel etc.
+    // If your scheduleEngine doesn’t return mark/grade, we still can infer a target.
+    const hoursPerDay = Number(scheduleData?.hoursPerDay ?? 3)
+
+    // Try to infer target progress:
+    // - if scheduleData contains mark (number) use it
+    // - else if it contains grade string, map it
+    // - else fallback 70
+    let target_progress = 70
+    if (typeof scheduleData?.mark === 'number') target_progress = scheduleData.mark
+    if (typeof scheduleData?.grade === 'string' && scheduleData.grade) target_progress = gradeToTargetPercent(scheduleData.grade)
+
+    // If scheduleEngine stores targetLabel like "A+" or "70%", try to parse it
+    if (typeof scheduleData?.targetLabel === 'string') {
+      const tl = scheduleData.targetLabel.trim()
+      const asNum = Number(tl.replace('%', ''))
+      if (!Number.isNaN(asNum) && asNum > 0) target_progress = asNum
+      if (['A+','A','B+','B','C+','C','D','F'].includes(tl)) target_progress = gradeToTargetPercent(tl)
+    }
+
+    const current_progress = 0 // starting point
+    const difficulty = deriveDifficultyFromTarget(target_progress)
+
+    // until you have real stopwatch pace in DB, we use a default
+    // (later you will replace this by reading the student's history)
+    const past_study_pace = 25 // minutes per 1% progress (reasonable baseline)
+    const daily_hours = hoursPerDay
+
+    // --- call ML endpoint and attach result into scheduleData ---
+    setMlLoading(true)
+    try {
+      const pred = await predictTaskDuration({
+        current_progress,
+        target_progress,
+        past_study_pace,
+        difficulty,
+        daily_hours,
+      })
+
+      const predicted_minutes = Number(pred?.predicted_minutes ?? pred?.predictedMinutes ?? 0)
+      const predicted_hours = predicted_minutes ? Number((predicted_minutes / 60).toFixed(2)) : 0
+      const predicted_days = (predicted_hours && daily_hours) ? Math.ceil(predicted_hours / daily_hours) : 0
+
+      setGeneratedSchedule((prev) => ({
+        ...prev,
+        ml: {
+          predicted_minutes,
+          predicted_hours,
+          predicted_days,
+          inputs: { current_progress, target_progress, past_study_pace, difficulty, daily_hours },
+        },
+      }))
+    } catch (e) {
+      setMlError(e?.message || 'ML prediction failed')
+      // keep schedule usable even if ML fails
+    } finally {
+      setMlLoading(false)
+    }
   }
 
   const handleMidExamGenerate = (scheduleData) => {
@@ -114,17 +232,64 @@ function SmartSchedule() {
     setGeneratedSchedule(scheduleData)
   }
 
+  const handleFinalExamGenerate = (scheduleData) => {
+    setFinalExamModalOpen(false)
+    setScheduleType('final-exam')
+    setGeneratedSchedule(scheduleData)
+  }
+
   const handleReset = () => {
     setGeneratedSchedule(null)
     setScheduleType(null)
+    setFinalExamModalOpen(false)
+    setMlLoading(false)
+    setMlError('')
   }
 
   if (generatedSchedule && scheduleType === 'assignment') {
-    return <ScheduleResult data={generatedSchedule} onBack={handleReset} />
+    return (
+      <div>
+        {/* Optional lightweight ML status (won’t affect your UI much) */}
+        {(mlLoading || mlError) && (
+          <div style={{ maxWidth: 900, margin: '0 auto 1rem' }}>
+            {mlLoading && (
+              <div style={{
+                background: '#111',
+                border: '1px solid #222',
+                borderRadius: 12,
+                padding: '10px 14px',
+                fontSize: 12,
+                color: '#888',
+              }}>
+                ⏳ Calculating AI time estimate…
+              </div>
+            )}
+            {mlError && (
+              <div style={{
+                background: 'rgba(239,68,68,0.08)',
+                border: '1px solid rgba(239,68,68,0.25)',
+                borderRadius: 12,
+                padding: '10px 14px',
+                fontSize: 12,
+                color: '#ef4444',
+              }}>
+                ⚠️ AI estimate unavailable: {mlError}
+              </div>
+            )}
+          </div>
+        )}
+
+        <ScheduleResult data={generatedSchedule} onBack={handleReset} />
+      </div>
+    )
   }
 
   if (generatedSchedule && scheduleType === 'mid-exam') {
     return <MidExamResult data={generatedSchedule} onBack={handleReset} />
+  }
+
+  if (generatedSchedule && scheduleType === 'final-exam') {
+    return <FinalExamResult data={generatedSchedule} onBack={handleReset} />
   }
 
   return (
@@ -267,6 +432,14 @@ function SmartSchedule() {
         <MidExamModal
           onClose={() => setMidExamModalOpen(false)}
           onGenerate={handleMidExamGenerate}
+        />
+      )}
+
+      {/* Final Exam modal */}
+      {finalExamModalOpen && (
+        <FinalExamModal
+          onClose={() => setFinalExamModalOpen(false)}
+          onGenerate={handleFinalExamGenerate}
         />
       )}
     </div>

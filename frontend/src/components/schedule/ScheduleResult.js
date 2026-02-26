@@ -10,11 +10,17 @@ function ScheduleResult({ data, onBack }) {
     subject, dueDate, totalDays, hoursPerDay,
     studyTime, targetLabel, intensity,
     totalHours, phases, days,
+    ml, // ✅ NEW (optional)
   } = data
 
   const dueDateStr = dueDate.toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
   })
+
+  const mlMinutes = Number(ml?.predicted_minutes ?? 0)
+  const mlHours = Number(ml?.predicted_hours ?? (mlMinutes ? mlMinutes / 60 : 0))
+  const mlDays = Number(ml?.predicted_days ?? (mlHours && hoursPerDay ? Math.ceil(mlHours / hoursPerDay) : 0))
+  const mlDaily = hoursPerDay ? Number((mlHours / Number(hoursPerDay)).toFixed(2)) : 0
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
@@ -106,7 +112,7 @@ function ScheduleResult({ data, onBack }) {
       <div style={{
         background: '#1a1a1a', border: '1px solid #242424',
         borderRadius: 16, padding: '1.25rem 1.5rem',
-        marginBottom: '1.5rem',
+        marginBottom: '1.25rem',
       }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f0', marginBottom: '1rem' }}>
           Study Phase Breakdown
@@ -136,6 +142,109 @@ function ScheduleResult({ data, onBack }) {
           ))}
         </div>
       </div>
+
+{/* ✅ NEW: User-friendly AI Estimate card */}
+{ml && mlMinutes > 0 && (
+  <div style={{
+    background: '#1a1a1a',
+    border: '1px solid #242424',
+    borderRadius: 16,
+    padding: '1.25rem 1.5rem',
+    marginBottom: '1.5rem',
+    position: 'relative',
+    overflow: 'hidden',
+  }}>
+    <div style={{
+      position: 'absolute', right: -60, top: -60,
+      width: 220, height: 220, borderRadius: '50%',
+      background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)',
+    }} />
+
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ maxWidth: 520 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: 10,
+            background: 'rgba(59,130,246,0.14)',
+            border: '1px solid rgba(59,130,246,0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="16" height="16" fill="none" stroke="#3b82f6" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path d="M12 6v6l4 2" />
+              <circle cx="12" cy="12" r="9" />
+            </svg>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#f0f0f0' }}>
+              Estimated time to reach your target (AI)
+            </div>
+            <div style={{ fontSize: 12, color: '#666', marginTop: 2, lineHeight: 1.6 }}>
+              If you study about <span style={{ color: '#ccc', fontWeight: 700 }}>{hoursPerDay}h/day</span>,
+              you can reach <span style={{ color: '#ccc', fontWeight: 700 }}>{ml?.inputs?.target_progress ?? 70}%</span> in around{' '}
+              <span style={{ color: '#3b82f6', fontWeight: 800 }}>{mlDays} day{mlDays !== 1 ? 's' : ''}</span>.
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          marginTop: 10,
+          fontSize: 11,
+          color: '#777',
+          background: '#111',
+          border: '1px solid #1e1e1e',
+          borderRadius: 12,
+          padding: '10px 12px',
+          lineHeight: 1.6,
+        }}>
+          ✅ This estimate helps you understand the workload before starting.
+          <br />
+          ⚠️ Real time can change based on focus, difficulty, and distractions.
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <StatPill label="Total time" value={`${Number(mlHours.toFixed(2))}h`} />
+        <StatPill label="In days" value={`${mlDays} days`} />
+        <StatPill label="Per day" value={mlDaily ? `${mlDaily}h/day` : '—'} />
+      </div>
+    </div>
+
+    {/* Details toggle */}
+    <div style={{ marginTop: 12 }}>
+      <details style={{ background: 'transparent' }}>
+        <summary style={{
+          cursor: 'pointer',
+          fontSize: 12,
+          color: '#888',
+          userSelect: 'none',
+        }}>
+          Show how this estimate was calculated
+        </summary>
+
+        <div style={{
+          marginTop: 10,
+          background: '#111',
+          border: '1px solid #1e1e1e',
+          borderRadius: 12,
+          padding: '10px 12px',
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+            Inputs used
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            <MiniItem label="Your current progress" value={`${ml.inputs.current_progress}%`} />
+            <MiniItem label="Your target" value={`${ml.inputs.target_progress}%`} />
+            <MiniItem label="Remaining" value={`${Math.max(0, ml.inputs.target_progress - ml.inputs.current_progress)}%`} />
+            <MiniItem label="Study speed" value={`${ml.inputs.past_study_pace} min per 1%`} />
+            <MiniItem label="Difficulty" value={ml.inputs.difficulty} />
+            <MiniItem label="Daily hours" value={`${ml.inputs.daily_hours}h`} />
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+)}
 
       {/* Day-by-day schedule */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -316,6 +425,33 @@ function Tag({ color, label }) {
       fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
       background: `${color}18`, color: color,
     }}>{label}</span>
+  )
+}
+
+function StatPill({ label, value }) {
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.04)',
+      border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: 12,
+      padding: '10px 14px',
+      minWidth: 90,
+      textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 16, fontWeight: 900, color: '#3b82f6', letterSpacing: '-0.5px' }}>{value}</div>
+      <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>{label}</div>
+    </div>
+  )
+}
+
+function MiniItem({ label, value }) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontSize: 10, color: '#555', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 12, color: '#ccc', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {value}
+      </div>
+    </div>
   )
 }
 

@@ -103,7 +103,7 @@ function StarRating({ value }) {
           height="13"
           viewBox="0 0 24 24"
           fill={s <= Math.round(value) ? "#f97316" : "none"}
-          stroke={s <= Math.round(value) ? "#f97316" : "#444"}
+          stroke={s <= Math.round(value) ? "#f97316" : "#d1d5db"}
           strokeWidth="2"
         >
           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -148,7 +148,7 @@ function LectureProfile() {
     >
       {/* Lecturers list */}
       <div>
-        <h3 style={{ margin: "0 0 0.75rem", fontSize: 14, fontWeight: 700, color: "#f0f0f0" }}>
+        <h3 style={{ margin: "0 0 0.75rem", fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>
           Your Lecturers
         </h3>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
@@ -160,8 +160,8 @@ function LectureProfile() {
                 display: "flex",
                 alignItems: "center",
                 gap: "12px",
-                background: selected.id === l.id ? "#1e1e1e" : "#1a1a1a",
-                border: selected.id === l.id ? `1px solid ${l.color}44` : "1px solid #242424",
+                background: selected.id === l.id ? `${l.color}08` : "#ffffff",
+                border: selected.id === l.id ? `1.5px solid ${l.color}44` : "1.5px solid #e8ecf4",
                 borderLeft: selected.id === l.id ? `3px solid ${l.color}` : "3px solid transparent",
                 borderRadius: 12,
                 padding: "10px 12px",
@@ -169,6 +169,7 @@ function LectureProfile() {
                 textAlign: "left",
                 width: "100%",
                 transition: "all 0.15s",
+                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
               }}
             >
               <div
@@ -189,7 +190,7 @@ function LectureProfile() {
                 {l.initials}
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0", marginBottom: 2 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e", marginBottom: 2 }}>
                   {l.name}
                 </div>
                 <div
@@ -214,11 +215,12 @@ function LectureProfile() {
         {/* Header */}
         <div
           style={{
-            background: "#1a1a1a",
-            border: "1px solid #242424",
+            background: "#ffffff",
+            border: "1.5px solid #e8ecf4",
             borderRadius: 18,
             padding: "1.75rem",
             marginBottom: "1.25rem",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
           }}
         >
           <div style={{ display: "flex", gap: "1.25rem", alignItems: "flex-start" }}>
@@ -257,13 +259,13 @@ function LectureProfile() {
                       margin: "0 0 4px",
                       fontSize: 22,
                       fontWeight: 800,
-                      color: "#f5f5f5",
+      color: "#1a1a2e",
                       letterSpacing: "-0.5px",
                     }}
                   >
                     {selected.name}
                   </h2>
-                  <p style={{ margin: "0 0 6px", fontSize: 13, color: "#777" }}>
+                  <p style={{ margin: "0 0 6px", fontSize: 13, color: "#9ca3af" }}>
                     {selected.title} · {selected.department}
                   </p>
                   <StarRating value={selected.rating} />
@@ -284,7 +286,7 @@ function LectureProfile() {
                 </button>
               </div>
 
-              <p style={{ margin: "12px 0 0", fontSize: 13, color: "#888", lineHeight: 1.7 }}>
+              <p style={{ margin: "12px 0 0", fontSize: 13, color: "#6b7280", lineHeight: 1.7 }}>
                 {selected.specialty}
               </p>
 
@@ -315,7 +317,7 @@ function LectureProfile() {
               gridTemplateColumns: "repeat(3, 1fr)",
               gap: "1px",
               marginTop: "1.5rem",
-              background: "#242424",
+              background: "#e8ecf4",
               borderRadius: 12,
               overflow: "hidden",
             }}
@@ -325,11 +327,11 @@ function LectureProfile() {
               { label: "Students", value: selected.students },
               { label: "Courses", value: selected.courses },
             ].map((s) => (
-              <div key={s.label} style={{ background: "#1e1e1e", padding: "0.9rem", textAlign: "center" }}>
+              <div key={s.label} style={{ background: "#fafbfd", padding: "0.9rem", textAlign: "center" }}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: selected.color, letterSpacing: "-0.5px" }}>
                   {s.value}
                 </div>
-                <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -364,15 +366,16 @@ function LectureProfile() {
         {/* Bio */}
         <div
           style={{
-            background: "#1a1a1a",
-            border: "1px solid #242424",
+            background: "#ffffff",
+            border: "1.5px solid #e8ecf4",
             borderRadius: 14,
             padding: "1.25rem",
             marginBottom: "1.25rem",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
           }}
         >
-          <h3 style={{ margin: "0 0 0.75rem", fontSize: 14, fontWeight: 700, color: "#f0f0f0" }}>About</h3>
-          <p style={{ margin: 0, fontSize: 13, color: "#888", lineHeight: 1.8 }}>{selected.bio}</p>
+          <h3 style={{ margin: "0 0 0.75rem", fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>About</h3>
+          <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.8 }}>{selected.bio}</p>
         </div>
 
         {/* Two col: contact + courses */}
@@ -380,13 +383,14 @@ function LectureProfile() {
           {/* Contact info */}
           <div
             style={{
-              background: "#1a1a1a",
-              border: "1px solid #242424",
+              background: "#ffffff",
+              border: "1.5px solid #e8ecf4",
               borderRadius: 14,
               padding: "1.25rem",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
             }}
           >
-            <h3 style={{ margin: "0 0 0.75rem", fontSize: 14, fontWeight: 700, color: "#f0f0f0" }}>
+            <h3 style={{ margin: "0 0 0.75rem", fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>
               Contact & Office
             </h3>
             {[
@@ -401,13 +405,13 @@ function LectureProfile() {
                   gap: "10px",
                   alignItems: "flex-start",
                   padding: "8px 0",
-                  borderBottom: "1px solid #1e1e1e",
+                  borderBottom: "1px solid #f0f2f8",
                 }}
               >
                 <span style={{ fontSize: 14 }}>{item.icon}</span>
                 <div>
-                  <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>{item.label}</div>
-                  <div style={{ fontSize: 12, color: "#ccc", fontWeight: 500 }}>{item.value}</div>
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 2 }}>{item.label}</div>
+                  <div style={{ fontSize: 12, color: "#374151", fontWeight: 600 }}>{item.value}</div>
                 </div>
               </div>
             ))}
@@ -416,17 +420,18 @@ function LectureProfile() {
           {/* Courses (clickable to select for course-level stopwatch) */}
           <div
             style={{
-              background: "#1a1a1a",
-              border: "1px solid #242424",
+              background: "#ffffff",
+              border: "1.5px solid #e8ecf4",
               borderRadius: 14,
               padding: "1.25rem",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
             }}
           >
-            <h3 style={{ margin: "0 0 0.75rem", fontSize: 14, fontWeight: 700, color: "#f0f0f0" }}>
+            <h3 style={{ margin: "0 0 0.75rem", fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>
               Courses Taught
             </h3>
 
-            <div style={{ fontSize: 11, color: "#666", marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 10 }}>
               Click a course to track time for that course (right stopwatch).
             </div>
 
@@ -439,21 +444,21 @@ function LectureProfile() {
                     key={c.code}
                     onClick={() => setSelectedCourse(c)}
                     style={{
-                      background: isSelected ? `${selected.color}14` : "#1e1e1e",
+                      background: isSelected ? `${selected.color}10` : "#f4f6fb",
                       borderRadius: 10,
                       padding: "10px 12px",
-                      border: isSelected ? `1px solid ${selected.color}66` : `1px solid ${selected.color}22`,
+                      border: isSelected ? `1.5px solid ${selected.color}55` : `1.5px solid #e8ecf4`,
                       cursor: "pointer",
                       textAlign: "left",
                       transition: "all 0.15s",
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "#f0f0f0" }}>{c.name}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>{c.name}</span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: selected.color }}>{c.code}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 11, color: "#555" }}>{c.students} students</span>
+                      <span style={{ fontSize: 11, color: "#9ca3af" }}>{c.students} students</span>
                       <span style={{ fontSize: 11, color: "#f97316" }}>★ {c.rating}</span>
                     </div>
 

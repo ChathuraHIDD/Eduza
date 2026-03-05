@@ -15,20 +15,21 @@ function Topbar({ onMenuClick }) {
   return (
     <header style={{
       height: '64px',
-      background: '#161616',
-      borderBottom: '1px solid #222222',
+      background: '#ffffff',
+      borderBottom: '1px solid #e8ecf4',
       display: 'flex',
       alignItems: 'center',
       padding: '0 1.5rem',
       gap: '1rem',
       flexShrink: 0,
+      boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
     }}>
       {/* Hamburger (mobile) */}
       <button
         onClick={onMenuClick}
         className="lg:hidden"
         style={{
-          background: 'none', border: 'none', color: '#aaa',
+          background: 'none', border: 'none', color: '#6b7280',
           cursor: 'pointer', padding: '6px', borderRadius: '8px',
           display: 'flex', alignItems: 'center',
         }}
@@ -41,7 +42,7 @@ function Topbar({ onMenuClick }) {
       </button>
 
       {/* Page title */}
-      <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#f0f0f0', letterSpacing: '-0.3px' }}>
+      <h1 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1a1a2e', letterSpacing: '-0.3px' }}>
         {title}
       </h1>
 
@@ -51,11 +52,12 @@ function Topbar({ onMenuClick }) {
       {/* Search */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '8px',
-        background: '#1e1e1e', border: '1px solid #2a2a2a',
-        borderRadius: '10px', padding: '6px 14px',
+        background: '#f4f6fb', border: '1.5px solid #e8ecf4',
+        borderRadius: '10px', padding: '7px 14px',
         maxWidth: 240, width: '100%',
+        transition: 'border-color 0.15s',
       }}>
-        <svg width="15" height="15" fill="none" stroke="#666" strokeWidth="2" viewBox="0 0 24 24">
+        <svg width="15" height="15" fill="none" stroke="#9ca3af" strokeWidth="2" viewBox="0 0 24 24">
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
@@ -63,17 +65,18 @@ function Topbar({ onMenuClick }) {
           placeholder="Search..."
           style={{
             background: 'none', border: 'none', outline: 'none',
-            fontSize: 13, color: '#ccc', width: '100%',
+            fontSize: 13, color: '#374151', width: '100%',
           }}
         />
       </div>
 
       {/* Notification bell */}
       <button style={{
-        background: '#1e1e1e', border: '1px solid #2a2a2a',
+        background: '#f4f6fb', border: '1.5px solid #e8ecf4',
         borderRadius: '10px', width: 38, height: 38,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', color: '#aaa', position: 'relative', flexShrink: 0,
+        cursor: 'pointer', color: '#6b7280', position: 'relative', flexShrink: 0,
+        transition: 'all 0.15s ease',
       }}>
         <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -82,9 +85,19 @@ function Topbar({ onMenuClick }) {
         <span style={{
           position: 'absolute', top: 7, right: 7,
           width: 7, height: 7, borderRadius: '50%',
-          background: '#f97316', border: '1.5px solid #161616',
+          background: '#f97316', border: '1.5px solid #ffffff',
         }} />
       </button>
+
+      {/* Avatar */}
+      <div style={{
+        width: 36, height: 36, borderRadius: '50%',
+        background: 'linear-gradient(135deg, #f97316, #ea580c)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0,
+        cursor: 'pointer',
+        boxShadow: '0 2px 8px rgba(249,115,22,0.3)',
+      }}>JD</div>
     </header>
   )
 }

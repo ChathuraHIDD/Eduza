@@ -7,6 +7,8 @@ import FinalExamModal from '../components/schedule/FinalExamModal'
 import FinalExamResult from '../components/schedule/FinalExamResult'
 import WholeSemesterModal from '../components/schedule/WholeSemesterModal'
 import WholeSemesterResult from '../components/schedule/WholeSemesterResult'
+import OtherExamModal from '../components/schedule/OtherExamModal'
+import OtherExamResult from '../components/schedule/OtherExamResult'
 
 const scheduleTypes = [
   {
@@ -76,7 +78,7 @@ const scheduleTypes = [
       </svg>
     ),
     color: '#a855f7',
-    available: false,
+    available: true,
   },
   {
     id: 'other-activity',
@@ -146,6 +148,7 @@ function SmartSchedule() {
   const [midExamModalOpen, setMidExamModalOpen] = useState(false)
   const [finalExamModalOpen, setFinalExamModalOpen] = useState(false)
   const [wholeSemesterModalOpen, setWholeSemesterModalOpen] = useState(false)
+  const [otherExamModalOpen, setOtherExamModalOpen] = useState(false)
   const [generatedSchedule, setGeneratedSchedule] = useState(null)
   const [scheduleType, setScheduleType] = useState(null)
 
@@ -159,6 +162,7 @@ function SmartSchedule() {
     if (type.id === 'mid-exam') setMidExamModalOpen(true)
     if (type.id === 'final-exam') setFinalExamModalOpen(true)
     if (type.id === 'whole-semester') setWholeSemesterModalOpen(true)
+    if (type.id === 'other-exam') setOtherExamModalOpen(true)
   }
 
   // ✅ assignment generate (now includes ML prediction)
@@ -248,11 +252,18 @@ function SmartSchedule() {
     setGeneratedSchedule(scheduleData)
   }
 
+  const handleOtherExamGenerate = (scheduleData) => {
+    setOtherExamModalOpen(false)
+    setScheduleType('other-exam')
+    setGeneratedSchedule(scheduleData)
+  }
+
   const handleReset = () => {
     setGeneratedSchedule(null)
     setScheduleType(null)
     setFinalExamModalOpen(false)
     setWholeSemesterModalOpen(false)
+    setOtherExamModalOpen(false)
     setMlLoading(false)
     setMlError('')
   }
@@ -305,6 +316,10 @@ function SmartSchedule() {
 
   if (generatedSchedule && scheduleType === 'whole-semester') {
     return <WholeSemesterResult data={generatedSchedule} onBack={handleReset} />
+  }
+
+  if (generatedSchedule && scheduleType === 'other-exam') {
+    return <OtherExamResult data={generatedSchedule} onBack={handleReset} />
   }
 
   return (
@@ -463,6 +478,14 @@ function SmartSchedule() {
         <WholeSemesterModal
           onClose={() => setWholeSemesterModalOpen(false)}
           onGenerate={handleWholeSemesterGenerate}
+        />
+      )}
+
+      {/* Other Exam modal */}
+      {otherExamModalOpen && (
+        <OtherExamModal
+          onClose={() => setOtherExamModalOpen(false)}
+          onGenerate={handleOtherExamGenerate}
         />
       )}
     </div>

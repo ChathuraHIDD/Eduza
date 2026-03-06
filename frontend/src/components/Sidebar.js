@@ -56,8 +56,8 @@ function Sidebar({ open, onClose }) {
         style={{
           width: '260px',
           minWidth: '260px',
-          background: '#161616',
-          borderRight: '1px solid #222222',
+          background: '#ffffff',
+          borderRight: '1px solid #e8ecf4',
           display: 'flex',
           flexDirection: 'column',
           height: '100vh',
@@ -65,6 +65,7 @@ function Sidebar({ open, onClose }) {
           zIndex: 50,
           transition: 'transform 0.3s ease',
           transform: open ? 'translateX(0)' : undefined,
+          boxShadow: '2px 0 12px rgba(0,0,0,0.05)',
         }}
         className="hidden lg:flex"
       >
@@ -76,8 +77,8 @@ function Sidebar({ open, onClose }) {
         style={{
           width: '260px',
           minWidth: '260px',
-          background: '#161616',
-          borderRight: '1px solid #222222',
+          background: '#ffffff',
+          borderRight: '1px solid #e8ecf4',
           display: 'flex',
           flexDirection: 'column',
           height: '100vh',
@@ -87,6 +88,7 @@ function Sidebar({ open, onClose }) {
           zIndex: 50,
           transition: 'transform 0.3s ease',
           transform: open ? 'translateX(0)' : 'translateX(-100%)',
+          boxShadow: '4px 0 20px rgba(0,0,0,0.1)',
         }}
         className="lg:hidden"
       >
@@ -101,27 +103,28 @@ function SidebarContent({ onClose }) {
     <>
       {/* Logo */}
       <div style={{
-        padding: '1.5rem 1.5rem 1rem',
-        borderBottom: '1px solid #222222',
+        padding: '1.25rem 1.5rem 1rem',
+        borderBottom: '1px solid #e8ecf4',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
         <NavLink to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'linear-gradient(135deg, #f97316, #c2410c)',
+            width: 38, height: 38, borderRadius: 11,
+            background: 'linear-gradient(135deg, #f97316, #ea580c)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px',
+            fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px',
+            boxShadow: '0 4px 12px rgba(249,115,22,0.3)',
           }}>E</div>
-          <span style={{ fontSize: 20, fontWeight: 700, color: '#f5f5f5', letterSpacing: '-0.5px' }}>
+          <span style={{ fontSize: 20, fontWeight: 800, color: '#1a1a2e', letterSpacing: '-0.5px' }}>
             EDU<span style={{ color: '#f97316' }}>ZA</span>
           </span>
         </NavLink>
         <button
           onClick={onClose}
           className="lg:hidden"
-          style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: 4 }}
+          style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', padding: 4 }}
         >
           <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -131,8 +134,8 @@ function SidebarContent({ onClose }) {
       </div>
 
       {/* Nav label */}
-      <div style={{ padding: '1.5rem 1.5rem 0.5rem' }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+      <div style={{ padding: '1.25rem 1.5rem 0.4rem' }}>
+        <span style={{ fontSize: 10.5, fontWeight: 700, color: '#b0bac9', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
           Navigation
         </span>
       </div>
@@ -150,10 +153,10 @@ function SidebarContent({ onClose }) {
             padding: '10px 12px',
             borderRadius: '10px',
             textDecoration: 'none',
-            fontSize: '14.5px',
-            fontWeight: isActive ? 600 : 400,
-            color: isActive ? '#f97316' : '#aaaaaa',
-            background: isActive ? 'rgba(249,115,22,0.1)' : 'transparent',
+            fontSize: '14px',
+            fontWeight: isActive ? 600 : 500,
+            color: isActive ? '#f97316' : '#6b7280',
+            background: isActive ? 'rgba(249,115,22,0.08)' : 'transparent',
             marginBottom: 2,
             transition: 'all 0.15s ease',
           })}
@@ -166,11 +169,11 @@ function SidebarContent({ onClose }) {
         </NavLink>
 
         {/* Divider */}
-        <div style={{ height: 1, background: '#222', margin: '10px 4px' }} />
+        <div style={{ height: 1, background: '#e8ecf4', margin: '10px 4px' }} />
 
         {/* Menu label */}
         <div style={{ padding: '4px 12px 8px' }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#b0bac9', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
             Menu
           </span>
         </div>
@@ -187,10 +190,10 @@ function SidebarContent({ onClose }) {
               padding: '10px 12px',
               borderRadius: '10px',
               textDecoration: 'none',
-              fontSize: '14.5px',
-              fontWeight: isActive ? 600 : 400,
-              color: isActive ? '#f97316' : '#aaaaaa',
-              background: isActive ? 'rgba(249,115,22,0.1)' : 'transparent',
+              fontSize: '14px',
+              fontWeight: isActive ? 600 : 500,
+              color: isActive ? '#f97316' : '#6b7280',
+              background: isActive ? 'rgba(249,115,22,0.08)' : 'transparent',
               marginBottom: 2,
               transition: 'all 0.15s ease',
             })}
@@ -204,22 +207,24 @@ function SidebarContent({ onClose }) {
       {/* Footer */}
       <div style={{
         padding: '1rem 1.5rem',
-        borderTop: '1px solid #222',
+        borderTop: '1px solid #e8ecf4',
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
+        background: '#fafbfd',
       }}>
         <div style={{
           width: 34, height: 34, borderRadius: '50%',
-          background: 'linear-gradient(135deg, #f97316, #c2410c)',
+          background: 'linear-gradient(135deg, #f97316, #ea580c)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0,
+          boxShadow: '0 2px 8px rgba(249,115,22,0.3)',
         }}>JD</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#f0f0f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             John Doe
           </div>
-          <div style={{ fontSize: 12, color: '#666' }}>Student</div>
+          <div style={{ fontSize: 12, color: '#9ca3af' }}>Student</div>
         </div>
       </div>
     </>

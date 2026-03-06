@@ -5,6 +5,12 @@ import MidExamModal from '../components/schedule/MidExamModal'
 import MidExamResult from '../components/schedule/MidExamResult'
 import FinalExamModal from '../components/schedule/FinalExamModal'
 import FinalExamResult from '../components/schedule/FinalExamResult'
+import WholeSemesterModal from '../components/schedule/WholeSemesterModal'
+import WholeSemesterResult from '../components/schedule/WholeSemesterResult'
+import OtherExamModal from '../components/schedule/OtherExamModal'
+import OtherExamResult from '../components/schedule/OtherExamResult'
+import OtherActivityModal from '../components/schedule/OtherActivityModal'
+import OtherActivityResult from '../components/schedule/OtherActivityResult'
 
 const scheduleTypes = [
   {
@@ -62,7 +68,7 @@ const scheduleTypes = [
       </svg>
     ),
     color: '#22c55e',
-    available: false,
+    available: true,
   },
   {
     id: 'other-exam',
@@ -74,7 +80,7 @@ const scheduleTypes = [
       </svg>
     ),
     color: '#a855f7',
-    available: false,
+    available: true,
   },
   {
     id: 'other-activity',
@@ -87,7 +93,7 @@ const scheduleTypes = [
       </svg>
     ),
     color: '#06b6d4',
-    available: false,
+    available: true,
   },
 ]
 
@@ -143,6 +149,9 @@ function SmartSchedule() {
   const [modalOpen, setModalOpen] = useState(false)
   const [midExamModalOpen, setMidExamModalOpen] = useState(false)
   const [finalExamModalOpen, setFinalExamModalOpen] = useState(false)
+  const [wholeSemesterModalOpen, setWholeSemesterModalOpen] = useState(false)
+  const [otherExamModalOpen, setOtherExamModalOpen] = useState(false)
+  const [otherActivityModalOpen, setOtherActivityModalOpen] = useState(false)
   const [generatedSchedule, setGeneratedSchedule] = useState(null)
   const [scheduleType, setScheduleType] = useState(null)
 
@@ -155,6 +164,9 @@ function SmartSchedule() {
     if (type.id === 'assignment') setModalOpen(true)
     if (type.id === 'mid-exam') setMidExamModalOpen(true)
     if (type.id === 'final-exam') setFinalExamModalOpen(true)
+    if (type.id === 'whole-semester') setWholeSemesterModalOpen(true)
+    if (type.id === 'other-exam') setOtherExamModalOpen(true)
+    if (type.id === 'other-activity') setOtherActivityModalOpen(true)
   }
 
   // ✅ assignment generate (now includes ML prediction)
@@ -238,10 +250,31 @@ function SmartSchedule() {
     setGeneratedSchedule(scheduleData)
   }
 
+  const handleWholeSemesterGenerate = (scheduleData) => {
+    setWholeSemesterModalOpen(false)
+    setScheduleType('whole-semester')
+    setGeneratedSchedule(scheduleData)
+  }
+
+  const handleOtherExamGenerate = (scheduleData) => {
+    setOtherExamModalOpen(false)
+    setScheduleType('other-exam')
+    setGeneratedSchedule(scheduleData)
+  }
+
+  const handleOtherActivityGenerate = (scheduleData) => {
+    setOtherActivityModalOpen(false)
+    setScheduleType('other-activity')
+    setGeneratedSchedule(scheduleData)
+  }
+
   const handleReset = () => {
     setGeneratedSchedule(null)
     setScheduleType(null)
     setFinalExamModalOpen(false)
+    setWholeSemesterModalOpen(false)
+    setOtherExamModalOpen(false)
+    setOtherActivityModalOpen(false)
     setMlLoading(false)
     setMlError('')
   }
@@ -292,41 +325,58 @@ function SmartSchedule() {
     return <FinalExamResult data={generatedSchedule} onBack={handleReset} />
   }
 
+  if (generatedSchedule && scheduleType === 'whole-semester') {
+    return <WholeSemesterResult data={generatedSchedule} onBack={handleReset} />
+  }
+
+  if (generatedSchedule && scheduleType === 'other-exam') {
+    return <OtherExamResult data={generatedSchedule} onBack={handleReset} />
+  }
+
+  if (generatedSchedule && scheduleType === 'other-activity') {
+    return <OtherActivityResult data={generatedSchedule} onBack={handleReset} />
+  }
+
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
       {/* Header */}
       <div style={{
-        background: 'linear-gradient(135deg, #1a1a1a 0%, #1e1408 100%)',
-        border: '1px solid #2a2010',
-        borderRadius: 18,
+        background: 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%)',
+        borderRadius: 20,
         padding: '1.75rem 2rem',
         marginBottom: '2rem',
         position: 'relative',
         overflow: 'hidden',
+        boxShadow: '0 8px 32px rgba(249,115,22,0.28)',
       }}>
         <div style={{
           position: 'absolute', right: -40, top: -40,
-          width: 200, height: 200, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%)',
+          width: 220, height: 220, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.08)',
+        }} />
+        <div style={{
+          position: 'absolute', right: 100, bottom: -50,
+          width: 160, height: 160, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.05)',
         }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '0.5rem' }}>
           <div style={{
             width: 36, height: 36, borderRadius: 10,
-            background: 'rgba(249,115,22,0.15)',
+            background: 'rgba(255,255,255,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <svg width="18" height="18" fill="none" stroke="#f97316" strokeWidth="2" viewBox="0 0 24 24">
+            <svg width="18" height="18" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
             </svg>
           </div>
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#f97316', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.85)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             AI-Powered
           </span>
         </div>
-        <h2 style={{ margin: '0 0 6px', fontSize: 26, fontWeight: 800, color: '#f5f5f5', letterSpacing: '-0.5px' }}>
+        <h2 style={{ margin: '0 0 6px', fontSize: 26, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.5px' }}>
           Smart Schedule
         </h2>
-        <p style={{ margin: 0, fontSize: 14, color: '#666', lineHeight: 1.6 }}>
+        <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
           Select a schedule type below. Our AI will generate a personalised, day-by-day study plan tailored to your goals.
         </p>
       </div>
@@ -343,9 +393,9 @@ function SmartSchedule() {
             onClick={() => handleTypeSelect(type)}
             disabled={!type.available}
             style={{
-              background: '#1a1a1a',
-              border: `1px solid ${type.available ? '#2a2a2a' : '#1e1e1e'}`,
-              borderRadius: 16,
+              background: '#ffffff',
+              border: `1.5px solid ${type.available ? '#e8ecf4' : '#f0f2f8'}`,
+              borderRadius: 18,
               padding: '1.5rem',
               cursor: type.available ? 'pointer' : 'not-allowed',
               textAlign: 'left',
@@ -353,18 +403,21 @@ function SmartSchedule() {
               opacity: type.available ? 1 : 0.5,
               position: 'relative',
               overflow: 'hidden',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
             }}
             onMouseEnter={(e) => {
               if (!type.available) return
-              e.currentTarget.style.border = `1px solid ${type.color}55`
-              e.currentTarget.style.background = `${type.color}08`
-              e.currentTarget.style.transform = 'translateY(-2px)'
+              e.currentTarget.style.border = `1.5px solid ${type.color}55`
+              e.currentTarget.style.background = `${type.color}06`
+              e.currentTarget.style.transform = 'translateY(-3px)'
+              e.currentTarget.style.boxShadow = `0 8px 24px ${type.color}20`
             }}
             onMouseLeave={(e) => {
               if (!type.available) return
-              e.currentTarget.style.border = '1px solid #2a2a2a'
-              e.currentTarget.style.background = '#1a1a1a'
+              e.currentTarget.style.border = '1.5px solid #e8ecf4'
+              e.currentTarget.style.background = '#ffffff'
               e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'
             }}
           >
             {/* Available badge */}
@@ -372,18 +425,20 @@ function SmartSchedule() {
               <div style={{
                 position: 'absolute', top: 12, right: 12,
                 fontSize: 10, fontWeight: 700,
-                background: 'rgba(249,115,22,0.15)',
+                background: 'rgba(249,115,22,0.1)',
                 color: '#f97316', padding: '2px 8px', borderRadius: 20,
                 letterSpacing: '0.05em',
+                border: '1px solid rgba(249,115,22,0.2)',
               }}>AVAILABLE</div>
             )}
             {!type.available && (
               <div style={{
                 position: 'absolute', top: 12, right: 12,
                 fontSize: 10, fontWeight: 600,
-                background: '#1e1e1e', color: '#555',
+                background: '#f0f2f8', color: '#9ca3af',
                 padding: '2px 8px', borderRadius: 20,
                 letterSpacing: '0.05em',
+                border: '1px solid #e8ecf4',
               }}>COMING SOON</div>
             )}
 
@@ -399,10 +454,10 @@ function SmartSchedule() {
               {type.icon}
             </div>
 
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#f0f0f0', marginBottom: 6 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#1a1a2e', marginBottom: 6 }}>
               {type.label}
             </div>
-            <div style={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: '#9ca3af', lineHeight: 1.6 }}>
               {type.description}
             </div>
 
@@ -440,6 +495,30 @@ function SmartSchedule() {
         <FinalExamModal
           onClose={() => setFinalExamModalOpen(false)}
           onGenerate={handleFinalExamGenerate}
+        />
+      )}
+
+      {/* Whole Semester modal */}
+      {wholeSemesterModalOpen && (
+        <WholeSemesterModal
+          onClose={() => setWholeSemesterModalOpen(false)}
+          onGenerate={handleWholeSemesterGenerate}
+        />
+      )}
+
+      {/* Other Exam modal */}
+      {otherExamModalOpen && (
+        <OtherExamModal
+          onClose={() => setOtherExamModalOpen(false)}
+          onGenerate={handleOtherExamGenerate}
+        />
+      )}
+
+      {/* Other Activity modal */}
+      {otherActivityModalOpen && (
+        <OtherActivityModal
+          onClose={() => setOtherActivityModalOpen(false)}
+          onGenerate={handleOtherActivityGenerate}
         />
       )}
     </div>

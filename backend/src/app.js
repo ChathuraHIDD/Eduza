@@ -10,6 +10,7 @@ const stressHubRoutes = require('./routes/stressHubRoutes');
 const progressLogRoutes = require("./routes/progressLogRoutes");
 const studySessionRoutes = require("./routes/studySessionRoutes");
 const mlRoutes = require("./routes/mlRoutes");
+const moduleRoutes = require("./routes/moduleRoutes");
 
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
@@ -34,6 +35,7 @@ app.use('/api/stress-hub', stressHubRoutes);
 app.use("/api/progress-logs", progressLogRoutes);
 app.use("/api/study-sessions", studySessionRoutes);
 app.use("/api/ml", mlRoutes);
+app.use("/api/modules", moduleRoutes);
 
 // Errors
 app.use(notFound);

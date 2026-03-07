@@ -30,3 +30,54 @@ export async function apiFetch(path, options = {}) {
 
   return data;
 }
+
+// login/register
+export function getAuthToken() {
+  return localStorage.getItem("token");
+}
+
+// login/register
+export function getStoredUser() {
+  const rawUser = localStorage.getItem("user");
+  return rawUser ? JSON.parse(rawUser) : null;
+}
+
+// login/register
+export function setAuthData(data) {
+  localStorage.setItem("token", data.token);
+  localStorage.setItem("user", JSON.stringify(data.user));
+}
+
+// login/register
+export function clearAuthData() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+}
+
+// login/register
+export async function registerRequest(payload) {
+  return apiFetch("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// login/register
+export async function loginRequest(payload) {
+  return apiFetch("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// login/register
+export async function getMeRequest() {
+  const token = getAuthToken();
+
+  return apiFetch("/api/auth/me", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}

@@ -13,6 +13,8 @@ const mlRoutes = require("./routes/mlRoutes");
 
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
+const authRoutes = require("./routes/authRoutes"); // login/register
+
 const app = express();
 
 // Middleware
@@ -34,6 +36,9 @@ app.use('/api/stress-hub', stressHubRoutes);
 app.use("/api/progress-logs", progressLogRoutes);
 app.use("/api/study-sessions", studySessionRoutes);
 app.use("/api/ml", mlRoutes);
+
+//Login and Registration
+app.use("/api/auth", authRoutes); // login/register
 
 // Errors
 app.use(notFound);

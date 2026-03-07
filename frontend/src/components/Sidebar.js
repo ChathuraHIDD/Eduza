@@ -97,27 +97,57 @@ function Sidebar({ open, onClose }) {
 }
 
 function SidebarContent({ onClose }) {
+  // login/register - get logged user from localStorage
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+
+  // login/register - create initials from logged user name
+  const getInitials = (name = '') =>
+    name
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+
+  // login/register - format role with capital first letter
+  const formattedRole =
+    user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Student'
+
   return (
     <>
       {/* Logo */}
-      <div style={{
-        padding: '1.5rem 1.5rem 1rem',
-        borderBottom: '1px solid #222222',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
+      <div
+        style={{
+          padding: '1.5rem 1.5rem 1rem',
+          borderBottom: '1px solid #222222',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
         <NavLink to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'linear-gradient(135deg, #f97316, #c2410c)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px',
-          }}>E</div>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, #f97316, #c2410c)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 16,
+              fontWeight: 800,
+              color: '#fff',
+              letterSpacing: '-0.5px',
+            }}
+          >
+            E
+          </div>
           <span style={{ fontSize: 20, fontWeight: 700, color: '#f5f5f5', letterSpacing: '-0.5px' }}>
             EDU<span style={{ color: '#f97316' }}>ZA</span>
           </span>
         </NavLink>
+
         <button
           onClick={onClose}
           className="lg:hidden"
@@ -132,7 +162,15 @@ function SidebarContent({ onClose }) {
 
       {/* Nav label */}
       <div style={{ padding: '1.5rem 1.5rem 0.5rem' }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#555',
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+          }}
+        >
           Navigation
         </span>
       </div>
@@ -170,7 +208,15 @@ function SidebarContent({ onClose }) {
 
         {/* Menu label */}
         <div style={{ padding: '4px 12px 8px' }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#555',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+            }}
+          >
             Menu
           </span>
         </div>
@@ -202,24 +248,53 @@ function SidebarContent({ onClose }) {
       </nav>
 
       {/* Footer */}
-      <div style={{
-        padding: '1rem 1.5rem',
-        borderTop: '1px solid #222',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-      }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: '50%',
-          background: 'linear-gradient(135deg, #f97316, #c2410c)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0,
-        }}>JD</div>
+      <div
+        style={{
+          padding: '1rem 1.5rem',
+          borderTop: '1px solid #222',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+        }}
+      >
+        <div
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #f97316, #c2410c)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 13,
+            fontWeight: 700,
+            color: '#fff',
+            flexShrink: 0,
+          }}
+        >
+          {/* login/register - show logged user initials */}
+          {getInitials(user?.name || 'User')}
+        </div>
+
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#f0f0f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            John Doe
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: '#f0f0f0',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {/* login/register - show logged user name */}
+            {user?.name || 'User'}
           </div>
-          <div style={{ fontSize: 12, color: '#666' }}>Student</div>
+
+          <div style={{ fontSize: 12, color: '#666' }}>
+            {/* login/register - show logged user role */}
+            {formattedRole}
+          </div>
         </div>
       </div>
     </>

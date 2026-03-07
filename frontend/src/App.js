@@ -30,6 +30,7 @@ function App() {
           <Route index element={<Home />} />
           <Route path="smart-schedule" element={<SmartSchedule />} />
           <Route path="stress-hub" element={<StressHub />} />
+          <Route path="lecture-profile" element={<LectureProfile />} />
 
           <Route
             path="profile"

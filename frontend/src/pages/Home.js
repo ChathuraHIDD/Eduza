@@ -104,6 +104,12 @@ function CourseCard({ course }) {
 function Home() {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
+  // login/register - get logged user from localStorage
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+
+  // login/register - get first name from logged user name
+  const firstName = user?.name ? user.name.split(' ')[0] : 'User'
+
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       {/* Welcome banner */}
@@ -129,7 +135,8 @@ function Home() {
         <div>
           <div style={{ fontSize: 13, color: '#f97316', fontWeight: 500, marginBottom: 6 }}>{today}</div>
           <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#f5f5f5', letterSpacing: '-0.5px' }}>
-            Good morning, John 👋
+            {/* login/register - show logged user first name */}
+            Good morning, {firstName} 👋
           </h2>
           <p style={{ margin: '6px 0 0', fontSize: 14, color: '#666', lineHeight: 1.5 }}>
             You have <span style={{ color: '#f97316', fontWeight: 600 }}>3 assignments</span> due this week and{' '}

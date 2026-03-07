@@ -74,13 +74,12 @@ function SoftwareHub() {
     switch (type) {
       case "figma":
         return (
-          <svg width="26" height="26" viewBox="0 0 38 57" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19 28.5C19 23.2533 23.2533 19 28.5 19C33.7467 19 38 23.2533 38 28.5C38 33.7467 33.7467 38 28.5 38C23.2533 38 19 33.7467 19 28.5Z" fill="#1ABCFE"/>
-            <path d="M0 47.5C0 42.2533 4.25329 38 9.5 38H19V47.5C19 52.7467 14.7467 57 9.5 57C4.25329 57 0 52.7467 0 47.5Z" fill="#0ACF83"/>
-            <path d="M19 0V19H28.5C33.7467 19 38 14.7467 38 9.5C38 4.25329 33.7467 0 28.5 0H19Z" fill="#FF7262"/>
-            <path d="M0 9.5C0 14.7467 4.25329 19 9.5 19H19V0H9.5C4.25329 0 0 4.25329 0 9.5Z" fill="#F24E1E"/>
-            <path d="M0 28.5C0 33.7467 4.25329 38 9.5 38H19V19H9.5C4.25329 19 0 23.2533 0 28.5Z" fill="#A259FF"/>
-          </svg>
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg"
+            alt="Figma"
+            width="28"
+            height="28"
+          />
         );
 
       case "xd":
@@ -127,15 +126,154 @@ function SoftwareHub() {
 
       case "sketch":
         return (
-          <svg width="28" height="28" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M27.112 7h73.776L121 31.696 64 121 7 31.696 27.112 7z" fill="#FDB300"/>
-            <path d="M27.112 7L7 31.696h38.64L27.112 7z" fill="#EA6C00"/>
-            <path d="M100.888 7L121 31.696H82.36L100.888 7z" fill="#EA6C00"/>
-            <path d="M45.64 31.696L64 121 7 31.696h38.64z" fill="#FDAD00"/>
-            <path d="M82.36 31.696L64 121l57-89.304H82.36z" fill="#FDAD00"/>
-            <path d="M45.64 31.696h36.72L64 121 45.64 31.696z" fill="#FDD231"/>
-            <path d="M64 7L45.64 31.696h36.72L64 7z" fill="#FEEEB7"/>
-          </svg>
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/sketch/sketch-original.svg"
+            alt="Sketch"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "vscode":
+        return (
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg"
+            alt="VS Code"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "postman":
+        return (
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postman/postman-original.svg"
+            alt="Postman"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "docker":
+        return (
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg"
+            alt="Docker"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "node":
+      case "nodejs":
+        return (
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg"
+            alt="Node.js"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "mongodb":
+        return (
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg"
+            alt="MongoDB"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "mysql":
+        return (
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg"
+            alt="MySQL"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "github":
+        return (
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg"
+            alt="GitHub"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "git":
+        return (
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg"
+            alt="Git"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "chrome":
+        return (
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/chrome/chrome-original.svg"
+            alt="Chrome"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "android":
+        return (
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/android/android-original.svg"
+            alt="Android"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "slack":
+        return (
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/slack/slack-original.svg"
+            alt="Slack"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "notion":
+        return (
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/notion/notion-original.svg"
+            alt="Notion"
+            width="28"
+            height="28"
+          />
+        );
+
+      case "wampserver":
+        return (
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 10,
+              background: "#7a2020",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#fff",
+              fontWeight: 800,
+              fontSize: 11,
+              border: "1px solid #a83b3b",
+            }}
+          >
+            W
+          </div>
         );
 
       default:
@@ -272,7 +410,10 @@ function SoftwareHub() {
                   {renderIcon(file.type)}
                 </div>
 
-                <div ref={openMenuIndex === i ? menuRef : null} style={{ position: "relative" }}>
+                <div
+                  ref={openMenuIndex === i ? menuRef : null}
+                  style={{ position: "relative" }}
+                >
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

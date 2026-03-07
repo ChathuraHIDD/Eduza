@@ -81,3 +81,30 @@ export async function getMeRequest() {
     },
   });
 }
+
+// software - create
+export async function createSoftwareRequest(payload) {
+  const token = getAuthToken();
+
+  return apiFetch("/api/software", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+// software - list
+export async function getSoftwareListRequest() {
+  return apiFetch("/api/software", {
+    method: "GET",
+  });
+}
+
+// software - single
+export async function getSoftwareByIdRequest(id) {
+  return apiFetch(`/api/software/${id}`, {
+    method: "GET",
+  });
+}

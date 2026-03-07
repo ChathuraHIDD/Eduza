@@ -1,55 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getSoftwareListRequest } from "../../utils/api";
 
 function SoftwareHub() {
   const navigate = useNavigate();
   const [openMenuIndex, setOpenMenuIndex] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
   const menuRef = useRef(null);
 
-  const files = [
-    {
-      name: "AppSchool",
-      software: "Figma",
-      size: "2 GB",
-      type: "figma",
-      slug: "figma",
-    },
-    {
-      name: "BC company",
-      software: "Sketch",
-      size: "2 GB",
-      type: "sketch",
-      slug: "sketch",
-    },
-    {
-      name: "UI Kit",
-      software: "Adobe XD",
-      size: "15 MB",
-      type: "xd",
-      slug: "adobe-xd",
-    },
-    {
-      name: "Company ANV",
-      software: "Figma",
-      size: "2 GB",
-      type: "figma",
-      slug: "figma",
-    },
-    {
-      name: "Company ABC",
-      software: "Sketch",
-      size: "6 MB",
-      type: "sketch",
-      slug: "sketch",
-    },
-    {
-      name: "My CV",
-      software: "PDF",
-      size: "2 GB",
-      type: "pdf",
-      slug: "pdf-reader",
-    },
-  ];
+  useEffect(() => {
+    const fetchSoftware = async () => {
+      try {
+        const data = await getSoftwareListRequest();
+        setFiles(data || []);
+      } catch (error) {
+        console.error("Failed to fetch software:", error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSoftware();
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -65,6 +38,7 @@ function SoftwareHub() {
   }, []);
 
   const parseSizeToGB = (size) => {
+    if (!size) return 0;
     const [value, unit] = size.split(" ");
     const numericValue = Number(value);
 
@@ -79,11 +53,21 @@ function SoftwareHub() {
 
   const handleDownload = (file) => {
     setOpenMenuIndex(null);
-    alert(`Downloading ${file.name} (${file.software})`);
+
+    const link = file.windowsLink || file.macLink;
+    if (link) {
+      window.open(link, "_blank");
+    } else {
+      alert("No download link available");
+    }
   };
 
   const handleOpenSoftware = (file) => {
-    navigate(`/software/${file.slug}`);
+    navigate(`/software/${file._id}`);
+  };
+
+  const handleAddNew = () => {
+    navigate("/upload-software");
   };
 
   const renderIcon = (type) => {
@@ -178,164 +162,214 @@ function SoftwareHub() {
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-      <div style={{ marginBottom: "2rem" }}>
-        <h1
-          style={{
-            color: "#f5f5f5",
-            fontSize: "28px",
-            fontWeight: "800",
-            marginBottom: "4px",
-          }}
-        >
-          Software Hub
-        </h1>
-
-        <div style={{ color: "#666", fontSize: "13px" }}>
-          Total: {totalGB} GB
-        </div>
-      </div>
-
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
-          gap: "18px",
+          marginBottom: "2rem",
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
         }}
       >
-        {files.map((file, i) => (
-          <div
-            key={i}
-            onClick={() => handleOpenSoftware(file)}
+        <div>
+          <h1
             style={{
-              background: "#1a1a1a",
-              border: "1px solid #242424",
-              borderRadius: "16px",
-              padding: "18px",
-              position: "relative",
-              transition: "0.2s",
-              cursor: "pointer",
+              color: "#f5f5f5",
+              fontSize: "28px",
+              fontWeight: "800",
+              marginBottom: "4px",
             }}
           >
+            Software Hub
+          </h1>
+
+          <div style={{ color: "#666", fontSize: "13px" }}>
+            Total: {totalGB} GB
+          </div>
+        </div>
+
+        <button
+          onClick={handleAddNew}
+          style={{
+            border: "none",
+            borderRadius: 999,
+            background: "linear-gradient(135deg, #7c8cff, #6678f0)",
+            color: "#fff",
+            fontSize: "13px",
+            fontWeight: 700,
+            padding: "10px 16px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            boxShadow: "0 8px 24px rgba(102,120,240,0.28)",
+          }}
+        >
+          <span
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.18)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 12,
+              fontWeight: 800,
+            }}
+          >
+            +
+          </span>
+          Add New
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ color: "#aaa" }}>Loading software...</div>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
+            gap: "18px",
+          }}
+        >
+          {files.map((file, i) => (
             <div
+              key={file._id}
+              onClick={() => handleOpenSoftware(file)}
               style={{
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                marginBottom: "14px",
+                background: "#1a1a1a",
+                border: "1px solid #242424",
+                borderRadius: "16px",
+                padding: "18px",
+                position: "relative",
+                transition: "0.2s",
+                cursor: "pointer",
               }}
             >
               <div
                 style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 14,
-                  background: "rgba(249,115,22,0.08)",
-                  border: "1px solid rgba(249,115,22,0.12)",
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  marginBottom: "14px",
                 }}
               >
-                {renderIcon(file.type)}
-              </div>
-
-              <div ref={openMenuIndex === i ? menuRef : null} style={{ position: "relative" }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpenMenuIndex(openMenuIndex === i ? null : i);
-                  }}
+                <div
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 10,
-                    border: "none",
-                    background: "transparent",
-                    color: "#777",
-                    cursor: "pointer",
+                    width: 52,
+                    height: 52,
+                    borderRadius: 14,
+                    background: "rgba(249,115,22,0.08)",
+                    border: "1px solid rgba(249,115,22,0.12)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
-                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
-                    <circle cx="12" cy="5" r="1.8" fill="currentColor" />
-                    <circle cx="12" cy="12" r="1.8" fill="currentColor" />
-                    <circle cx="12" cy="19" r="1.8" fill="currentColor" />
-                  </svg>
-                </button>
+                  {renderIcon(file.type)}
+                </div>
 
-                {openMenuIndex === i && (
-                  <div
+                <div ref={openMenuIndex === i ? menuRef : null} style={{ position: "relative" }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenMenuIndex(openMenuIndex === i ? null : i);
+                    }}
                     style={{
-                      position: "absolute",
-                      top: "36px",
-                      right: 0,
-                      minWidth: "130px",
-                      background: "#141414",
-                      border: "1px solid #2a2a2a",
-                      borderRadius: "12px",
-                      overflow: "hidden",
-                      boxShadow: "0 10px 24px rgba(0,0,0,0.35)",
-                      zIndex: 20,
+                      width: 32,
+                      height: 32,
+                      borderRadius: 10,
+                      border: "none",
+                      background: "transparent",
+                      color: "#777",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownload(file);
-                      }}
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+                      <circle cx="12" cy="5" r="1.8" fill="currentColor" />
+                      <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+                      <circle cx="12" cy="19" r="1.8" fill="currentColor" />
+                    </svg>
+                  </button>
+
+                  {openMenuIndex === i && (
+                    <div
                       style={{
-                        width: "100%",
-                        border: "none",
-                        background: "transparent",
-                        color: "#f0f0f0",
-                        padding: "12px 14px",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontSize: "13px",
+                        position: "absolute",
+                        top: "36px",
+                        right: 0,
+                        minWidth: "130px",
+                        background: "#141414",
+                        border: "1px solid #2a2a2a",
+                        borderRadius: "12px",
+                        overflow: "hidden",
+                        boxShadow: "0 10px 24px rgba(0,0,0,0.35)",
+                        zIndex: 20,
                       }}
                     >
-                      Download
-                    </button>
-                  </div>
-                )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownload(file);
+                        }}
+                        style={{
+                          width: "100%",
+                          border: "none",
+                          background: "transparent",
+                          color: "#f0f0f0",
+                          padding: "12px 14px",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          fontSize: "13px",
+                        }}
+                      >
+                        Download
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#f5f5f5",
+                  fontSize: "15px",
+                  fontWeight: "700",
+                  marginBottom: "6px",
+                }}
+              >
+                {file.title}
+              </div>
+
+              <div
+                style={{
+                  color: "#f97316",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  marginBottom: "8px",
+                }}
+              >
+                {file.softwareName}
+              </div>
+
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#777",
+                }}
+              >
+                {file.size} used
               </div>
             </div>
-
-            <div
-              style={{
-                color: "#f5f5f5",
-                fontSize: "15px",
-                fontWeight: "700",
-                marginBottom: "6px",
-              }}
-            >
-              {file.name}
-            </div>
-
-            <div
-              style={{
-                color: "#f97316",
-                fontSize: "13px",
-                fontWeight: "600",
-                marginBottom: "8px",
-              }}
-            >
-              {file.software}
-            </div>
-
-            <div
-              style={{
-                fontSize: "12px",
-                color: "#777",
-              }}
-            >
-              {file.size} used
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

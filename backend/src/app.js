@@ -40,12 +40,6 @@ app.use("/api/study-sessions", studySessionRoutes);
 app.use("/api/ml", mlRoutes);
 app.use("/api/software", softwareRoutes);
 
-export async function getSoftwareByIdRequest(id) {
-  return apiFetch(`/api/software/${id}`, {
-    method: "GET",
-  });
-}
-
 //Login and Registration
 app.use("/api/auth", authRoutes); // login/register
 

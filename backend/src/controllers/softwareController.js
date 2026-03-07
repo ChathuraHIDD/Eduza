@@ -19,29 +19,39 @@ const createSoftware = async (req, res) => {
   }
 };
 
+// GET ALL SOFTWARE
+const getSoftware = async (req, res) => {
+  try {
+    const software = await Software.find().sort({ createdAt: -1 });
+    res.json(software);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// GET SOFTWARE BY ID
 const getSoftwareById = async (req, res) => {
-    try {
-      const software = await Software.findById(req.params.id).populate(
-        "uploadedBy",
-        "name email role"
-      );
-  
-      if (!software) {
-        return res.status(404).json({
-          message: "Software not found",
-        });
-      }
-  
-      return res.status(200).json(software);
-    } catch (error) {
-      return res.status(500).json({
-        message: error.message || "Server error while fetching software",
+  try {
+    const software = await Software.findById(req.params.id);
+
+    if (!software) {
+      return res.status(404).json({
+        message: "Software not found",
       });
     }
-  };
 
-  module.exports = {
-    createSoftware,
-    getAllSoftware,
-    getSoftwareById,
-  };
+    res.status(200).json(software);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+module.exports = {
+  createSoftware,
+  getSoftware,
+  getSoftwareById,
+};

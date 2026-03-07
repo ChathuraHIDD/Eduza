@@ -15,8 +15,14 @@ function SoftwareDetails() {
         setError("");
 
         const data = await getSoftwareByIdRequest(slug);
+
+        if (!data || !data._id) {
+          throw new Error("Software data not returned from backend");
+        }
+
         setSoftware(data);
       } catch (err) {
+        console.error("SoftwareDetails fetch error:", err);
         setError(err.message || "Failed to load software details");
       } finally {
         setLoading(false);
@@ -39,7 +45,9 @@ function SoftwareDetails() {
   if (error || !software) {
     return (
       <div style={{ maxWidth: 1100, margin: "0 auto", color: "#fff" }}>
-        Software not found.
+        <h2 style={{ color: "#fff" }}>Software not found.</h2>
+        <p style={{ color: "#888" }}>{error}</p>
+        <p style={{ color: "#666", fontSize: 13 }}>Requested id: {slug}</p>
       </div>
     );
   }

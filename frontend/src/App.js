@@ -14,6 +14,12 @@ import LecturerDashboard from './pages/LecturerDashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import CoordinatorDashboard from './pages/CoordinatorDashboard'
 
+import GroupChat from './pages/saumya/GroupChat'
+import KuppiSessions from './pages/saumya/KuppiSessions'
+import SoftwareHub from './pages/saumya/SoftwareHub'
+import AINotes from './pages/saumya/AINotes'
+import SoftwareDetails from './pages/saumya/SoftwareDetails'
+
 function AdminPage() {
   return <div>Admin Dashboard</div>
 }
@@ -35,6 +41,12 @@ function App() {
           <Route path="smart-schedule" element={<SmartSchedule />} />
           <Route path="stress-hub" element={<StressHub />} />
           <Route path="lecture-profile" element={<LectureProfile />} />
+
+          <Route path="/group-chat" element={<GroupChat />} />
+          <Route path="/kuppi-sessions" element={<KuppiSessions />} />
+          <Route path="/software-hub" element={<SoftwareHub />} />
+          <Route path="/ai-notes" element={<AINotes />} />
+          <Route path="software/:slug" element={<SoftwareDetails />} />
 
           <Route
             path="profile"

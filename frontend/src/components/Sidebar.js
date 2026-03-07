@@ -26,7 +26,7 @@ const navItems = [
       </svg>
     ),
   },
-  {
+  /*{
     label: 'Profile',
     path: '/profile',
     icon: (
@@ -35,7 +35,7 @@ const navItems = [
         <circle cx="12" cy="7" r="4" />
       </svg>
     ),
-  },
+  },*/
   {
     label: 'Lecture Profile',
     path: '/lecture-profile',
@@ -48,12 +48,56 @@ const navItems = [
       </svg>
     ),
   },
+  // saumya's part
+  {
+    label: 'Group Chat',
+    path: '/group-chat',
+    icon: (
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Kuppi Sessions',
+    path: '/kuppi-sessions',
+    icon: (
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <circle cx="9" cy="7" r="4" />
+        <path d="M17 11V7" />
+        <path d="M15 9h4" />
+        <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Software Hub',
+    path: '/software-hub',
+    icon: (
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <path d="M20 7H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
+        <path d="M16 3v4" />
+        <path d="M8 3v4" />
+      </svg>
+    ),
+  },
+  {
+    label: 'AI Notes',
+    path: '/ai-notes',
+    icon: (
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+  },
 ]
 
 function Sidebar({ open, onClose }) {
   return (
     <>
-      {/* Sidebar panel */}
       <aside
         style={{
           width: '260px',
@@ -73,7 +117,6 @@ function Sidebar({ open, onClose }) {
         <SidebarContent onClose={onClose} />
       </aside>
 
-      {/* Mobile sidebar */}
       <aside
         style={{
           width: '260px',
@@ -101,6 +144,7 @@ function Sidebar({ open, onClose }) {
 function SidebarContent({ onClose }) {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false) // login/register
   const menuRef = useRef(null)
 
   // login/register - get logged user from localStorage
@@ -119,7 +163,6 @@ function SidebarContent({ onClose }) {
   const formattedRole =
     user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Student'
 
-  // close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -140,13 +183,15 @@ function SidebarContent({ onClose }) {
     navigate('/profile')
   }
 
-  // user menu - logout with confirmation
-  const handleLogout = () => {
+  // user menu - open custom logout modal
+  const handleLogoutClick = () => {
     setMenuOpen(false)
+    setLogoutModalOpen(true)
+  }
 
-    const confirmed = window.confirm('Do you want to log out?')
-    if (!confirmed) return
-
+  // user menu - confirm logout
+  const handleConfirmLogout = () => {
+    setLogoutModalOpen(false)
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     onClose?.()
@@ -243,10 +288,8 @@ function SidebarContent({ onClose }) {
           Home
         </NavLink>
 
-        {/* Divider */}
         <div style={{ height: 1, background: '#222', margin: '10px 4px' }} />
 
-        {/* Menu label */}
         <div style={{ padding: '4px 12px 8px' }}>
           <span
             style={{
@@ -325,7 +368,6 @@ function SidebarContent({ onClose }) {
               flexShrink: 0,
             }}
           >
-            {/* login/register - show logged user initials */}
             {getInitials(user?.name || 'User')}
           </div>
 
@@ -340,12 +382,10 @@ function SidebarContent({ onClose }) {
                 textOverflow: 'ellipsis',
               }}
             >
-              {/* login/register - show logged user name */}
               {user?.name || 'User'}
             </div>
 
             <div style={{ fontSize: 12, color: '#666' }}>
-              {/* login/register - show logged user role */}
               {formattedRole}
             </div>
           </div>
@@ -367,7 +407,6 @@ function SidebarContent({ onClose }) {
           </svg>
         </button>
 
-        {/* user menu dropdown */}
         {menuOpen && (
           <div
             style={{
@@ -401,7 +440,7 @@ function SidebarContent({ onClose }) {
             </button>
 
             <button
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
               style={{
                 width: '100%',
                 background: 'transparent',
@@ -417,6 +456,13 @@ function SidebarContent({ onClose }) {
             </button>
           </div>
         )}
+
+        {/* login/register - custom styled logout modal */}
+        <LogoutModal
+          open={logoutModalOpen}
+          onClose={() => setLogoutModalOpen(false)}
+          onConfirm={handleConfirmLogout}
+        />
       </div>
     </>
   )

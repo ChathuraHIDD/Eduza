@@ -10,6 +10,10 @@ import Login from './pages/Login' // login/register
 import Register from './pages/Register' // login/register
 import ProtectedRoute from './components/ProtectedRoute' // login/register
 
+import LecturerDashboard from './pages/LecturerDashboard'
+import AdminDashboard from './pages/AdminDashboard'
+import CoordinatorDashboard from './pages/CoordinatorDashboard'
+
 function AdminPage() {
   return <div>Admin Dashboard</div>
 }

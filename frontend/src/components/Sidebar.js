@@ -1,4 +1,6 @@
-import { NavLink } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { NavLink, useNavigate } from 'react-router-dom'
+import LogoutModal from './LogoutModal' // login/register
 
 const navItems = [
   {
@@ -97,6 +99,10 @@ function Sidebar({ open, onClose }) {
 }
 
 function SidebarContent({ onClose }) {
+  const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef(null)
+
   // login/register - get logged user from localStorage
   const user = JSON.parse(localStorage.getItem('user') || '{}')
 
@@ -112,6 +118,40 @@ function SidebarContent({ onClose }) {
   // login/register - format role with capital first letter
   const formattedRole =
     user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Student'
+
+  // close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  // user menu - go to profile
+  const handleProfileClick = () => {
+    setMenuOpen(false)
+    onClose?.()
+    navigate('/profile')
+  }
+
+  // user menu - logout with confirmation
+  const handleLogout = () => {
+    setMenuOpen(false)
+
+    const confirmed = window.confirm('Do you want to log out?')
+    if (!confirmed) return
+
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    onClose?.()
+    navigate('/login')
+  }
 
   return (
     <>
@@ -249,53 +289,134 @@ function SidebarContent({ onClose }) {
 
       {/* Footer */}
       <div
+        ref={menuRef}
         style={{
           padding: '1rem 1.5rem',
           borderTop: '1px solid #222',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
+          position: 'relative',
         }}
       >
-        <div
+        <button
+          onClick={() => setMenuOpen((prev) => !prev)}
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #f97316, #c2410c)',
+            width: '100%',
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 13,
-            fontWeight: 700,
-            color: '#fff',
-            flexShrink: 0,
+            gap: '10px',
+            cursor: 'pointer',
+            textAlign: 'left',
           }}
         >
-          {/* login/register - show logged user initials */}
-          {getInitials(user?.name || 'User')}
-        </div>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
+              width: 34,
+              height: 34,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #f97316, #c2410c)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               fontSize: 13,
-              fontWeight: 600,
-              color: '#f0f0f0',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              fontWeight: 700,
+              color: '#fff',
+              flexShrink: 0,
             }}
           >
-            {/* login/register - show logged user name */}
-            {user?.name || 'User'}
+            {/* login/register - show logged user initials */}
+            {getInitials(user?.name || 'User')}
           </div>
 
-          <div style={{ fontSize: 12, color: '#666' }}>
-            {/* login/register - show logged user role */}
-            {formattedRole}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: '#f0f0f0',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {/* login/register - show logged user name */}
+              {user?.name || 'User'}
+            </div>
+
+            <div style={{ fontSize: 12, color: '#666' }}>
+              {/* login/register - show logged user role */}
+              {formattedRole}
+            </div>
           </div>
-        </div>
+
+          <svg
+            width="16"
+            height="16"
+            fill="none"
+            stroke="#888"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+            style={{
+              transform: menuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s ease',
+              flexShrink: 0,
+            }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        {/* user menu dropdown */}
+        {menuOpen && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '72px',
+              left: '20px',
+              right: '20px',
+              background: '#1a1a1a',
+              border: '1px solid #2a2a2a',
+              borderRadius: 12,
+              overflow: 'hidden',
+              boxShadow: '0 12px 24px rgba(0,0,0,0.3)',
+              zIndex: 100,
+            }}
+          >
+            <button
+              onClick={handleProfileClick}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                color: '#ddd',
+                padding: '12px 14px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontSize: 13,
+                borderBottom: '1px solid #222',
+              }}
+            >
+              Profile
+            </button>
+
+            <button
+              onClick={handleLogout}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                color: '#ff8a8a',
+                padding: '12px 14px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              Log out
+            </button>
+          </div>
+        )}
       </div>
     </>
   )

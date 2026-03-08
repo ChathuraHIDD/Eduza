@@ -111,29 +111,30 @@ export default function StopwatchCard({
   return (
     <div
       style={{
-        background: "#141414",
-        border: "1px solid #2a2a2a",
+        background: "#ffffff",
+        border: "1.5px solid #e8ecf4",
         borderRadius: 14,
         padding: "1rem",
-        color: "#f0f0f0",
+        color: "#1a1a2e",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
         <div>
-          <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>
+          <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>
             Stopwatch Session
           </div>
-          <div style={{ fontSize: 16, fontWeight: 800 }}>{moduleName}</div>
-          <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a2e" }}>{moduleName}</div>
+          <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
             Mode: <span style={{ color: "#f97316" }}>{sessionType}</span>
           </div>
         </div>
 
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 22, fontWeight: 900 }}>
+          <div style={{ fontSize: 22, fontWeight: 900, color: "#1a1a2e" }}>
             {formatTime(seconds)}
           </div>
-          <div style={{ fontSize: 11, color: "#666" }}>
+          <div style={{ fontSize: 11, color: "#9ca3af" }}>
             {running ? "Running..." : "Stopped"}
           </div>
         </div>
@@ -173,7 +174,7 @@ export default function StopwatchCard({
         )}
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <label style={{ fontSize: 12, color: "#aaa" }}>
+          <label style={{ fontSize: 12, color: "#6b7280" }}>
             Progress % (optional on stop)
           </label>
           <input
@@ -182,18 +183,18 @@ export default function StopwatchCard({
             placeholder="e.g. 45"
             style={{
               width: 90,
-              background: "#0f0f0f",
-              border: "1px solid #2a2a2a",
+              background: "#f4f6fb",
+              border: "1.5px solid #e8ecf4",
               borderRadius: 10,
               padding: "8px 10px",
-              color: "#f0f0f0",
+              color: "#1a1a2e",
             }}
           />
         </div>
       </div>
 
       {sessionId && (
-        <div style={{ marginTop: 10, fontSize: 11, color: "#666" }}>
+        <div style={{ marginTop: 10, fontSize: 11, color: "#9ca3af" }}>
           Active Session ID: {sessionId}
         </div>
       )}

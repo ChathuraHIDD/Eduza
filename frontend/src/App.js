@@ -5,6 +5,7 @@ import SmartSchedule from './pages/SmartSchedule'
 import Profile from './pages/Profile'
 import LectureProfile from './pages/LectureProfile'
 import StressHub from './pages/StressHub'
+import ProgressTracker from './pages/ProgressTracker'
 
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -29,6 +30,7 @@ function App() {
           <Route index element={<Home />} />
           <Route path="smart-schedule" element={<SmartSchedule />} />
           <Route path="stress-hub" element={<StressHub />} />
+          <Route path="progress-tracker" element={<ProgressTracker />} />
 
           <Route
             path="profile"

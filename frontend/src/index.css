@@ -34,3 +34,15 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #ea6c10;
 }
+
+/* Hide hamburger on desktop */
+.mobile-menu-btn {
+  display: none;
+}
+
+/* Show only on mobile */
+@media (max-width: 1024px) {
+  .mobile-menu-btn {
+    display: flex;
+  }
+}

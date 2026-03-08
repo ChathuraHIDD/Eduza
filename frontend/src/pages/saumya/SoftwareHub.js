@@ -89,14 +89,14 @@ function SoftwareHub() {
               width: 30,
               height: 30,
               borderRadius: 10,
-              background: "#470137",
+              background: "#f4e8fb",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#ff61f6",
+              color: "#c026d3",
               fontWeight: 800,
               fontSize: 14,
-              border: "1px solid #8b2b7f",
+              border: "1px solid #e9d5ff",
             }}
           >
             Xd
@@ -110,14 +110,14 @@ function SoftwareHub() {
               width: 30,
               height: 30,
               borderRadius: 10,
-              background: "#5a1010",
+              background: "#fee2e2",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#ff6b6b",
+              color: "#dc2626",
               fontWeight: 800,
               fontSize: 12,
-              border: "1px solid #a63434",
+              border: "1px solid #fecaca",
             }}
           >
             PDF
@@ -262,14 +262,14 @@ function SoftwareHub() {
               width: 30,
               height: 30,
               borderRadius: 10,
-              background: "#7a2020",
+              background: "#fee2e2",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#fff",
+              color: "#b91c1c",
               fontWeight: 800,
               fontSize: 11,
-              border: "1px solid #a83b3b",
+              border: "1px solid #fecaca",
             }}
           >
             W
@@ -283,13 +283,14 @@ function SoftwareHub() {
               width: 30,
               height: 30,
               borderRadius: 10,
-              background: "#2a2a2a",
+              background: "#eef2f7",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#fff",
+              color: "#64748b",
               fontWeight: 700,
               fontSize: 12,
+              border: "1px solid #e2e8f0",
             }}
           >
             APP
@@ -299,7 +300,117 @@ function SoftwareHub() {
   };
 
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+    <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+      {/* Orange banner */}
+      <div
+        style={{
+          background: "linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)",
+          borderRadius: "24px",
+          padding: "28px 32px",
+          position: "relative",
+          overflow: "hidden",
+          minHeight: "165px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          marginBottom: "28px",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: -40,
+            right: -40,
+            width: "220px",
+            height: "220px",
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.10)",
+          }}
+        />
+
+        <div
+          style={{
+            position: "absolute",
+            bottom: -55,
+            right: 100,
+            width: "160px",
+            height: "160px",
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.08)",
+          }}
+        />
+
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "10px",
+            background: "rgba(255,255,255,0.14)",
+            color: "#fff",
+            padding: "10px 14px",
+            borderRadius: "14px",
+            width: "fit-content",
+            marginBottom: "14px",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <span
+            style={{
+              width: "24px",
+              height: "24px",
+              borderRadius: "8px",
+              background: "rgba(255,255,255,0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "14px",
+            }}
+          >
+            💻
+          </span>
+          <span
+            style={{
+              fontSize: "13px",
+              fontWeight: "800",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Resource Hub
+          </span>
+        </div>
+
+        <h1
+          style={{
+            margin: "0 0 10px 0",
+            color: "#fff",
+            fontSize: "28px",
+            fontWeight: "800",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          Software Hub
+        </h1>
+
+        <p
+          style={{
+            margin: 0,
+            color: "rgba(255,255,255,0.92)",
+            fontSize: "14px",
+            lineHeight: "1.7",
+            maxWidth: "760px",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          Discover useful software, tools, and applications for your academic
+          work. Download resources easily and keep your learning toolkit ready.
+        </p>
+      </div>
+
+      {/* Header row */}
       <div
         style={{
           marginBottom: "2rem",
@@ -311,18 +422,18 @@ function SoftwareHub() {
         }}
       >
         <div>
-          <h1
+          <h2
             style={{
-              color: "#f5f5f5",
-              fontSize: "28px",
+              color: "#1e293b",
+              fontSize: "24px",
               fontWeight: "800",
-              marginBottom: "4px",
+              margin: "0 0 4px 0",
             }}
           >
-            Software Hub
-          </h1>
+            Available Software
+          </h2>
 
-          <div style={{ color: "#666", fontSize: "13px" }}>
+          <div style={{ color: "#64748b", fontSize: "13px" }}>
             Total: {totalGB} GB
           </div>
         </div>
@@ -332,7 +443,7 @@ function SoftwareHub() {
           style={{
             border: "none",
             borderRadius: 999,
-            background: "linear-gradient(135deg, #7c8cff, #6678f0)",
+            background: "linear-gradient(135deg, #f97316, #ea580c)",
             color: "#fff",
             fontSize: "13px",
             fontWeight: 700,
@@ -341,7 +452,7 @@ function SoftwareHub() {
             display: "flex",
             alignItems: "center",
             gap: "8px",
-            boxShadow: "0 8px 24px rgba(102,120,240,0.28)",
+            boxShadow: "0 8px 24px rgba(249,115,22,0.18)",
           }}
         >
           <span
@@ -364,7 +475,7 @@ function SoftwareHub() {
       </div>
 
       {loading ? (
-        <div style={{ color: "#aaa" }}>Loading software...</div>
+        <div style={{ color: "#64748b" }}>Loading software...</div>
       ) : (
         <div
           style={{
@@ -378,13 +489,14 @@ function SoftwareHub() {
               key={file._id}
               onClick={() => handleOpenSoftware(file)}
               style={{
-                background: "#1a1a1a",
-                border: "1px solid #242424",
+                background: "#ffffff",
+                border: "1px solid #e6e8ee",
                 borderRadius: "16px",
                 padding: "18px",
                 position: "relative",
                 transition: "0.2s",
                 cursor: "pointer",
+                boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
               }}
             >
               <div
@@ -400,8 +512,8 @@ function SoftwareHub() {
                     width: 52,
                     height: 52,
                     borderRadius: 14,
-                    background: "rgba(249,115,22,0.08)",
-                    border: "1px solid rgba(249,115,22,0.12)",
+                    background: "#fff7ed",
+                    border: "1px solid #fed7aa",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -425,7 +537,7 @@ function SoftwareHub() {
                       borderRadius: 10,
                       border: "none",
                       background: "transparent",
-                      color: "#777",
+                      color: "#94a3b8",
                       cursor: "pointer",
                       display: "flex",
                       alignItems: "center",
@@ -446,11 +558,11 @@ function SoftwareHub() {
                         top: "36px",
                         right: 0,
                         minWidth: "130px",
-                        background: "#141414",
-                        border: "1px solid #2a2a2a",
+                        background: "#ffffff",
+                        border: "1px solid #e2e8f0",
                         borderRadius: "12px",
                         overflow: "hidden",
-                        boxShadow: "0 10px 24px rgba(0,0,0,0.35)",
+                        boxShadow: "0 10px 24px rgba(15,23,42,0.10)",
                         zIndex: 20,
                       }}
                     >
@@ -463,7 +575,7 @@ function SoftwareHub() {
                           width: "100%",
                           border: "none",
                           background: "transparent",
-                          color: "#f0f0f0",
+                          color: "#334155",
                           padding: "12px 14px",
                           textAlign: "left",
                           cursor: "pointer",
@@ -479,7 +591,7 @@ function SoftwareHub() {
 
               <div
                 style={{
-                  color: "#f5f5f5",
+                  color: "#1e293b",
                   fontSize: "15px",
                   fontWeight: "700",
                   marginBottom: "6px",
@@ -502,7 +614,7 @@ function SoftwareHub() {
               <div
                 style={{
                   fontSize: "12px",
-                  color: "#777",
+                  color: "#64748b",
                 }}
               >
                 {file.size} used

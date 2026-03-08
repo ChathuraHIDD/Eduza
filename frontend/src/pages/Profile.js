@@ -77,16 +77,26 @@ function Profile() {
         {/* Profile info */}
         <div style={{ padding: '0 2rem 1.75rem', position: 'relative' }}>
           {/* Avatar */}
-          <div style={{
-            width: 90, height: 90,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #f97316, #c2410c)',
-            border: '4px solid #ffffff',
-            boxShadow: '0 4px 16px rgba(249,115,22,0.35)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 32, fontWeight: 800, color: '#fff',
-            position: 'absolute', top: -45,
-          }}>JD</div>
+          <div
+            style={{
+              width: 90,
+              height: 90,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #f97316, #c2410c)',
+              border: '4px solid #fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 32,
+              fontWeight: 800,
+              color: '#fff',
+              position: 'absolute',
+              top: -45,
+            }}
+          >
+            {/* login/register - show initials of logged user */}
+            {getInitials(user?.name || 'User')}
+          </div>
 
           {/* Edit button */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.75rem' }}>
@@ -108,20 +118,43 @@ function Profile() {
           </div>
 
           <div style={{ marginTop: '0.35rem' }}>
-            <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#1a1a2e', letterSpacing: '-0.5px' }}>
-              John Doe
+            <h2
+              style={{
+                margin: '0 0 4px',
+                fontSize: 22,
+                fontWeight: 800,
+                color: '#000',
+                letterSpacing: '-0.5px',
+              }}
+            >
+              {/* login/register - show logged user name */}
+              {user?.name || 'User'}
             </h2>
-            <p style={{ margin: '0 0 12px', fontSize: 13, color: '#9ca3af' }}>
-              Student ID: STU-20241023 · BSc Computer Science, Year 3
+
+            <p style={{ margin: '0 0 10px', fontSize: 13, color: '#000' }}>
+              {/* login/register - show logged user email and role */}
+              {user?.email || 'No email'} · {formattedRole}
             </p>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {['Computer Science', 'Year 3', 'Full-time'].map((tag) => (
-                <span key={tag} style={{
-                  fontSize: 11, fontWeight: 700, padding: '3px 12px', borderRadius: 20,
-                  background: 'rgba(249,115,22,0.1)',
-                  color: '#f97316',
-                  border: '1px solid rgba(249,115,22,0.2)',
-                }}>{tag}</span>
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {[
+                formattedRole,
+                'Active User',
+                user?.email ? 'Logged In' : 'Guest',
+              ].map((tag) => (
+                <span
+                  key={tag}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                    background: 'rgba(249,115,22,0.12)',
+                    color: '#f97316',
+                  }}
+                >
+                  {tag}
+                </span>
               ))}
             </div>
           </div>

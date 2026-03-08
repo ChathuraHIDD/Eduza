@@ -36,7 +36,7 @@ function SoftwareDetails() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: 1100, margin: "0 auto", color: "#fff" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", color: "#334155" }}>
         Loading...
       </div>
     );
@@ -44,42 +44,104 @@ function SoftwareDetails() {
 
   if (error || !software) {
     return (
-      <div style={{ maxWidth: 1100, margin: "0 auto", color: "#fff" }}>
-        <h2 style={{ color: "#fff" }}>Software not found.</h2>
-        <p style={{ color: "#888" }}>{error}</p>
-        <p style={{ color: "#666", fontSize: 13 }}>Requested id: {slug}</p>
+      <div style={{ maxWidth: 1100, margin: "0 auto", color: "#334155" }}>
+        <h2 style={{ color: "#1e293b" }}>Software not found.</h2>
+        <p style={{ color: "#64748b" }}>{error}</p>
+        <p style={{ color: "#94a3b8", fontSize: 13 }}>Requested id: {slug}</p>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+      {/* Orange banner */}
       <div
         style={{
-          background: "linear-gradient(135deg, #1a1a1a 0%, #1e1408 100%)",
-          border: "1px solid #2a2010",
-          borderRadius: 20,
-          padding: "28px",
-          marginBottom: "20px",
+          background: "linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)",
+          borderRadius: "24px",
+          padding: "28px 32px",
+          position: "relative",
+          overflow: "hidden",
+          minHeight: "165px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          marginBottom: "28px",
         }}
       >
         <div
           style={{
-            color: "#f97316",
-            fontSize: 13,
-            fontWeight: 700,
-            marginBottom: 8,
+            position: "absolute",
+            top: -40,
+            right: -40,
+            width: "220px",
+            height: "220px",
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.10)",
+          }}
+        />
+
+        <div
+          style={{
+            position: "absolute",
+            bottom: -55,
+            right: 100,
+            width: "160px",
+            height: "160px",
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.08)",
+          }}
+        />
+
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "10px",
+            background: "rgba(255,255,255,0.14)",
+            color: "#fff",
+            padding: "10px 14px",
+            borderRadius: "14px",
+            width: "fit-content",
+            marginBottom: "14px",
+            position: "relative",
+            zIndex: 1,
           }}
         >
-          Software Details
+          <span
+            style={{
+              width: "24px",
+              height: "24px",
+              borderRadius: "8px",
+              background: "rgba(255,255,255,0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "14px",
+            }}
+          >
+            💻
+          </span>
+          <span
+            style={{
+              fontSize: "13px",
+              fontWeight: "800",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Software Details
+          </span>
         </div>
 
         <h1
           style={{
-            margin: 0,
-            color: "#f5f5f5",
-            fontSize: 32,
-            fontWeight: 800,
+            margin: "0 0 10px 0",
+            color: "#fff",
+            fontSize: "28px",
+            fontWeight: "800",
+            position: "relative",
+            zIndex: 1,
           }}
         >
           {software.softwareName}
@@ -87,9 +149,13 @@ function SoftwareDetails() {
 
         <p
           style={{
-            margin: "8px 0 0",
-            color: "#8f8f8f",
-            fontSize: 14,
+            margin: 0,
+            color: "rgba(255,255,255,0.92)",
+            fontSize: "14px",
+            lineHeight: "1.7",
+            maxWidth: "760px",
+            position: "relative",
+            zIndex: 1,
           }}
         >
           {software.category || "Software"}
@@ -113,16 +179,17 @@ function SoftwareDetails() {
           <div
             key={item.label}
             style={{
-              background: "#1a1a1a",
-              border: "1px solid #242424",
+              background: "#ffffff",
+              border: "1px solid #e6e8ee",
               borderRadius: 16,
               padding: "18px",
+              boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
             }}
           >
-            <div style={{ fontSize: 12, color: "#777", marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}>
               {item.label}
             </div>
-            <div style={{ color: "#f5f5f5", fontSize: 18, fontWeight: 700 }}>
+            <div style={{ color: "#1e293b", fontSize: 18, fontWeight: 700 }}>
               {item.value}
             </div>
           </div>
@@ -138,15 +205,16 @@ function SoftwareDetails() {
       >
         <div
           style={{
-            background: "#1a1a1a",
-            border: "1px solid #242424",
+            background: "#ffffff",
+            border: "1px solid #e6e8ee",
             borderRadius: 16,
             padding: "24px",
+            boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
           }}
         >
           <h2
             style={{
-              color: "#f5f5f5",
+              color: "#1e293b",
               fontSize: 20,
               margin: "0 0 12px 0",
             }}
@@ -156,7 +224,7 @@ function SoftwareDetails() {
 
           <p
             style={{
-              color: "#9a9a9a",
+              color: "#64748b",
               lineHeight: 1.8,
               fontSize: 14,
               margin: 0,
@@ -185,7 +253,8 @@ function SoftwareDetails() {
                   paddingTop: "56.25%",
                   borderRadius: 14,
                   overflow: "hidden",
-                  background: "#111",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
                 }}
               >
                 <iframe
@@ -208,15 +277,16 @@ function SoftwareDetails() {
 
         <div
           style={{
-            background: "#1a1a1a",
-            border: "1px solid #242424",
+            background: "#ffffff",
+            border: "1px solid #e6e8ee",
             borderRadius: 16,
             padding: "20px",
+            boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
           }}
         >
           <h2
             style={{
-              color: "#f5f5f5",
+              color: "#1e293b",
               fontSize: 20,
               margin: "0 0 14px 0",
             }}
@@ -227,8 +297,8 @@ function SoftwareDetails() {
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             <div
               style={{
-                background: "#161616",
-                border: "1px solid #252525",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
                 borderRadius: 14,
                 padding: "16px",
               }}
@@ -246,7 +316,7 @@ function SoftwareDetails() {
 
               <div
                 style={{
-                  color: "#8d8d8d",
+                  color: "#64748b",
                   fontSize: 13,
                   lineHeight: 1.6,
                   marginBottom: 14,
@@ -264,12 +334,13 @@ function SoftwareDetails() {
                   style={{
                     display: "inline-block",
                     textDecoration: "none",
-                    background: "linear-gradient(135deg, #f97316, #c2410c)",
+                    background: "linear-gradient(135deg, #f97316, #ea580c)",
                     color: "#fff",
                     padding: "11px 16px",
                     borderRadius: 12,
                     fontWeight: 700,
                     fontSize: 13,
+                    boxShadow: "0 8px 20px rgba(249,115,22,0.18)",
                   }}
                 >
                   Download for Windows
@@ -279,8 +350,8 @@ function SoftwareDetails() {
 
             <div
               style={{
-                background: "#161616",
-                border: "1px solid #252525",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
                 borderRadius: 14,
                 padding: "16px",
               }}
@@ -298,7 +369,7 @@ function SoftwareDetails() {
 
               <div
                 style={{
-                  color: "#8d8d8d",
+                  color: "#64748b",
                   fontSize: 13,
                   lineHeight: 1.6,
                   marginBottom: 14,
@@ -316,12 +387,13 @@ function SoftwareDetails() {
                   style={{
                     display: "inline-block",
                     textDecoration: "none",
-                    background: "linear-gradient(135deg, #f97316, #c2410c)",
+                    background: "linear-gradient(135deg, #f97316, #ea580c)",
                     color: "#fff",
                     padding: "11px 16px",
                     borderRadius: 12,
                     fontWeight: 700,
                     fontSize: 13,
+                    boxShadow: "0 8px 20px rgba(249,115,22,0.18)",
                   }}
                 >
                   Download for Mac

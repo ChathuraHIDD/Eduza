@@ -63,33 +63,94 @@ function UploadSoftware() {
   };
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto" }}>
+    <div style={{ maxWidth: "900px", margin: "0 auto" }}>
       <div
         style={{
-          background: "linear-gradient(135deg,#1a1a1a 0%,#1d1308 100%)",
-          border: "1px solid #2a2010",
-          borderRadius: 18,
-          padding: "1.75rem 2rem",
-          marginBottom: "1.5rem",
+          background: "linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)",
+          borderRadius: 24,
+          padding: "28px 32px",
+          position: "relative",
+          overflow: "hidden",
+          minHeight: "165px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          marginBottom: "24px",
         }}
       >
         <div
           style={{
-            fontSize: 13,
-            color: "#f97316",
-            fontWeight: 600,
-            marginBottom: 8,
+            position: "absolute",
+            top: -40,
+            right: -40,
+            width: "220px",
+            height: "220px",
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.10)",
+          }}
+        />
+
+        <div
+          style={{
+            position: "absolute",
+            bottom: -55,
+            right: 100,
+            width: "160px",
+            height: "160px",
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.08)",
+          }}
+        />
+
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "10px",
+            background: "rgba(255,255,255,0.14)",
+            color: "#fff",
+            padding: "10px 14px",
+            borderRadius: "14px",
+            width: "fit-content",
+            marginBottom: "14px",
+            position: "relative",
+            zIndex: 1,
           }}
         >
-          Software Management
+          <span
+            style={{
+              width: "24px",
+              height: "24px",
+              borderRadius: "8px",
+              background: "rgba(255,255,255,0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "14px",
+            }}
+          >
+            ⬆
+          </span>
+          <span
+            style={{
+              fontSize: "13px",
+              fontWeight: "800",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Software Management
+          </span>
         </div>
 
         <h1
           style={{
             margin: 0,
-            color: "#f5f5f5",
+            color: "#fff",
             fontSize: 28,
             fontWeight: 800,
+            position: "relative",
+            zIndex: 1,
           }}
         >
           Upload Software
@@ -97,9 +158,13 @@ function UploadSoftware() {
 
         <p
           style={{
-            margin: "8px 0 0",
-            color: "#777",
+            margin: "10px 0 0",
+            color: "rgba(255,255,255,0.92)",
             fontSize: 14,
+            lineHeight: 1.7,
+            maxWidth: "760px",
+            position: "relative",
+            zIndex: 1,
           }}
         >
           Add new software for students to download.
@@ -108,10 +173,11 @@ function UploadSoftware() {
 
       <div
         style={{
-          background: "#1a1a1a",
-          border: "1px solid #242424",
+          background: "#ffffff",
+          border: "1px solid #e6e8ee",
           borderRadius: 18,
           padding: "1.5rem",
+          boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
         }}
       >
         <form onSubmit={handleSubmit}>
@@ -195,18 +261,18 @@ function UploadSoftware() {
             />
 
             {message ? (
-              <div style={{ color: "#22c55e", fontSize: 13 }}>{message}</div>
+              <div style={{ color: "#16a34a", fontSize: 13 }}>{message}</div>
             ) : null}
 
             {error ? (
-              <div style={{ color: "#ef4444", fontSize: 13 }}>{error}</div>
+              <div style={{ color: "#dc2626", fontSize: 13 }}>{error}</div>
             ) : null}
 
             <button
               type="submit"
               disabled={loading}
               style={{
-                background: "linear-gradient(135deg,#f97316,#d94f0b)",
+                background: "linear-gradient(135deg, #f97316, #ea580c)",
                 border: "none",
                 borderRadius: 14,
                 padding: "14px",
@@ -214,6 +280,7 @@ function UploadSoftware() {
                 fontWeight: 800,
                 fontSize: 16,
                 cursor: "pointer",
+                boxShadow: "0 8px 20px rgba(249,115,22,0.18)",
               }}
             >
               {loading ? "Uploading..." : "Upload Software"}
@@ -227,11 +294,11 @@ function UploadSoftware() {
 
 const inputStyle = {
   width: "100%",
-  background: "#111",
-  border: "1px solid #2a2a2a",
+  background: "#f8fafc",
+  border: "1px solid #e2e8f0",
   borderRadius: 12,
   padding: "12px 14px",
-  color: "#fff",
+  color: "#1e293b",
   outline: "none",
   fontSize: 14,
   boxSizing: "border-box",

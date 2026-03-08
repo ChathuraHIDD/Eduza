@@ -12,23 +12,57 @@ function LecturerDashboard() {
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-      
+
       {/* Hero */}
       <div
         style={{
-          background: "linear-gradient(135deg, #1a1a1a 0%, #1d1308 100%)",
-          border: "1px solid #2a2010",
-          borderRadius: 18,
-          padding: "1.75rem 2rem",
-          marginBottom: "1.5rem",
+          background: "linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)",
+          borderRadius: 24,
+          padding: "28px 32px",
+          position: "relative",
+          overflow: "hidden",
+          minHeight: "160px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          marginBottom: "28px",
         }}
       >
+        {/* Glow shapes */}
+        <div
+          style={{
+            position: "absolute",
+            top: -40,
+            right: -40,
+            width: "220px",
+            height: "220px",
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.10)",
+          }}
+        />
+
+        <div
+          style={{
+            position: "absolute",
+            bottom: -55,
+            right: 100,
+            width: "160px",
+            height: "160px",
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.08)",
+          }}
+        />
+
         <div
           style={{
             fontSize: 13,
-            color: "#f97316",
-            fontWeight: 600,
+            color: "#fff",
+            fontWeight: 700,
             marginBottom: 8,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            position: "relative",
+            zIndex: 1,
           }}
         >
           Lecturer Dashboard
@@ -37,9 +71,11 @@ function LecturerDashboard() {
         <h1
           style={{
             margin: 0,
-            color: "#f5f5f5",
+            color: "#fff",
             fontSize: 28,
             fontWeight: 800,
+            position: "relative",
+            zIndex: 1,
           }}
         >
           Welcome back, {firstName} 👋
@@ -47,9 +83,12 @@ function LecturerDashboard() {
 
         <p
           style={{
-            margin: "8px 0 0",
-            color: "#777",
+            margin: "10px 0 0",
+            color: "rgba(255,255,255,0.92)",
             fontSize: 14,
+            lineHeight: 1.7,
+            position: "relative",
+            zIndex: 1,
           }}
         >
           Manage lectures, students, grading, and software uploads from one place.
@@ -59,19 +98,20 @@ function LecturerDashboard() {
       {/* Add New Software */}
       <div
         style={{
-          background: "#1a1a1a",
-          border: "1px solid #242424",
-          borderRadius: 14,
-          padding: "1.25rem",
+          background: "#ffffff",
+          border: "1px solid #e6e8ee",
+          borderRadius: 16,
+          padding: "20px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
         }}
       >
         <div>
           <div
             style={{
-              color: "#f5f5f5",
+              color: "#1e293b",
               fontSize: 16,
               fontWeight: 700,
             }}
@@ -81,7 +121,7 @@ function LecturerDashboard() {
 
           <div
             style={{
-              color: "#666",
+              color: "#64748b",
               fontSize: 13,
             }}
           >
@@ -92,13 +132,14 @@ function LecturerDashboard() {
         <button
           onClick={handleAddSoftware}
           style={{
-            background: "linear-gradient(135deg, #f97316, #d94f0b)",
+            background: "linear-gradient(135deg, #f97316, #ea580c)",
             border: "none",
-            borderRadius: 10,
+            borderRadius: 12,
             padding: "10px 18px",
             color: "#fff",
             fontWeight: 700,
             cursor: "pointer",
+            boxShadow: "0 6px 18px rgba(249,115,22,0.25)",
           }}
         >
           + Add Software

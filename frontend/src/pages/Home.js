@@ -132,59 +132,123 @@ function Home() {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
 
-      {/* ── Welcome banner ── */}
-      <div style={{
-        background: 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%)',
-        borderRadius: 20,
-        padding: '1.75rem 2rem',
-        marginBottom: '1.75rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        overflow: 'hidden',
-        position: 'relative',
-        boxShadow: '0 8px 32px rgba(249,115,22,0.28)',
-      }}>
-        <div style={{
-          position: 'absolute', right: -50, top: -50,
-          width: 220, height: 220, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.08)',
-        }} />
-        <div style={{
-          position: 'absolute', right: 130, bottom: -50,
-          width: 150, height: 150, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.05)',
-        }} />
-        <div style={{ position: 'relative' }}>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.85)',
-            background: 'rgba(255,255,255,0.15)', borderRadius: 20,
-            padding: '3px 12px', marginBottom: 10,
-            letterSpacing: '0.05em', textTransform: 'uppercase',
-          }}>
-            📅 {today}
+      {/* Welcome banner */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)',
+          border: 'none',
+          borderRadius: 24,
+          padding: '1.75rem 2rem',
+          marginBottom: '1.75rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      >
+        {/* Right big circle */}
+        <div
+          style={{
+            position: 'absolute',
+            right: -40,
+            top: -60,
+            width: 220,
+            height: 220,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.10)',
+          }}
+        />
+
+        {/* Right lower circle */}
+        <div
+          style={{
+            position: 'absolute',
+            right: 100,
+            bottom: -80,
+            width: 160,
+            height: 160,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.07)',
+          }}
+        />
+
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 10,
+              background: 'rgba(255,255,255,0.14)',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 700,
+              marginBottom: 12,
+              padding: '8px 14px',
+              borderRadius: 12,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}
+          >
+            <span
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 8,
+                background: 'rgba(255,255,255,0.14)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 14,
+              }}
+            >
+              ⚡
+            </span>
+            AI-Powered
           </div>
-          <h2 style={{ margin: '0 0 6px', fontSize: 26, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.5px' }}>
-            Good morning, John 👋
+
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 26,
+              fontWeight: 800,
+              color: '#ffffff',
+              letterSpacing: '-0.5px',
+            }}
+          >
+            {/* login/register - show logged user first name */}
+            Good morning, {firstName} 👋
           </h2>
-          <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.6 }}>
-            You have <strong style={{ color: '#fff' }}>3 assignments</strong> due this week and{' '}
-            <strong style={{ color: '#fff' }}>4 classes</strong> scheduled today.
+
+          <p
+            style={{
+              margin: '10px 0 0',
+              fontSize: 14,
+              color: 'rgba(255,255,255,0.9)',
+              lineHeight: 1.6,
+              maxWidth: 700,
+            }}
+          >
+            You have <span style={{ fontWeight: 700, color: '#fff' }}>3 assignments</span> due this week and{' '}
+            <span style={{ fontWeight: 700, color: '#fff' }}>4 classes</span> scheduled today.
           </p>
         </div>
+
         <Link
           to="/smart-schedule"
           style={{
-            background: '#ffffff',
-            color: '#f97316',
-            textDecoration: 'none',
-            padding: '11px 22px',
-            borderRadius: 12,
-            fontSize: 13, fontWeight: 700,
-            whiteSpace: 'nowrap', flexShrink: 0,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
             position: 'relative',
+            zIndex: 1,
+            background: 'rgba(255,255,255,0.16)',
+            color: '#fff',
+            textDecoration: 'none',
+            padding: '10px 20px',
+            borderRadius: 12,
+            fontSize: 13,
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            border: '1px solid rgba(255,255,255,0.15)',
           }}
         >
           View Schedule →

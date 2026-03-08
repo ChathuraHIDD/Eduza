@@ -9,8 +9,8 @@ function Sidebar({ open, onClose }) {
         style={{
           width: '260px',
           minWidth: '260px',
-          background: '#ffffff',
-          borderRight: '1px solid #e8ecf4',
+          background: '#f3f3f5',
+          borderRight: '1px solid #e2e3e8',
           display: 'flex',
           flexDirection: 'column',
           height: '100vh',
@@ -18,7 +18,6 @@ function Sidebar({ open, onClose }) {
           zIndex: 50,
           transition: 'transform 0.3s ease',
           transform: open ? 'translateX(0)' : undefined,
-          boxShadow: '2px 0 12px rgba(0,0,0,0.05)',
         }}
         className="hidden lg:flex"
       >
@@ -29,8 +28,8 @@ function Sidebar({ open, onClose }) {
         style={{
           width: '260px',
           minWidth: '260px',
-          background: '#ffffff',
-          borderRight: '1px solid #e8ecf4',
+          background: '#f3f3f5',
+          borderRight: '1px solid #e2e3e8',
           display: 'flex',
           flexDirection: 'column',
           height: '100vh',
@@ -40,7 +39,6 @@ function Sidebar({ open, onClose }) {
           zIndex: 50,
           transition: 'transform 0.3s ease',
           transform: open ? 'translateX(0)' : 'translateX(-100%)',
-          boxShadow: '4px 0 20px rgba(0,0,0,0.1)',
         }}
         className="lg:hidden"
       >
@@ -78,7 +76,6 @@ function SidebarContent({ onClose }) {
       ? '/coordinator'
       : '/'
 
-  // different sidebar by role
   const studentNavItems = [
     {
       label: 'Smart Schedule',
@@ -110,6 +107,12 @@ function SidebarContent({ onClose }) {
       path: '/ai-notes',
       icon: aiNotesIcon,
     },
+    {
+      label: 'Progress Tracker',
+      path: '/progress-tracker',
+      icon: aiNotesIcon,
+    },
+
   ]
 
   const lecturerNavItems = [
@@ -117,6 +120,11 @@ function SidebarContent({ onClose }) {
       label: 'Software Hub',
       path: '/software-hub',
       icon: softwareHubIcon,
+    },
+    {
+      label: 'Lecture Profile',
+      path: '/lecture-profile',
+      icon: lectureProfileIcon,
     },
   ]
 
@@ -204,23 +212,35 @@ function SidebarContent({ onClose }) {
 
   return (
     <>
-      {/* Logo */}
-      <div style={{
-        padding: '1.25rem 1.5rem 1rem',
-        borderBottom: '1px solid #e8ecf4',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <NavLink to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
-            width: 38, height: 38, borderRadius: 11,
-            background: 'linear-gradient(135deg, #f97316, #ea580c)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px',
-            boxShadow: '0 4px 12px rgba(249,115,22,0.3)',
-          }}>E</div>
-          <span style={{ fontSize: 20, fontWeight: 800, color: '#1a1a2e', letterSpacing: '-0.5px' }}>
+      <div
+        style={{
+          padding: '1.5rem 1.5rem 1rem',
+          borderBottom: '1px solid #e2e3e8',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <NavLink to={homePath} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, #f97316, #c2410c)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 16,
+              fontWeight: 800,
+              color: '#fff',
+              letterSpacing: '-0.5px',
+              boxShadow: '0 10px 24px rgba(249,115,22,0.22)',
+            }}
+          >
+            E
+          </div>
+          <span style={{ fontSize: 20, fontWeight: 700, color: '#132a60', letterSpacing: '-0.5px' }}>
             EDU<span style={{ color: '#f97316' }}>ZA</span>
           </span>
         </NavLink>
@@ -228,7 +248,7 @@ function SidebarContent({ onClose }) {
         <button
           onClick={onClose}
           className="lg:hidden"
-          style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', padding: 4 }}
+          style={{ background: 'none', border: 'none', color: '#8d93a6', cursor: 'pointer', padding: 4 }}
         >
           <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -237,9 +257,16 @@ function SidebarContent({ onClose }) {
         </button>
       </div>
 
-      {/* Nav label */}
-      <div style={{ padding: '1.25rem 1.5rem 0.4rem' }}>
-        <span style={{ fontSize: 10.5, fontWeight: 700, color: '#b0bac9', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+      <div style={{ padding: '1.5rem 1.5rem 0.5rem' }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: '#b0b5c4',
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+          }}
+        >
           Navigation
         </span>
       </div>
@@ -256,10 +283,10 @@ function SidebarContent({ onClose }) {
             padding: '10px 12px',
             borderRadius: '10px',
             textDecoration: 'none',
-            fontSize: '14px',
+            fontSize: '14.5px',
             fontWeight: isActive ? 600 : 500,
-            color: isActive ? '#f97316' : '#6b7280',
-            background: isActive ? 'rgba(249,115,22,0.08)' : 'transparent',
+            color: isActive ? '#f97316' : '#6f7688',
+            background: isActive ? '#efe2da' : 'transparent',
             marginBottom: 2,
             transition: 'all 0.15s ease',
           })}
@@ -268,11 +295,18 @@ function SidebarContent({ onClose }) {
           Home
         </NavLink>
 
-        {/* Divider */}
-        <div style={{ height: 1, background: '#e8ecf4', margin: '10px 4px' }} />
+        <div style={{ height: 1, background: '#dddfe6', margin: '10px 4px' }} />
 
         <div style={{ padding: '4px 12px 8px' }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#b0bac9', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#b0b5c4',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+            }}
+          >
             Menu
           </span>
         </div>
@@ -289,10 +323,10 @@ function SidebarContent({ onClose }) {
               padding: '10px 12px',
               borderRadius: '10px',
               textDecoration: 'none',
-              fontSize: '14px',
+              fontSize: '14.5px',
               fontWeight: isActive ? 600 : 500,
-              color: isActive ? '#f97316' : '#6b7280',
-              background: isActive ? 'rgba(249,115,22,0.08)' : 'transparent',
+              color: isActive ? '#f97316' : '#6f7688',
+              background: isActive ? '#efe2da' : 'transparent',
               marginBottom: 2,
               transition: 'all 0.15s ease',
             })}
@@ -303,28 +337,135 @@ function SidebarContent({ onClose }) {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div style={{
-        padding: '1rem 1.5rem',
-        borderTop: '1px solid #e8ecf4',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        background: '#fafbfd',
-      }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: '50%',
-          background: 'linear-gradient(135deg, #f97316, #ea580c)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0,
-          boxShadow: '0 2px 8px rgba(249,115,22,0.3)',
-        }}>JD</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            John Doe
+      <div
+        ref={menuRef}
+        style={{
+          padding: '1rem 1.5rem',
+          borderTop: '1px solid #e2e3e8',
+          position: 'relative',
+        }}
+      >
+        <button
+          onClick={() => setMenuOpen((prev) => !prev)}
+          style={{
+            width: '100%',
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+        >
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #f97316, #c2410c)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 13,
+              fontWeight: 700,
+              color: '#fff',
+              flexShrink: 0,
+            }}
+          >
+            {getInitials(user?.name || 'User')}
           </div>
-          <div style={{ fontSize: 12, color: '#9ca3af' }}>Student</div>
-        </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: '#1f2430',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {user?.name || 'User'}
+            </div>
+
+            <div style={{ fontSize: 12, color: '#9096a8' }}>{formattedRole}</div>
+          </div>
+
+          <svg
+            width="16"
+            height="16"
+            fill="none"
+            stroke="#8d93a6"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+            style={{
+              transform: menuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s ease',
+              flexShrink: 0,
+            }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        {menuOpen && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '72px',
+              left: '20px',
+              right: '20px',
+              background: '#ffffff',
+              border: '1px solid #e2e3e8',
+              borderRadius: 12,
+              overflow: 'hidden',
+              boxShadow: '0 12px 24px rgba(16,24,40,0.12)',
+              zIndex: 100,
+            }}
+          >
+            <button
+              onClick={handleProfileClick}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                color: '#4b5565',
+                padding: '12px 14px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontSize: 13,
+                borderBottom: '1px solid #eef0f4',
+              }}
+            >
+              Profile
+            </button>
+
+            <button
+              onClick={handleLogoutClick}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                color: '#e06a6a',
+                padding: '12px 14px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              Log out
+            </button>
+          </div>
+        )}
+
+        <LogoutModal
+          open={logoutModalOpen}
+          onClose={() => setLogoutModalOpen(false)}
+          onConfirm={handleConfirmLogout}
+        />
       </div>
     </>
   )

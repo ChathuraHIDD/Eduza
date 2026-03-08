@@ -26,10 +26,12 @@ const registerUser = async (req, res) => {
       });
     }
 
-    const allowedPublicRoles = ["student", "lecturer", "coordinator"];
+    // login/register - allow these roles for registration
+    const allowedRoles = ["student", "lecturer", "coordinator", "admin"];
     const selectedRole = role || "student";
 
-    if (!allowedPublicRoles.includes(selectedRole)) {
+    // login/register - validate selected role
+    if (!allowedRoles.includes(selectedRole)) {
       return res.status(400).json({
         message: "Invalid role for registration",
       });

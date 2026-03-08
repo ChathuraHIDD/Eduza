@@ -123,6 +123,12 @@ function CourseCard({ course }) {
 function Home() {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
+  // login/register - get logged user from localStorage
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+
+  // login/register - get first name from logged user name
+  const firstName = user?.name ? user.name.split(' ')[0] : 'User'
+
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
 

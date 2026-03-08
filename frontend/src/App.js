@@ -7,21 +7,20 @@ import LectureProfile from './pages/LectureProfile'
 import StressHub from './pages/StressHub'
 import ProgressTracker from './pages/ProgressTracker'
 
-import Login from './pages/Login' // login/register
-import Register from './pages/Register' // login/register
-import ProtectedRoute from './components/ProtectedRoute' // login/register
+import Login from './pages/Login'
+import Register from './pages/Register'
+import ProtectedRoute from './components/ProtectedRoute'
 
-function AdminPage() {
-  return <div>Admin Dashboard</div>
-}
+import LecturerDashboard from './pages/LecturerDashboard'
+import AdminDashboard from './pages/AdminDashboard'
+import CoordinatorDashboard from './pages/CoordinatorDashboard'
 
-function LecturerPage() {
-  return <div>Lecturer Dashboard</div>
-}
-
-function CoordinatorPage() {
-  return <div>Coordinator Dashboard</div>
-}
+import GroupChat from './pages/saumya/GroupChat'
+import KuppiSessions from './pages/saumya/KuppiSessions'
+import SoftwareHub from './pages/saumya/SoftwareHub'
+import AINotes from './pages/saumya/AINotes'
+import SoftwareDetails from './pages/saumya/SoftwareDetails'
+import UploadSoftware from './pages/saumya/UploadSoftware'
 
 function App() {
   return (
@@ -52,19 +51,19 @@ function App() {
           />
 
           <Route
-            path="admin"
+            path="lecturer"
             element={
-              <ProtectedRoute roles={['admin']}>
-                <AdminPage />
+              <ProtectedRoute roles={['lecturer', 'admin']}>
+                <LecturerDashboard />
               </ProtectedRoute>
             }
           />
 
           <Route
-            path="lecturer"
+            path="admin"
             element={
-              <ProtectedRoute roles={['lecturer']}>
-                <LecturerPage />
+              <ProtectedRoute roles={['admin']}>
+                <AdminDashboard />
               </ProtectedRoute>
             }
           />
@@ -73,14 +72,28 @@ function App() {
             path="coordinator"
             element={
               <ProtectedRoute roles={['coordinator']}>
-                <CoordinatorPage />
+                <CoordinatorDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="group-chat" element={<GroupChat />} />
+          <Route path="kuppi-sessions" element={<KuppiSessions />} />
+          <Route path="software-hub" element={<SoftwareHub />} />
+          <Route path="ai-notes" element={<AINotes />} />
+          <Route path="software/:slug" element={<SoftwareDetails />} />
+          <Route
+            path="upload-software"
+            element={
+              <ProtectedRoute roles={['lecturer', 'admin']}>
+                <UploadSoftware />
               </ProtectedRoute>
             }
           />
         </Route>
 
-        <Route path="/login" element={<Login />} /> {/* login/register */}
-        <Route path="/register" element={<Register />} /> {/* login/register */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
       </Routes>
     </BrowserRouter>
   )

@@ -27,6 +27,22 @@ const tabs = ['Overview', 'Courses', 'Achievements']
 function Profile() {
   const [activeTab, setActiveTab] = useState('Overview')
 
+  // login/register - get logged user from localStorage
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+
+  // login/register - create avatar initials from logged user name
+  const getInitials = (name = '') =>
+    name
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+
+  // login/register - role display with first letter capital
+  const formattedRole =
+    user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Student'
+
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
 
@@ -155,7 +171,9 @@ function Profile() {
               transition: 'all 0.15s',
               boxShadow: activeTab === tab ? '0 2px 8px rgba(249,115,22,0.3)' : 'none',
             }}
-          >{tab}</button>
+          >
+            {tab}
+          </button>
         ))}
       </div>
 
@@ -173,9 +191,16 @@ function Profile() {
               Personal Information
             </h3>
             {[
-              { label: 'Email', value: 'john.doe@eduza.ac' },
+              // login/register - show logged user email
+              { label: 'Email', value: user?.email || 'No email' },
+
+              // login/register - show logged user name
+              { label: 'Name', value: user?.name || 'User' },
+
+              // login/register - show logged user role
+              { label: 'Role', value: formattedRole },
+
               { label: 'Phone', value: '+1 (555) 234-5678' },
-              { label: 'Faculty', value: 'Engineering & Technology' },
               { label: 'Department', value: 'Computer Science' },
               { label: 'Joined', value: 'September 2022' },
             ].map((item, i, arr) => (

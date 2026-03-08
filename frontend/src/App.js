@@ -1,0 +1,89 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Layout from './components/Layout'
+import Home from './pages/Home'
+import SmartSchedule from './pages/SmartSchedule'
+import Profile from './pages/Profile'
+import LectureProfile from './pages/LectureProfile'
+import StressHub from './pages/StressHub'
+import ProgressTracker from './pages/ProgressTracker'
+
+import Login from './pages/Login' // login/register
+import Register from './pages/Register' // login/register
+import ProtectedRoute from './components/ProtectedRoute' // login/register
+
+function AdminPage() {
+  return <div>Admin Dashboard</div>
+}
+
+function LecturerPage() {
+  return <div>Lecturer Dashboard</div>
+}
+
+function CoordinatorPage() {
+  return <div>Coordinator Dashboard</div>
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route path="smart-schedule" element={<SmartSchedule />} />
+          <Route path="stress-hub" element={<StressHub />} />
+          <Route path="progress-tracker" element={<ProgressTracker />} />
+
+          <Route
+            path="profile"
+            element={
+              <ProtectedRoute roles={['student', 'lecturer', 'admin', 'coordinator']}>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="lecture-profile"
+            element={
+              <ProtectedRoute roles={['lecturer', 'admin']}>
+                <LectureProfile />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="admin"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="lecturer"
+            element={
+              <ProtectedRoute roles={['lecturer']}>
+                <LecturerPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="coordinator"
+            element={
+              <ProtectedRoute roles={['coordinator']}>
+                <CoordinatorPage />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
+
+        <Route path="/login" element={<Login />} /> {/* login/register */}
+        <Route path="/register" element={<Register />} /> {/* login/register */}
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+export default App

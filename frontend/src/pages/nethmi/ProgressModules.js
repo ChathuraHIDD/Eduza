@@ -1,55 +1,67 @@
 import React, { useState } from "react";
-import GPACalculator from "../components/progress/GPACalculator";
 import { useNavigate } from "react-router-dom";
+import ModuleActionModal from "../../components/progress/ModuleActionModal";
 
-const progressFeatures = [
-  {
-    id: 'gpa',
-    label: 'GPA Calculator',
-    description: 'Estimate your cumulative GPA using grades and credit weights.',
-    icon: '🎓',
-    color: '#3b82f6',
-    available: true,
-  },
-  {
-    id: 'modules',
-    label: 'Module Quiz & Self Check',
-    description: 'Test your module understanding and build confidence with quick quizzes.',
-    icon: '📝',
-    color: '#f97316',
-    available: true,
-  },
-  {
-    id: 'streak',
-    label: 'Learning Streak',
-    description: 'Maintain your momentum with daily progress tracking and streak rewards.',
-    icon: '🔥',
-    color: '#06b6d4',
-    available: true,
-  },
-  {
-    id: 'trend',
-    label: 'Performance Trend Analysis',
-    description: 'Visualize your improvements and identify where to focus next.',
-    icon: '📈',
-    color: '#22c55e',
-    available: true,
-  },
-]
+const modules = [
+  { id: "web-dev", name: "Web Development" },
+  { id: "se", name: "Software Engineering" },
+  { id: "dbms", name: "Database Systems" },
+  { id: "oop", name: "Object Oriented Programming" },
+];
 
-function ProgressTracker() {
-  const [showGPA, setShowGPA] = useState(false);
+const moduleTypes = modules.map((module, index) => ({
+  id: module.id,
+  label: module.name,
+  description: 'Choose quiz or self check for this module.',
+  icon: module.name.split(" ").map((w) => w[0]).slice(0, 2).join(""),
+  color: ['#3b82f6', '#f97316', '#22c55e', '#a855f7'][index],
+  available: true,
+}))
+
+function ProgressModules() {
+  const [selectedModule, setSelectedModule] = useState(null);
   const navigate = useNavigate();
 
-  const handleFeatureSelect = (feature) => {
-    if (!feature.available) return
-    if (feature.id === 'gpa') setShowGPA(true)
-    if (feature.id === 'modules') navigate("/progress-tracker/modules")
-    // others do nothing for now
+  const handleTypeSelect = (type) => {
+    if (!type.available) return
+    setSelectedModule(modules.find(m => m.id === type.id))
   }
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+    <div>
+      {/* Back button */}
+      <button
+        onClick={() => navigate("/progress-tracker")}
+        style={{
+          marginBottom: '1.5rem',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 40,
+          height: 40,
+          borderRadius: '50%',
+          background: '#ffffff',
+          color: '#374151',
+          border: '1px solid #d1d5db',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          cursor: 'pointer',
+          fontSize: 18,
+          fontWeight: 500,
+          transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.target.style.background = '#f9fafb'
+          e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'
+        }}
+        onMouseLeave={(e) => {
+          e.target.style.background = '#ffffff'
+          e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'
+        }}
+      >
+        ←
+      </button>
+
+      <div style={{ maxWidth: 960, margin: '0 auto' }}>
       {/* Header */}
       <div style={{
         background: 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%)',
@@ -83,45 +95,45 @@ function ProgressTracker() {
           </span>
         </div>
         <h2 style={{ margin: '0 0 6px', fontSize: 26, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.5px' }}>
-          Progress Tracker
+          Module Quiz & Self Check
         </h2>
         <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
-          Monitor academic performance, quizzes, consistency, and progress in one place.
+          Choose a module to start a quiz or practice with self checks.
         </p>
       </div>
 
-      {/* Feature grid */}
+      {/* Module grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gridTemplateColumns: 'repeat(3, 1fr)',
         gap: '1rem',
       }}>
-        {progressFeatures.map((feature) => (
+        {moduleTypes.map((type) => (
           <button
-            key={feature.id}
-            onClick={() => handleFeatureSelect(feature)}
-            disabled={!feature.available}
+            key={type.id}
+            onClick={() => handleTypeSelect(type)}
+            disabled={!type.available}
             style={{
               background: '#ffffff',
-              border: `1.5px solid ${feature.available ? '#e8ecf4' : '#f0f2f8'}`,
+              border: `1.5px solid ${type.available ? '#e8ecf4' : '#f0f2f8'}`,
               borderRadius: 18,
               padding: '1.5rem',
-              cursor: feature.available ? 'pointer' : 'not-allowed',
+              cursor: type.available ? 'pointer' : 'not-allowed',
               textAlign: 'left',
               transition: 'all 0.2s ease',
-              opacity: feature.available ? 1 : 0.6,
+              opacity: type.available ? 1 : 0.6,
               transform: 'translateY(0)',
               boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
             }}
             onMouseEnter={(e) => {
-              if (feature.available) {
+              if (type.available) {
                 e.target.style.transform = 'translateY(-2px)'
                 e.target.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)'
-                e.target.style.borderColor = feature.color
+                e.target.style.borderColor = type.color
               }
             }}
             onMouseLeave={(e) => {
-              if (feature.available) {
+              if (type.available) {
                 e.target.style.transform = 'translateY(0)'
                 e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'
                 e.target.style.borderColor = '#e8ecf4'
@@ -131,11 +143,11 @@ function ProgressTracker() {
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <div style={{
                 width: 48, height: 48, borderRadius: 12,
-                background: `linear-gradient(135deg, ${feature.color}20, ${feature.color}30)`,
+                background: `linear-gradient(135deg, ${type.color}20, ${type.color}30)`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 20,
+                fontSize: 20, fontWeight: 'bold',
               }}>
-                {feature.icon}
+                {type.icon}
               </div>
               <span style={{
                 padding: '4px 8px',
@@ -147,32 +159,24 @@ function ProgressTracker() {
               </span>
             </div>
             <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#1f2937' }}>
-              {feature.label}
+              {type.label}
             </h3>
             <p style={{ margin: 0, fontSize: 14, color: '#6b7280', lineHeight: 1.5 }}>
-              {feature.description}
+              {type.description}
             </p>
           </button>
         ))}
       </div>
 
-      {showGPA && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-gray-900 text-white w-full max-w-2xl mx-4 p-6 rounded-2xl shadow-2xl relative border border-gray-800">
-            <button
-              onClick={() => setShowGPA(false)}
-              className="absolute top-3 right-4 text-xl text-gray-300 hover:text-white"
-            >
-              ×
-            </button>
-
-            <h2 className="text-2xl font-bold mb-4 text-white">GPA Calculator</h2>
-            <GPACalculator />
-          </div>
-        </div>
+      {selectedModule && (
+        <ModuleActionModal
+          module={selectedModule}
+          onClose={() => setSelectedModule(null)}
+        />
       )}
+      </div>
     </div>
   );
 }
 
-export default ProgressTracker;
+export default ProgressModules;

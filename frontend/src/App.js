@@ -22,6 +22,10 @@ import AINotes from './pages/saumya/AINotes'
 import SoftwareDetails from './pages/saumya/SoftwareDetails'
 import UploadSoftware from './pages/saumya/UploadSoftware'
 
+import ProgressModules from "./pages/nethmi/ProgressModules";
+import QuizPage from "./pages/nethmi/QuizPage";
+import SelfCheckPage from "./pages/nethmi/SelfCheckPage";
+
 function App() {
   return (
     <BrowserRouter>
@@ -92,8 +96,17 @@ function App() {
           />
         </Route>
 
+        <Route path="/progress-tracker/modules" element={<ProgressModules />} />
+        <Route path="/progress-tracker/quiz/:moduleId" element={<QuizPage />} />
+        <Route path="/progress-tracker/self-check/:moduleId" element={<SelfCheckPage />} />
+
+
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
+       
+
+
       </Routes>
     </BrowserRouter>
   )

@@ -134,16 +134,7 @@ function SidebarContent({ onClose }) {
       path: '/admin/requests',
       icon: aiNotesIcon,
     },
-    {
-      label: 'Lecture Profile',
-      path: '/lecture-profile',
-      icon: lectureProfileIcon,
-    },
-    {
-      label: 'Software Hub',
-      path: '/software-hub',
-      icon: softwareHubIcon,
-    },
+ 
     {
       label: 'Group Chat',
       path: '/group-chat',

@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { getPendingProfileRequests, updateProfileRequestStatus } from '../utils/profileRequestApi'
 
+const cardStyle = {
+  background: '#ffffff',
+  border: '1.5px solid #e8ecf4',
+  borderRadius: 14,
+  padding: '1.25rem',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+}
+
 function AdminDashboard() {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const firstName = user?.name ? user.name.split(' ')[0] : 'Admin'
@@ -106,44 +114,43 @@ function AdminDashboard() {
         </button>
 
         <div style={{
-          background: '#1a1a1a',
-          border: '1px solid #242424',
+          ...cardStyle,
           borderRadius: 14,
           padding: '1.75rem',
           marginBottom: '1.5rem',
         }}>
-          <h2 style={{ margin: '0 0 1rem', color: '#f5f5f5', fontSize: 22 }}>Review Profile Update Request</h2>
+          <h2 style={{ margin: '0 0 1rem', color: '#1a1a2e', fontSize: 22 }}>Review Profile Update Request</h2>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-            <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '1rem' }}>
-              <div style={{ color: '#777', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Lecturer Name</div>
-              <div style={{ color: '#f0f0f0', fontSize: 16, fontWeight: 700 }}>{selectedRequest.lecturerName}</div>
+            <div style={{ background: '#f8faff', border: '1.5px solid #e8ecf4', borderRadius: 10, padding: '1rem' }}>
+              <div style={{ color: '#9ca3af', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Lecturer Name</div>
+              <div style={{ color: '#1a1a2e', fontSize: 16, fontWeight: 700 }}>{selectedRequest.lecturerName}</div>
             </div>
-            <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '1rem' }}>
-              <div style={{ color: '#777', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Email</div>
-              <div style={{ color: '#f0f0f0', fontSize: 16, fontWeight: 700 }}>{selectedRequest.lecturerEmail}</div>
+            <div style={{ background: '#f8faff', border: '1.5px solid #e8ecf4', borderRadius: 10, padding: '1rem' }}>
+              <div style={{ color: '#9ca3af', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Email</div>
+              <div style={{ color: '#1a1a2e', fontSize: 16, fontWeight: 700 }}>{selectedRequest.lecturerEmail}</div>
             </div>
-            <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '1rem' }}>
-              <div style={{ color: '#777', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Request Type</div>
-              <div style={{ color: '#f0f0f0', fontSize: 16, fontWeight: 700 }}>{selectedRequest.requestType}</div>
+            <div style={{ background: '#f8faff', border: '1.5px solid #e8ecf4', borderRadius: 10, padding: '1rem' }}>
+              <div style={{ color: '#9ca3af', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Request Type</div>
+              <div style={{ color: '#1a1a2e', fontSize: 16, fontWeight: 700 }}>{selectedRequest.requestType}</div>
             </div>
-            <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '1rem' }}>
-              <div style={{ color: '#777', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Submitted At</div>
-              <div style={{ color: '#f0f0f0', fontSize: 16, fontWeight: 700 }}>{new Date(selectedRequest.createdAt).toLocaleDateString()}</div>
+            <div style={{ background: '#f8faff', border: '1.5px solid #e8ecf4', borderRadius: 10, padding: '1rem' }}>
+              <div style={{ color: '#9ca3af', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Submitted At</div>
+              <div style={{ color: '#1a1a2e', fontSize: 16, fontWeight: 700 }}>{new Date(selectedRequest.createdAt).toLocaleDateString()}</div>
             </div>
           </div>
 
-          <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ color: '#777', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Request Details</div>
-            <div style={{ color: '#ccc', fontSize: 14, lineHeight: 1.6 }}>{selectedRequest.detail}</div>
+          <div style={{ background: '#f8faff', border: '1.5px solid #e8ecf4', borderRadius: 10, padding: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ color: '#9ca3af', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Request Details</div>
+            <div style={{ color: '#374151', fontSize: 14, lineHeight: 1.6 }}>{selectedRequest.detail}</div>
           </div>
 
           {selectedRequest.changes && Object.keys(selectedRequest.changes).length > 0 && (
-            <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '1rem', marginBottom: '1.5rem' }}>
-              <div style={{ color: '#777', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Changes Made</div>
-              <div style={{ color: '#ccc', fontSize: 14 }}>
+            <div style={{ background: '#f8faff', border: '1.5px solid #e8ecf4', borderRadius: 10, padding: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ color: '#9ca3af', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Changes Made</div>
+              <div style={{ color: '#374151', fontSize: 14 }}>
                 {Object.entries(selectedRequest.changes).map(([key, value]) => (
-                  <div key={key} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #222' }}>
+                  <div key={key} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #e8ecf4' }}>
                     <strong>{key}:</strong> {String(value)}
                   </div>
                 ))}
@@ -152,7 +159,7 @@ function AdminDashboard() {
           )}
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ color: '#777', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 8 }}>Admin Note (Optional)</label>
+            <label style={{ color: '#6b7280', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 8 }}>Admin Note (Optional)</label>
             <textarea 
               value={adminNote}
               onChange={(e) => setAdminNote(e.target.value)}
@@ -161,9 +168,9 @@ function AdminDashboard() {
                 width: '100%',
                 padding: '10px 12px',
                 borderRadius: 10,
-                border: '1.5px solid #242424',
-                background: '#161616',
-                color: '#f0f0f0',
+                border: '1.5px solid #e8ecf4',
+                background: '#f8faff',
+                color: '#1a1a2e',
                 fontSize: 13,
                 fontFamily: 'inherit',
                 resize: 'vertical',
@@ -219,20 +226,20 @@ function AdminDashboard() {
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       <div
         style={{
-          background: 'linear-gradient(135deg, #1a1a1a 0%, #200d08 100%)',
-          border: '1px solid #2a2010',
+          background: 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%)',
           borderRadius: 18,
           padding: '1.75rem 2rem',
           marginBottom: '1.5rem',
+          boxShadow: '0 8px 32px rgba(249,115,22,0.28)',
         }}
       >
-        <div style={{ fontSize: 13, color: '#f97316', fontWeight: 600, marginBottom: 8 }}>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 700, marginBottom: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
           Admin Dashboard
         </div>
-        <h1 style={{ margin: 0, color: '#f5f5f5', fontSize: 28, fontWeight: 800 }}>
+        <h1 style={{ margin: 0, color: '#fff', fontSize: 28, fontWeight: 800 }}>
           Hello, {firstName} 👋
         </h1>
-        <p style={{ margin: '8px 0 0', color: '#777', fontSize: 14 }}>
+        <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>
           Oversee users, permissions, profile requests, and system administration.
         </p>
       </div>
@@ -249,32 +256,30 @@ function AdminDashboard() {
           <div
             key={item.label}
             style={{
-              background: '#1a1a1a',
-              border: '1px solid #242424',
+              ...cardStyle,
               borderRadius: 14,
               padding: '1.25rem',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ color: '#777', fontSize: 13 }}>{item.label}</span>
+              <span style={{ color: '#9ca3af', fontSize: 13 }}>{item.label}</span>
               <span style={{ fontSize: 20 }}>{item.icon}</span>
             </div>
-            <div style={{ color: '#f5f5f5', fontSize: 30, fontWeight: 800 }}>{item.value}</div>
-            <div style={{ color: '#555', fontSize: 12, marginTop: 6 }}>{item.note}</div>
+            <div style={{ color: '#1a1a2e', fontSize: 30, fontWeight: 800 }}>{item.value}</div>
+            <div style={{ color: '#9ca3af', fontSize: 12, marginTop: 6 }}>{item.note}</div>
           </div>
         ))}
       </div>
 
       {/* Pending Profile Requests Section */}
       <div style={{
-        background: '#1a1a1a',
-        border: '1px solid #242424',
+        ...cardStyle,
         borderRadius: 14,
         padding: '1.25rem',
         marginBottom: '1.5rem',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: '1rem' }}>
-          <h3 style={{ margin: 0, color: '#f0f0f0', fontSize: 18 }}>
+          <h3 style={{ margin: 0, color: '#1a1a2e', fontSize: 18 }}>
             📋 Pending Profile Update Requests ({pendingRequests.length})
           </h3>
           <Link
@@ -293,11 +298,11 @@ function AdminDashboard() {
           </Link>
         </div>
         
-        {loading && <div style={{ color: '#777' }}>Loading requests...</div>}
+        {loading && <div style={{ color: '#9ca3af' }}>Loading requests...</div>}
         {error && <div style={{ color: '#ef4444' }}>{error}</div>}
         
         {!loading && pendingRequests.length === 0 && (
-          <div style={{ color: '#777', textAlign: 'center', padding: '2rem' }}>
+          <div style={{ color: '#9ca3af', textAlign: 'center', padding: '2rem' }}>
             <div style={{ fontSize: 40, marginBottom: '0.5rem' }}>✅</div>
             <p>No pending requests. All lecturer profiles are up to date!</p>
           </div>
@@ -310,26 +315,28 @@ function AdminDashboard() {
                 key={req._id}
                 onClick={() => setSelectedRequest(req)}
                 style={{
-                  background: '#161616',
-                  border: '1px solid #f97316',
+                  background: '#f8faff',
+                  border: '1.5px solid #e8ecf4',
                   borderRadius: 12,
                   padding: '1rem',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#1a1a1a'
+                  e.currentTarget.style.background = '#fff'
+                  e.currentTarget.style.border = '1.5px solid rgba(249,115,22,0.4)'
                   e.currentTarget.style.transform = 'translateY(-2px)'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#161616'
+                  e.currentTarget.style.background = '#f8faff'
+                  e.currentTarget.style.border = '1.5px solid #e8ecf4'
                   e.currentTarget.style.transform = 'translateY(0)'
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.75rem' }}>
                   <div>
                     <div style={{ color: '#f97316', fontSize: 14, fontWeight: 700 }}>{req.lecturerName}</div>
-                    <div style={{ color: '#777', fontSize: 12, marginTop: 2 }}>{req.lecturerEmail}</div>
+                    <div style={{ color: '#9ca3af', fontSize: 12, marginTop: 2 }}>{req.lecturerEmail}</div>
                   </div>
                   <span style={{
                     fontSize: 11,
@@ -342,10 +349,10 @@ function AdminDashboard() {
                     ⏳ {req.requestType}
                   </span>
                 </div>
-                <div style={{ color: '#ccc', fontSize: 13, lineHeight: 1.5, marginBottom: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ color: '#374151', fontSize: 13, lineHeight: 1.5, marginBottom: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {req.detail}
                 </div>
-                <div style={{ color: '#555', fontSize: 11, marginTop: '0.5rem' }}>
+                <div style={{ color: '#9ca3af', fontSize: 11, marginTop: '0.5rem' }}>
                   {new Date(req.createdAt).toLocaleString()}
                 </div>
                 <button 
@@ -372,23 +379,22 @@ function AdminDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
         <div
           style={{
-            background: '#1a1a1a',
-            border: '1px solid #242424',
+            ...cardStyle,
             borderRadius: 14,
             padding: '1.25rem',
           }}
         >
-          <h3 style={{ marginTop: 0, color: '#f0f0f0' }}>Recent Activity</h3>
+          <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>Recent Activity</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {recent.map((item) => (
               <div
                 key={item}
                 style={{
-                  background: '#161616',
-                  border: '1px solid #222',
+                  background: '#f8faff',
+                  border: '1.5px solid #e8ecf4',
                   borderRadius: 10,
                   padding: '0.95rem 1rem',
-                  color: '#ccc',
+                  color: '#374151',
                 }}
               >
                 {item}
@@ -399,23 +405,22 @@ function AdminDashboard() {
 
         <div
           style={{
-            background: '#1a1a1a',
-            border: '1px solid #242424',
+            ...cardStyle,
             borderRadius: 14,
             padding: '1.25rem',
           }}
         >
-          <h3 style={{ marginTop: 0, color: '#f0f0f0' }}>Admin Actions</h3>
+          <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>Admin Actions</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             {actions.map((item) => (
               <div
                 key={item}
                 style={{
-                  background: '#161616',
-                  border: '1px solid #222',
+                  background: '#f8faff',
+                  border: '1.5px solid #e8ecf4',
                   borderRadius: 12,
                   padding: '1rem',
-                  color: '#ccc',
+                  color: '#374151',
                   fontWeight: 600,
                 }}
               >

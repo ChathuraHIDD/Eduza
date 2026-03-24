@@ -11,6 +11,7 @@ const progressLogRoutes = require("./routes/progressLogRoutes");
 const studySessionRoutes = require("./routes/studySessionRoutes");
 const mlRoutes = require("./routes/mlRoutes");
 const moduleRoutes = require("./routes/moduleRoutes");
+const profileRequestRoutes = require("./routes/profileRequestRoutes");
 
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
@@ -41,6 +42,7 @@ app.use("/api/study-sessions", studySessionRoutes);
 app.use("/api/ml", mlRoutes);
 app.use("/api/software", softwareRoutes);
 app.use("/api/modules", moduleRoutes);
+app.use("/api/profile-requests", profileRequestRoutes);
 
 //Login and Registration
 app.use("/api/auth", authRoutes); // login/register

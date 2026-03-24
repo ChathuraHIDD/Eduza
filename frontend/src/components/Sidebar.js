@@ -130,6 +130,11 @@ function SidebarContent({ onClose }) {
 
   const adminNavItems = [
     {
+      label: 'All Requests',
+      path: '/admin/requests',
+      icon: aiNotesIcon,
+    },
+    {
       label: 'Lecture Profile',
       path: '/lecture-profile',
       icon: lectureProfileIcon,

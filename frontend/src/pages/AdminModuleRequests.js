@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getAllProfileRequests, updateProfileRequestStatus } from '../utils/profileRequestApi'
+import { fetchModules, updateModuleApproval } from '../utils/moduleApi'
 
 const cardStyle = {
   background: '#ffffff',
@@ -33,9 +33,8 @@ function StatusBadge({ status }) {
   )
 }
 
-function AdminRequests() {
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
-  const [requests, setRequests] = useState([])
+function AdminModuleRequests() {
+  const [modules, setModules] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('all')
@@ -45,39 +44,51 @@ function AdminRequests() {
   const [selected, setSelected] = useState(null)
   const [adminNote, setAdminNote] = useState('')
   const [processing, setProcessing] = useState(false)
+  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'
 
-  const loadRequests = async () => {
+  const loadModules = async () => {
     try {
       setLoading(true)
       setError('')
-      const data = await getAllProfileRequests()
-      setRequests(data?.requests || [])
+      const data = await fetchModules({ limit: 500 })
+      setModules(data || [])
     } catch (err) {
-      setError(err.message || 'Failed to load requests')
+      setError(err.message || 'Failed to load module requests')
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadRequests()
+    loadModules()
   }, [])
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return requests.filter((r) => {
-      const matchesStatus = filter === 'all' ? true : r.status === filter
-      const createdAt = new Date(r.createdAt)
+    return modules.filter((m) => {
+      const approvalStatus = m.approvalStatus || 'pending'
+      const matchesStatus = filter === 'all' ? true : approvalStatus === filter
+      const createdAt = new Date(m.createdAt)
       const matchesStart = startDate ? createdAt >= new Date(`${startDate}T00:00:00`) : true
       const matchesEnd = endDate ? createdAt <= new Date(`${endDate}T23:59:59`) : true
-      const haystack = [r.lecturerName, r.lecturerEmail, r.requestType, r.detail, r.adminNote]
+      const haystack = [
+        m.code,
+        m.name,
+        m.department,
+        m.semester,
+        m.academicYear,
+        m.lecturerName,
+        m.lecturerEmail,
+        m.description,
+        m.adminNote,
+      ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
       const matchesQuery = q ? haystack.includes(q) : true
       return matchesStatus && matchesQuery && matchesStart && matchesEnd
     })
-  }, [requests, filter, query, startDate, endDate])
+  }, [modules, filter, query, startDate, endDate])
 
   const toCsvValue = (value) => {
     const str = value == null ? '' : String(value)
@@ -86,32 +97,40 @@ function AdminRequests() {
 
   const exportCsv = () => {
     if (visible.length === 0) {
-      alert('No records to export for the current filters.')
+      alert('No module records to export for the current filters.')
       return
     }
 
     const headers = [
-      'Request ID',
+      'Module ID',
+      'Module Code',
+      'Module Name',
       'Lecturer Name',
       'Lecturer Email',
-      'Request Type',
-      'Status',
-      'Detail',
+      'Department',
+      'Semester',
+      'Academic Year',
+      'Approval Status',
+      'Module Status',
       'Admin Note',
       'Submitted At',
       'Reviewed At',
     ]
 
-    const rows = visible.map((r) => [
-      r._id,
-      r.lecturerName,
-      r.lecturerEmail,
-      r.requestType,
-      r.status,
-      r.detail,
-      r.adminNote || '',
-      r.createdAt ? new Date(r.createdAt).toISOString() : '',
-      r.approvedAt ? new Date(r.approvedAt).toISOString() : '',
+    const rows = visible.map((m) => [
+      m._id,
+      m.code,
+      m.name,
+      m.lecturerName,
+      m.lecturerEmail,
+      m.department,
+      m.semester,
+      m.academicYear,
+      m.approvalStatus || 'pending',
+      m.status || 'draft',
+      m.adminNote || '',
+      m.createdAt ? new Date(m.createdAt).toISOString() : '',
+      m.approvalStatus === 'pending' ? '' : (m.updatedAt ? new Date(m.updatedAt).toISOString() : ''),
     ])
 
     const csv = [headers, ...rows].map((row) => row.map(toCsvValue).join(',')).join('\n')
@@ -120,7 +139,7 @@ function AdminRequests() {
     const a = document.createElement('a')
     const datePart = new Date().toISOString().slice(0, 10)
     a.href = url
-    a.download = `admin-requests-${datePart}.csv`
+    a.download = `admin-module-requests-${datePart}.csv`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -128,22 +147,22 @@ function AdminRequests() {
   }
 
   const counts = useMemo(() => ({
-    all: requests.length,
-    pending: requests.filter((r) => r.status === 'pending').length,
-    approved: requests.filter((r) => r.status === 'approved').length,
-    rejected: requests.filter((r) => r.status === 'rejected').length,
-  }), [requests])
+    all: modules.length,
+    pending: modules.filter((m) => (m.approvalStatus || 'pending') === 'pending').length,
+    approved: modules.filter((m) => m.approvalStatus === 'approved').length,
+    rejected: modules.filter((m) => m.approvalStatus === 'rejected').length,
+  }), [modules])
 
-  const onDecide = async (status) => {
+  const onDecide = async (approvalStatus) => {
     if (!selected) return
     try {
       setProcessing(true)
-      await updateProfileRequestStatus(selected._id, status, adminNote || '', user?.id || user?._id || null)
+      await updateModuleApproval(selected._id, approvalStatus, adminNote || '')
       setSelected(null)
       setAdminNote('')
-      await loadRequests()
+      await loadModules()
     } catch (err) {
-      alert(err.message || `Failed to ${status} request`)
+      alert(err.message || `Failed to ${approvalStatus} module`)
     } finally {
       setProcessing(false)
     }
@@ -158,10 +177,10 @@ function AdminRequests() {
         marginBottom: '1.25rem',
         boxShadow: '0 8px 32px rgba(249,115,22,0.28)',
       }}>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 700, marginBottom: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Admin Audit</div>
-        <h1 style={{ margin: 0, color: '#fff', fontSize: 26, fontWeight: 800 }}>All Requests History</h1>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 700, marginBottom: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Admin Module Audit</div>
+        <h1 style={{ margin: 0, color: '#fff', fontSize: 26, fontWeight: 800 }}>All Module Requests</h1>
         <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>
-          Audit pending, approved, and rejected requests from the database.
+          Audit pending, approved, and rejected module creation requests from the database.
         </p>
       </div>
 
@@ -190,7 +209,7 @@ function AdminRequests() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by lecturer, type, details..."
+          placeholder="Search by code, lecturer, department, semester, or details..."
           style={{
             flex: 1,
             borderRadius: 10,
@@ -242,7 +261,7 @@ function AdminRequests() {
           Export CSV
         </button>
         <button
-          onClick={loadRequests}
+          onClick={loadModules}
           style={{
             border: '1.5px solid #e8ecf4',
             borderRadius: 10,
@@ -272,7 +291,7 @@ function AdminRequests() {
       )}
 
       <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: '0.75rem' }}>
-        Showing {visible.length} request{visible.length !== 1 ? 's' : ''} for the current filters.
+        Showing {visible.length} module request{visible.length !== 1 ? 's' : ''} for the current filters.
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 1fr' : '1fr', gap: '1rem' }}>
@@ -282,21 +301,21 @@ function AdminRequests() {
           minHeight: 420,
         }}>
           {loading ? (
-            <div style={{ color: '#9ca3af', padding: '1rem', fontSize: 13 }}>Loading requests...</div>
+            <div style={{ color: '#9ca3af', padding: '1rem', fontSize: 13 }}>Loading module requests...</div>
           ) : visible.length === 0 ? (
-            <div style={{ color: '#9ca3af', padding: '1rem', fontSize: 13 }}>No requests found for this filter.</div>
+            <div style={{ color: '#9ca3af', padding: '1rem', fontSize: 13 }}>No module requests found for this filter.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {visible.map((r) => (
+              {visible.map((m) => (
                 <button
-                  key={r._id}
+                  key={m._id}
                   onClick={() => {
-                    setSelected(r)
-                    setAdminNote(r.adminNote || '')
+                    setSelected(m)
+                    setAdminNote(m.adminNote || '')
                   }}
                   style={{
-                    background: selected?._id === r._id ? '#fff7ed' : '#f8faff',
-                    border: selected?._id === r._id ? '1px solid #f97316' : '1.5px solid #e8ecf4',
+                    background: selected?._id === m._id ? '#fff7ed' : '#f8faff',
+                    border: selected?._id === m._id ? '1px solid #f97316' : '1.5px solid #e8ecf4',
                     borderRadius: 10,
                     padding: '10px 12px',
                     textAlign: 'left',
@@ -304,14 +323,14 @@ function AdminRequests() {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <div style={{ color: '#1a1a2e', fontSize: 13, fontWeight: 700 }}>{r.lecturerName}</div>
-                    <StatusBadge status={r.status} />
+                    <div style={{ color: '#1a1a2e', fontSize: 13, fontWeight: 700 }}>{m.code} · {m.name}</div>
+                    <StatusBadge status={m.approvalStatus || 'pending'} />
                   </div>
-                  <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 5 }}>{r.requestType}</div>
+                  <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 5 }}>{m.lecturerName} · {m.lecturerEmail}</div>
                   <div style={{ color: '#374151', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {r.detail}
+                    {m.department} · {m.semester} · {m.academicYear}
                   </div>
-                  <div style={{ color: '#9ca3af', fontSize: 11, marginTop: 7 }}>{new Date(r.createdAt).toLocaleString()}</div>
+                  <div style={{ color: '#9ca3af', fontSize: 11, marginTop: 7 }}>{new Date(m.createdAt).toLocaleString()}</div>
                 </button>
               ))}
             </div>
@@ -323,27 +342,46 @@ function AdminRequests() {
             ...cardStyle,
             padding: '1rem',
           }}>
-            <h3 style={{ margin: '0 0 10px', color: '#1a1a2e', fontSize: 18 }}>Request Details</h3>
-            <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 8 }}>{selected.lecturerEmail}</div>
-            <div style={{ marginBottom: 12 }}><StatusBadge status={selected.status} /></div>
+            <h3 style={{ margin: '0 0 10px', color: '#1a1a2e', fontSize: 18 }}>Module Request Details</h3>
+            <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 8 }}>{selected.lecturerName} · {selected.lecturerEmail}</div>
+            <div style={{ marginBottom: 12 }}><StatusBadge status={selected.approvalStatus || 'pending'} /></div>
 
-            <div style={{ color: '#1a1a2e', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Detail</div>
-            <div style={{ color: '#374151', fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>{selected.detail}</div>
+            <div style={{ color: '#1a1a2e', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Module</div>
+            <div style={{ color: '#374151', fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
+              {selected.code} — {selected.name}
+            </div>
 
-            {selected.changes && Object.keys(selected.changes).length > 0 && (
+            <div style={{ color: '#1a1a2e', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Academic Details</div>
+            <div style={{ color: '#374151', fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
+              {selected.department} · Faculty {selected.faculty || '-'} · {selected.semester} · {selected.academicYear} · Level {selected.level} · {selected.credits} credits
+            </div>
+
+            <div style={{ color: '#1a1a2e', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Description</div>
+            <div style={{ color: '#374151', fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>{selected.description || '-'}</div>
+
+            {Array.isArray(selected.weeklySyllabus) && selected.weeklySyllabus.length > 0 && (
               <>
-                <div style={{ color: '#1a1a2e', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Changes</div>
+                <div style={{ color: '#1a1a2e', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>12 Week Syllabus</div>
                 <div style={{
                   background: '#f8faff',
                   border: '1.5px solid #e8ecf4',
                   borderRadius: 10,
                   padding: '10px 12px',
                   marginBottom: 12,
+                  maxHeight: 230,
+                  overflow: 'auto',
                 }}>
-                  {Object.entries(selected.changes).map(([k, v]) => (
-                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '6px 0', borderBottom: '1px solid #e8ecf4' }}>
-                      <span style={{ color: '#9ca3af', fontSize: 12, textTransform: 'capitalize' }}>{k}</span>
-                      <span style={{ color: '#374151', fontSize: 12, textAlign: 'right' }}>{String(v)}</span>
+                  {selected.weeklySyllabus.map((week) => (
+                    <div key={week.weekNumber} style={{ borderBottom: '1px solid #e8ecf4', padding: '8px 0' }}>
+                      <div style={{ color: '#f97316', fontSize: 12, fontWeight: 700, marginBottom: 2 }}>Week {week.weekNumber}: {week.topic || 'Untitled Topic'}</div>
+                      <div style={{ color: '#374151', fontSize: 12, lineHeight: 1.5 }}>{week.instructionText || '-'}</div>
+                      {week.pdfFileName && (
+                        <div style={{ color: '#6b7280', fontSize: 11, marginTop: 3 }}>
+                          PDF: {week.pdfFileUrl
+                            ? <a href={`${apiBase}${week.pdfFileUrl}`} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'none' }}>{week.pdfFileName}</a>
+                            : week.pdfFileName}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -371,7 +409,7 @@ function AdminRequests() {
             <div style={{ display: 'flex', gap: '0.6rem', marginTop: 12 }}>
               <button
                 onClick={() => onDecide('approved')}
-                disabled={processing || selected.status === 'approved'}
+                disabled={processing || selected.approvalStatus === 'approved'}
                 style={{
                   border: 'none',
                   borderRadius: 10,
@@ -379,15 +417,15 @@ function AdminRequests() {
                   color: '#ffffff',
                   padding: '9px 14px',
                   fontWeight: 700,
-                  cursor: processing || selected.status === 'approved' ? 'not-allowed' : 'pointer',
-                  opacity: processing || selected.status === 'approved' ? 0.6 : 1,
+                  cursor: processing || selected.approvalStatus === 'approved' ? 'not-allowed' : 'pointer',
+                  opacity: processing || selected.approvalStatus === 'approved' ? 0.6 : 1,
                 }}
               >
                 Approve
               </button>
               <button
                 onClick={() => onDecide('rejected')}
-                disabled={processing || selected.status === 'rejected'}
+                disabled={processing || selected.approvalStatus === 'rejected'}
                 style={{
                   border: 'none',
                   borderRadius: 10,
@@ -395,8 +433,8 @@ function AdminRequests() {
                   color: '#ffffff',
                   padding: '9px 14px',
                   fontWeight: 700,
-                  cursor: processing || selected.status === 'rejected' ? 'not-allowed' : 'pointer',
-                  opacity: processing || selected.status === 'rejected' ? 0.6 : 1,
+                  cursor: processing || selected.approvalStatus === 'rejected' ? 'not-allowed' : 'pointer',
+                  opacity: processing || selected.approvalStatus === 'rejected' ? 0.6 : 1,
                 }}
               >
                 Reject
@@ -409,4 +447,4 @@ function AdminRequests() {
   )
 }
 
-export default AdminRequests
+export default AdminModuleRequests

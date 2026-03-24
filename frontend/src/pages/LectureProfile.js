@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import CreateModuleForm from '../components/CreateModuleForm'
-import { fetchModules } from '../utils/moduleApi'
+import { fetchModules, fetchAvailableModules } from '../utils/moduleApi'
 import { getStoredUser, getMeRequest } from '../utils/api'
 import { submitProfileUpdateRequest, getProfileRequestsByLecturer } from '../utils/profileRequestApi'
 
@@ -240,28 +240,98 @@ function LectureProfile() {
   const [classForm, setClassForm]           = useState({ module: 'CS401', topic: '', date: '', time: '', duration: '2', venue: '', notes: '' })
   const [classOk, setClassOk]               = useState(false)
 
-  // Modules (content update)
-  const [moduleForm, setModuleForm]         = useState({ module: 'CS401', week: '', type: 'lecture', title: '', description: '' })
-  const [uploadFile, setUploadFile]         = useState(null)
-  const [moduleOk, setModuleOk]             = useState(false)
-  const fileRef                             = useRef()
+  // Modules (DB list + edit workflow)
+  const [editingModule, setEditingModule]   = useState(null)
+  const [moduleEditOk, setModuleEditOk]     = useState(false)
+  const [allDbModules, setAllDbModules]     = useState([])
+  const [allModulesLoading, setAllModulesLoading] = useState(false)
+  const [allModulesError, setAllModulesError] = useState('')
+  const [moduleSearch, setModuleSearch]     = useState('')
+  const [moduleFilterDepartment, setModuleFilterDepartment] = useState('')
+  const [moduleFilterSemester, setModuleFilterSemester] = useState('')
+  const [moduleFilterAcademicYear, setModuleFilterAcademicYear] = useState('')
+  const [moduleFilterApproval, setModuleFilterApproval] = useState('all')
 
   // Create Module tab — fetched from DB
   const [myModules, setMyModules]           = useState([])
   const [modulesLoading, setModulesLoading] = useState(false)
   const [modulesError, setModulesError]     = useState('')
+  const [availableModules, setAvailableModules] = useState([])
+  const [availableLoading, setAvailableLoading] = useState(false)
+  const [availableError, setAvailableError] = useState('')
+  const [availableDepartment, setAvailableDepartment] = useState('')
+  const [availableSemester, setAvailableSemester] = useState('')
+  const [availableAcademicYear, setAvailableAcademicYear] = useState('')
 
   // Fetch lecturer's created modules whenever the Create Module tab is opened
   useEffect(() => {
     if (activeTab !== 'Create Module') return
     if (!lecturer.id) return
+
     setModulesLoading(true)
     setModulesError('')
-    fetchModules({ lecturerId: lecturer.id })
-      .then(data => setMyModules(data))
-      .catch(() => setModulesError('Could not load modules — backend may be offline.'))
-      .finally(() => setModulesLoading(false))
-  }, [activeTab, lecturer.id])
+    setAvailableLoading(true)
+    setAvailableError('')
+
+    Promise.all([
+      fetchModules({ lecturerId: lecturer.id }),
+      fetchAvailableModules({
+        ...(availableDepartment ? { department: availableDepartment } : {}),
+        ...(availableSemester ? { semester: availableSemester } : {}),
+        ...(availableAcademicYear ? { academicYear: availableAcademicYear } : {}),
+        limit: 300,
+      }),
+    ])
+      .then(([myData, availableData]) => {
+        setMyModules(myData || [])
+        setAvailableModules(availableData || [])
+      })
+      .catch(() => {
+        setModulesError('Could not load modules — backend may be offline.')
+        setAvailableError('Could not load available modules.')
+      })
+      .finally(() => {
+        setModulesLoading(false)
+        setAvailableLoading(false)
+      })
+  }, [activeTab, lecturer.id, availableDepartment, availableSemester, availableAcademicYear])
+
+  useEffect(() => {
+    if (activeTab !== 'Modules') return
+
+    setAllModulesLoading(true)
+    setAllModulesError('')
+    fetchModules({ limit: 500 })
+      .then((data) => {
+        const modules = Array.isArray(data) ? data : []
+        setAllDbModules(modules)
+      })
+      .catch(() => setAllModulesError('Could not load modules from the database.'))
+      .finally(() => setAllModulesLoading(false))
+  }, [activeTab])
+
+  const filteredDbModules = useMemo(() => {
+    const q = moduleSearch.trim().toLowerCase()
+    return allDbModules.filter((m) => {
+      const approval = m.approvalStatus || 'pending'
+      const matchesApproval = moduleFilterApproval === 'all' ? true : approval === moduleFilterApproval
+      const matchesDepartment = moduleFilterDepartment
+        ? (m.department || '').toLowerCase().includes(moduleFilterDepartment.toLowerCase())
+        : true
+      const matchesSemester = moduleFilterSemester
+        ? (m.semester || '').toLowerCase().includes(moduleFilterSemester.toLowerCase())
+        : true
+      const matchesAcademicYear = moduleFilterAcademicYear
+        ? (m.academicYear || '').toLowerCase().includes(moduleFilterAcademicYear.toLowerCase())
+        : true
+      const haystack = [m.code, m.name, m.department, m.semester, m.academicYear, m.lecturerName, m.lecturerEmail]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      const matchesSearch = q ? haystack.includes(q) : true
+      return matchesApproval && matchesDepartment && matchesSemester && matchesAcademicYear && matchesSearch
+    })
+  }, [allDbModules, moduleSearch, moduleFilterDepartment, moduleFilterSemester, moduleFilterAcademicYear, moduleFilterApproval])
 
   // ── helpers ──────────────────────────────────────────────────────────
   const flash = (setter) => { setter(true); setTimeout(() => setter(false), 3500) }
@@ -311,26 +381,6 @@ function LectureProfile() {
       flash(setClassOk)
     } catch {
       alert('Failed to submit extra class request. Please try again.')
-    }
-  }
-
-  const submitModule = async () => {
-    const detail = `${moduleForm.module} — ${moduleForm.title}${uploadFile ? ` (${uploadFile.name})` : ''}`
-    try {
-      const response = await submitProfileUpdateRequest({
-        lecturerId: user._id || user.id,
-        lecturerName: lecturer.name,
-        lecturerEmail: lecturer.email,
-        requestType: uploadFile ? 'Module Upload' : 'Content Update',
-        detail,
-        changes: moduleForm,
-      })
-      addRequest(normalizeRequest(response))
-      setModuleForm({ module: 'CS401', week: '', type: 'lecture', title: '', description: '' })
-      setUploadFile(null)
-      flash(setModuleOk)
-    } catch {
-      alert('Failed to submit module request. Please try again.')
     }
   }
 
@@ -830,99 +880,138 @@ function LectureProfile() {
       {activeTab === 'Modules' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
 
-          {/* Upload/update form */}
+          {/* Full module form for updates */}
           <div style={cardStyle}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>Update Module Content</h3>
+            <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>Module Update</h3>
             <p style={{ margin: '0 0 1.25rem', fontSize: 12, color: '#9ca3af' }}>
-              Upload files or update content. All changes require admin approval.
+              Use Update in the module list to open the full module form. Updates follow the same admin approval process.
             </p>
-            {moduleOk && <SuccessBanner message="Request submitted — awaiting admin approval" />}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={labelStyle}>Module</label>
-                <select value={moduleForm.module} onChange={e => setModuleForm(p => ({ ...p, module: e.target.value }))} style={inputStyle}>
-                  {lecturer.modules.map(m => <option key={m.code} value={m.code}>{m.code} — {m.name}</option>)}
-                </select>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                <div>
-                  <label style={labelStyle}>Week / Chapter</label>
-                  <input placeholder="e.g. Week 9" value={moduleForm.week}
-                    onChange={e => setModuleForm(p => ({ ...p, week: e.target.value }))} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Content Type</label>
-                  <select value={moduleForm.type} onChange={e => setModuleForm(p => ({ ...p, type: e.target.value }))} style={inputStyle}>
-                    {['lecture', 'tutorial', 'assignment', 'quiz', 'resource', 'announcement'].map(t => (
-                      <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label style={labelStyle}>Title *</label>
-                <input placeholder="e.g. Week 9 — REST APIs & Express.js" value={moduleForm.title}
-                  onChange={e => setModuleForm(p => ({ ...p, title: e.target.value }))} style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Description / Notes</label>
-                <textarea placeholder="What students should know or do…" rows={3}
-                  value={moduleForm.description} onChange={e => setModuleForm(p => ({ ...p, description: e.target.value }))}
-                  style={{ ...inputStyle, resize: 'vertical' }} />
-              </div>
+            {moduleEditOk && <SuccessBanner message="Module update submitted — awaiting admin approval" />}
 
-              {/* File upload */}
-              <div>
-                <label style={labelStyle}>Attach File (PDF, PPTX, DOCX, ZIP…)</label>
-                <div onClick={() => fileRef.current?.click()} style={{
-                  border: `2px dashed ${uploadFile ? 'rgba(249,115,22,0.4)' : '#e8ecf4'}`,
-                  borderRadius: 12, padding: '1.5rem', textAlign: 'center', cursor: 'pointer',
-                  background: uploadFile ? 'rgba(249,115,22,0.05)' : '#f8faff',
-                }}>
-                  <input type="file" ref={fileRef} style={{ display: 'none' }} onChange={e => setUploadFile(e.target.files?.[0] || null)} />
-                  {uploadFile ? (
-                    <div>
-                      <div style={{ fontSize: 24, marginBottom: 6 }}>📎</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#f97316' }}>{uploadFile.name}</div>
-                      <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{(uploadFile.size / 1024).toFixed(1)} KB · Click to change</div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div style={{ fontSize: 28, marginBottom: 6 }}>📤</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#9ca3af' }}>Click to browse files</div>
-                      <div style={{ fontSize: 11, color: '#d1d5db', marginTop: 2 }}>PDF, PPTX, DOCX, ZIP supported</div>
-                    </div>
-                  )}
-                </div>
+            {editingModule ? (
+              <CreateModuleForm
+                mode="edit"
+                initialModule={editingModule}
+                lecturer={{
+                  id: lecturer.id,
+                  name: lecturer.name,
+                  email: lecturer.email,
+                  department: lecturer.department,
+                }}
+                onSuccess={(updated) => {
+                  setAllDbModules((prev) => prev.map((m) => (m._id === updated._id ? updated : m)))
+                  setMyModules((prev) => prev.map((m) => (m._id === updated._id ? updated : m)))
+                  setEditingModule(updated)
+                  flash(setModuleEditOk)
+                }}
+                onCancel={() => setEditingModule(null)}
+              />
+            ) : (
+              <div style={{
+                border: '1.5px dashed #e8ecf4',
+                borderRadius: 12,
+                background: '#f8faff',
+                padding: '1.25rem',
+                fontSize: 13,
+                color: '#6b7280',
+                lineHeight: 1.6,
+              }}>
+                Select a module from the right and click <strong>Update</strong> to open the full Create Module form with existing details.
               </div>
-              <AdminNotice />
-              <SubmitBtn disabled={!moduleForm.title} onClick={submitModule} />
-            </div>
+            )}
           </div>
 
           {/* Module update history */}
           <div style={cardStyle}>
-            <h3 style={{ margin: '0 0 1rem', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>Module Update History</h3>
+            <h3 style={{ margin: '0 0 0.4rem', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>All Modules in System (DB)</h3>
+            <p style={{ margin: '0 0 1rem', fontSize: 12, color: '#9ca3af' }}>Search and filter all modules currently saved in the database.</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginBottom: '0.8rem' }}>
+              <input
+                value={moduleSearch}
+                onChange={(e) => setModuleSearch(e.target.value)}
+                placeholder="Search by code, name, lecturer"
+                style={inputStyle}
+              />
+              <select value={moduleFilterApproval} onChange={(e) => setModuleFilterApproval(e.target.value)} style={inputStyle}>
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <input
+                value={moduleFilterDepartment}
+                onChange={(e) => setModuleFilterDepartment(e.target.value)}
+                placeholder="Filter department"
+                style={inputStyle}
+              />
+              <input
+                value={moduleFilterSemester}
+                onChange={(e) => setModuleFilterSemester(e.target.value)}
+                placeholder="Filter semester"
+                style={inputStyle}
+              />
+              <input
+                value={moduleFilterAcademicYear}
+                onChange={(e) => setModuleFilterAcademicYear(e.target.value)}
+                placeholder="Filter academic year"
+                style={{ ...inputStyle, gridColumn: '1 / -1' }}
+              />
+            </div>
+
+            {allModulesLoading && <p style={{ fontSize: 13, color: '#9ca3af', margin: '0 0 0.8rem' }}>Loading modules from DB...</p>}
+            {allModulesError && <p style={{ fontSize: 13, color: '#dc2626', margin: '0 0 0.8rem' }}>⚠️ {allModulesError}</p>}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {requests.filter(r => r.type === 'Module Upload' || r.type === 'Content Update').length === 0 ? (
+              {!allModulesLoading && !allModulesError && filteredDbModules.length === 0 ? (
                 <p style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', padding: '2rem 0', margin: 0 }}>
-                  No module updates submitted yet.
+                  No modules found for current filters.
                 </p>
               ) : (
-                requests.filter(r => r.type === 'Module Upload' || r.type === 'Content Update').map(r => (
-                  <div key={r.id} style={{ background: '#f8faff', border: '1.5px solid #e8ecf4', borderRadius: 12, padding: '12px 14px' }}>
+                filteredDbModules.map(m => (
+                  <div key={m._id || m.code} style={{ background: '#f8faff', border: '1.5px solid #e8ecf4', borderRadius: 12, padding: '12px 14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                       <span style={{
                         fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20,
-                        background: r.type === 'Module Upload' ? 'rgba(59,130,246,0.1)' : 'rgba(168,85,247,0.1)',
-                        color: r.type === 'Module Upload' ? '#3b82f6' : '#a855f7',
-                      }}>{r.type}</span>
-                      <StatusPill status={r.status} />
+                        background: 'rgba(249,115,22,0.12)', color: '#f97316',
+                      }}>{m.code}</span>
+                      <StatusPill status={m.approvalStatus || 'pending'} />
                     </div>
-                    <div style={{ fontSize: 13, color: '#1a1a2e', fontWeight: 600, marginBottom: 4 }}>{r.detail}</div>
-                    <div style={{ fontSize: 11, color: '#9ca3af' }}>{r.submittedAt}</div>
-                    {r.note && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 5, fontStyle: 'italic' }}>Admin note: {r.note}</div>}
+                    <div style={{ fontSize: 13, color: '#1a1a2e', fontWeight: 700, marginBottom: 3 }}>{m.name}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>{m.department} · {m.semester} · {m.academicYear}</div>
+                    <div style={{ fontSize: 11, color: '#9ca3af' }}>Lecturer: {m.lecturerName || 'N/A'}</div>
+                    {m.description && (
+                      <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4, lineHeight: 1.5 }}>
+                        {m.description}
+                      </div>
+                    )}
+                    {String(m.lecturerId || '') === String(lecturer.id || '') && (
+                      <div style={{ marginTop: 10 }}>
+                        <button
+                          onClick={() => {
+                            setEditingModule(m)
+                            setModuleEditOk(false)
+                          }}
+                          style={{
+                            border: 'none',
+                            borderRadius: 10,
+                            background: 'linear-gradient(135deg, #f97316, #c2410c)',
+                            color: '#fff',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            padding: '7px 12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Update
+                        </button>
+                      </div>
+                    )}
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 5 }}>
+                      Created: {m.createdAt ? new Date(m.createdAt).toLocaleString() : '-'}
+                    </div>
+                    {m.adminNote && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 5, fontStyle: 'italic' }}>Admin note: {m.adminNote}</div>}
                   </div>
                 ))
               )}
@@ -1023,6 +1112,83 @@ function LectureProfile() {
                     </div>
                   )
                 })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Available Approved Modules (department/semester/year wise) ── */}
+          <div style={{ marginTop: '1.5rem', ...cardStyle }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
+              <div>
+                <h3 style={{ margin: '0 0 3px', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>Available Modules</h3>
+                <p style={{ margin: 0, fontSize: 12, color: '#9ca3af' }}>Approved and active modules from the database (filter by department, semester, and year)</p>
+              </div>
+              {availableLoading && <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 500 }}>Loading…</span>}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
+              <input
+                value={availableDepartment}
+                onChange={(e) => setAvailableDepartment(e.target.value)}
+                placeholder="Filter by department"
+                style={inputStyle}
+              />
+              <input
+                value={availableSemester}
+                onChange={(e) => setAvailableSemester(e.target.value)}
+                placeholder="Filter by semester"
+                style={inputStyle}
+              />
+              <input
+                value={availableAcademicYear}
+                onChange={(e) => setAvailableAcademicYear(e.target.value)}
+                placeholder="Filter by academic year"
+                style={inputStyle}
+              />
+            </div>
+
+            {availableError && (
+              <div style={{
+                background: 'rgba(239,68,68,0.08)', border: '1.5px solid rgba(239,68,68,0.2)',
+                borderRadius: 12, padding: '12px 16px', marginBottom: '1rem',
+                fontSize: 13, color: '#dc2626',
+              }}>⚠️ {availableError}</div>
+            )}
+
+            {!availableLoading && !availableError && availableModules.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '2rem 0', color: '#9ca3af' }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>🔎</div>
+                <div style={{ fontSize: 13 }}>No approved modules found for these filters.</div>
+              </div>
+            )}
+
+            {availableModules.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.875rem' }}>
+                {availableModules.map((m) => (
+                  <div key={m._id || `${m.code}-${m.lecturerId}`} style={{
+                    background: '#f8faff', border: '1.5px solid #e8ecf4', borderRadius: 14, padding: '1rem',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <span style={{
+                        fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 20,
+                        background: 'rgba(249,115,22,0.1)', color: '#f97316',
+                      }}>{m.code}</span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                        background: 'rgba(34,197,94,0.1)', color: '#16a34a',
+                      }}>✅ Active</span>
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1a2e', marginBottom: 4 }}>{m.name}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>{m.department} · {m.semester} · {m.academicYear}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Level {m.level} · {m.credits} credits</div>
+                    <div style={{ fontSize: 11, color: '#9ca3af' }}>Lecturer: {m.lecturerName || 'N/A'}</div>
+                    {m.description && (
+                      <div style={{ fontSize: 12, color: '#9ca3af', lineHeight: 1.5, marginTop: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {m.description}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>

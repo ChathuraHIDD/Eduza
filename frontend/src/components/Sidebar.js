@@ -135,15 +135,11 @@ function SidebarContent({ onClose }) {
       icon: aiNotesIcon,
     },
     {
-      label: 'Lecture Profile',
-      path: '/lecture-profile',
-      icon: lectureProfileIcon,
+      label: 'Module Requests',
+      path: '/admin/module-requests',
+      icon: aiNotesIcon,
     },
-    {
-      label: 'Software Hub',
-      path: '/software-hub',
-      icon: softwareHubIcon,
-    },
+ 
     {
       label: 'Group Chat',
       path: '/group-chat',

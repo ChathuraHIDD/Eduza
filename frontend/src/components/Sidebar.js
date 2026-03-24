@@ -134,6 +134,11 @@ function SidebarContent({ onClose }) {
       path: '/admin/requests',
       icon: aiNotesIcon,
     },
+    {
+      label: 'Module Requests',
+      path: '/admin/module-requests',
+      icon: aiNotesIcon,
+    },
  
     {
       label: 'Group Chat',

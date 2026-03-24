@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const supportRoutes = require("./routes/supportRoutes");
@@ -24,6 +25,7 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check
 app.get("/api/health", (req, res) => {

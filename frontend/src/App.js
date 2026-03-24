@@ -14,6 +14,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import LecturerDashboard from './pages/LecturerDashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminRequests from './pages/AdminRequests'
+import AdminModuleRequests from './pages/AdminModuleRequests'
 import CoordinatorDashboard from './pages/CoordinatorDashboard'
 
 import GroupChat from './pages/saumya/GroupChat'
@@ -74,6 +75,15 @@ function App() {
             element={
               <ProtectedRoute roles={['admin']}>
                 <AdminRequests />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="admin/module-requests"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminModuleRequests />
               </ProtectedRoute>
             }
           />

@@ -1,21 +1,33 @@
 import { useState, useRef, useEffect } from 'react'
 import CreateModuleForm from '../components/CreateModuleForm'
 import { fetchModules } from '../utils/moduleApi'
+import { getStoredUser, getMeRequest } from '../utils/api'
+import { submitProfileUpdateRequest, getProfileRequestsByLecturer } from '../utils/profileRequestApi'
 
-// ── Mock: logged-in lecturer ──────────────────────────────────────────────
-const LECTURER = {
-  id: 'L001',
-  name: 'Dr. Sarah Chen',
+// ── Helper function to generate initials ──────────────────────────────────
+const getInitials = (name) => {
+  return name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
+// ── Default lecturer data (fallback values) ────────────────────────────────
+const LECTURER_DEFAULTS = {
+  id: '',
+  name: '',
   title: 'Associate Professor',
   department: 'Computer Science & Engineering',
-  email: 's.chen@eduza.ac',
+  email: '',
   phone: '+1 (555) 801-2345',
   office: 'Block A, Room 214',
   hours: 'Mon & Wed 2–4 PM',
   specialty: 'Web Technologies & Full-Stack Development',
   initials: 'SC',
   color: '#f97316',
-  bio: 'Leading researcher in modern web technologies with over 12 years of industry and academic experience. Published 30+ peer-reviewed papers and leads the university\'s Web Innovation Lab.',
+  bio: 'Dedicated educator and researcher.',
   modules: [
     { code: 'CS401', name: 'Advanced Web Development',      students: 145, semester: 'Sem 1 2026' },
     { code: 'CS312', name: 'Full-Stack Engineering',         students: 112, semester: 'Sem 1 2026' },
@@ -33,14 +45,6 @@ const STUDENTS = [
   { id: 'STU-006', name: 'Sofia Rossi',   email: 's.rossi@eduza.ac',     year: 3, program: 'BSc Computer Science',    gpa: 3.67, courses: ['CS401','CS312','CS210'], status: 'Active', joined: 'Sep 2022', phone: '+1 (555) 789-0123', rank: '#19', attendance: 90 },
   { id: 'STU-007', name: "Liam O'Brien",  email: 'l.obrien@eduza.ac',    year: 2, program: 'BSc Software Engineering', gpa: 3.55, courses: ['CS312'],       status: 'Active', joined: 'Sep 2023', phone: '+1 (555) 890-1234', rank: '#18', attendance: 88 },
   { id: 'STU-008', name: 'Priya Nair',    email: 'p.nair@eduza.ac',      year: 1, program: 'BSc Computer Science',    gpa: 4.00, courses: ['CS210'],         status: 'Active', joined: 'Sep 2024', phone: '+1 (555) 901-2345', rank: '#1',  attendance: 100 },
-]
-
-// ── Mock: initial requests ────────────────────────────────────────────────
-const INITIAL_REQUESTS = [
-  { id: 'REQ-001', type: 'Profile Update', detail: 'Updated office hours to Mon & Wed 2–4 PM', submittedAt: '2026-03-01 10:23 AM', status: 'approved', note: '' },
-  { id: 'REQ-002', type: 'Extra Class',    detail: 'CS401 — Revision: Async JS on Mar 8, 2:00 PM, Hall A-12', submittedAt: '2026-03-03 09:15 AM', status: 'pending', note: '' },
-  { id: 'REQ-003', type: 'Module Upload',  detail: 'CS312 — Week 9 lecture slides (week9-slides.pdf)', submittedAt: '2026-03-04 03:45 PM', status: 'pending', note: '' },
-  { id: 'REQ-004', type: 'Content Update', detail: 'CS210 — Updated Week 7 assignment brief', submittedAt: '2026-02-28 11:00 AM', status: 'rejected', note: 'Please resubmit with correct file format (.pdf required)' },
 ]
 
 const TABS = ['Overview', 'Students', 'Extra Classes', 'Modules', 'Create Module', 'Requests']
@@ -126,8 +130,62 @@ function SubmitBtn({ disabled, onClick }) {
 
 // ═════════════════════════════════════════════════════════════════════════
 function LectureProfile() {
+  // Fetch logged-in user data
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [requestsLoading, setRequestsLoading] = useState(false)
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const storedUser = getStoredUser()
+        if (storedUser) {
+          setUser(storedUser)
+        }
+
+        const me = await getMeRequest()
+        if (me?.user) {
+          const freshUser = me.user
+          setUser(freshUser)
+          localStorage.setItem('user', JSON.stringify(freshUser))
+        }
+      } catch {
+        const storedUser = getStoredUser()
+        if (storedUser) setUser(storedUser)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadUser()
+  }, [])
+
+  const lecturer = {
+    ...LECTURER_DEFAULTS,
+    id: user?.id || user?._id || '',
+    name: user?.name || 'Lecturer',
+    title: user?.title || LECTURER_DEFAULTS.title,
+    department: user?.department || LECTURER_DEFAULTS.department,
+    email: user?.email || '',
+    phone: user?.phone || LECTURER_DEFAULTS.phone,
+    office: user?.office || LECTURER_DEFAULTS.office,
+    hours: user?.hours || LECTURER_DEFAULTS.hours,
+    bio: user?.bio || LECTURER_DEFAULTS.bio,
+    initials: getInitials(user?.name || 'Lecturer'),
+    modules: LECTURER_DEFAULTS.modules,
+  }
+
+  const normalizeRequest = (r) => ({
+    id: r._id,
+    type: r.requestType,
+    detail: r.detail,
+    submittedAt: new Date(r.createdAt).toLocaleString(),
+    status: r.status,
+    note: r.adminNote || '',
+  })
+
   const [activeTab, setActiveTab]           = useState('Overview')
-  const [requests, setRequests]             = useState(INITIAL_REQUESTS)
+  const [requests, setRequests]             = useState([])
   const [studentSearch, setStudentSearch]   = useState('')
   const [selectedStudent, setSelectedStudent] = useState(null)
 
@@ -135,11 +193,48 @@ function LectureProfile() {
   const [editMode, setEditMode]             = useState(false)
   const [profileOk, setProfileOk]           = useState(false)
   const [personalForm, setPersonalForm]     = useState({
-    name:   LECTURER.name,   title: LECTURER.title,
-    email:  LECTURER.email,  phone: LECTURER.phone,
-    office: LECTURER.office, hours: LECTURER.hours,
-    bio:    LECTURER.bio,
+    name:   user?.name || '',
+    title: user?.title || LECTURER_DEFAULTS.title,
+    email:  user?.email || '',
+    phone: user?.phone || LECTURER_DEFAULTS.phone,
+    office: user?.office || LECTURER_DEFAULTS.office,
+    hours: user?.hours || LECTURER_DEFAULTS.hours,
+    bio: user?.bio || LECTURER_DEFAULTS.bio,
   })
+
+  // Update personalForm whenever user data loads
+  useEffect(() => {
+    if (user) {
+      setPersonalForm({
+        name: user.name || '',
+        title: user.title || LECTURER_DEFAULTS.title,
+        email: user.email || '',
+        phone: user.phone || LECTURER_DEFAULTS.phone,
+        office: user.office || LECTURER_DEFAULTS.office,
+        hours: user.hours || LECTURER_DEFAULTS.hours,
+        bio: user.bio || LECTURER_DEFAULTS.bio,
+      })
+    }
+  }, [user])
+
+  useEffect(() => {
+    const loadRequests = async () => {
+      const lecturerId = user?.id || user?._id
+      if (!lecturerId) return
+
+      try {
+        setRequestsLoading(true)
+        const data = await getProfileRequestsByLecturer(lecturerId)
+        setRequests((data?.requests || []).map(normalizeRequest))
+      } catch {
+        setRequests([])
+      } finally {
+        setRequestsLoading(false)
+      }
+    }
+
+    loadRequests()
+  }, [user?.id, user?._id])
 
   // Extra classes
   const [classForm, setClassForm]           = useState({ module: 'CS401', topic: '', date: '', time: '', duration: '2', venue: '', notes: '' })
@@ -159,20 +254,16 @@ function LectureProfile() {
   // Fetch lecturer's created modules whenever the Create Module tab is opened
   useEffect(() => {
     if (activeTab !== 'Create Module') return
+    if (!lecturer.id) return
     setModulesLoading(true)
     setModulesError('')
-    fetchModules({ lecturerId: LECTURER.id })
+    fetchModules({ lecturerId: lecturer.id })
       .then(data => setMyModules(data))
       .catch(() => setModulesError('Could not load modules — backend may be offline.'))
       .finally(() => setModulesLoading(false))
-  }, [activeTab])
+  }, [activeTab, lecturer.id])
 
   // ── helpers ──────────────────────────────────────────────────────────
-  const nextId  = () => `REQ-${String(requests.length + 1).padStart(3, '0')}`
-  const nowStr  = () => new Date().toLocaleString('en-US', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  })
   const flash = (setter) => { setter(true); setTimeout(() => setter(false), 3500) }
 
   const addRequest = (req) => setRequests(prev => [req, ...prev])
@@ -180,23 +271,67 @@ function LectureProfile() {
   const pendingCount = requests.filter(r => r.status === 'pending').length
 
   // ── submit handlers ───────────────────────────────────────────────────
-  const submitProfile = () => {
-    addRequest({ id: nextId(), type: 'Profile Update', detail: `Updated personal profile — name: ${personalForm.name}, office: ${personalForm.office}`, submittedAt: nowStr(), status: 'pending', note: '' })
-    setEditMode(false)
-    flash(setProfileOk)
+  const submitProfile = async () => {
+    try {
+      // Submit to backend
+      const requestData = {
+        lecturerId: user._id || user.id,
+        lecturerName: lecturer.name,
+        lecturerEmail: lecturer.email,
+        requestType: 'Profile Update',
+        detail: `Updated personal profile — name: ${personalForm.name}, office: ${personalForm.office}`,
+        changes: personalForm,
+      }
+      
+      const response = await submitProfileUpdateRequest(requestData)
+      
+      // Also add to local state for UI
+      addRequest(normalizeRequest(response))
+      setEditMode(false)
+      flash(setProfileOk)
+    } catch (error) {
+      console.error('Error submitting profile update:', error)
+      alert('Failed to submit profile update. Please try again.')
+    }
   }
 
-  const submitClass = () => {
-    addRequest({ id: nextId(), type: 'Extra Class', detail: `${classForm.module} — ${classForm.topic} on ${classForm.date} at ${classForm.time}, ${classForm.duration}h, ${classForm.venue}`, submittedAt: nowStr(), status: 'pending', note: '' })
-    setClassForm({ module: 'CS401', topic: '', date: '', time: '', duration: '2', venue: '', notes: '' })
-    flash(setClassOk)
+  const submitClass = async () => {
+    const detail = `${classForm.module} — ${classForm.topic} on ${classForm.date} at ${classForm.time}, ${classForm.duration}h, ${classForm.venue}`
+    try {
+      const response = await submitProfileUpdateRequest({
+        lecturerId: user._id || user.id,
+        lecturerName: lecturer.name,
+        lecturerEmail: lecturer.email,
+        requestType: 'Extra Class',
+        detail,
+        changes: classForm,
+      })
+      addRequest(normalizeRequest(response))
+      setClassForm({ module: 'CS401', topic: '', date: '', time: '', duration: '2', venue: '', notes: '' })
+      flash(setClassOk)
+    } catch {
+      alert('Failed to submit extra class request. Please try again.')
+    }
   }
 
-  const submitModule = () => {
-    addRequest({ id: nextId(), type: uploadFile ? 'Module Upload' : 'Content Update', detail: `${moduleForm.module} — ${moduleForm.title}${uploadFile ? ` (${uploadFile.name})` : ''}`, submittedAt: nowStr(), status: 'pending', note: '' })
-    setModuleForm({ module: 'CS401', week: '', type: 'lecture', title: '', description: '' })
-    setUploadFile(null)
-    flash(setModuleOk)
+  const submitModule = async () => {
+    const detail = `${moduleForm.module} — ${moduleForm.title}${uploadFile ? ` (${uploadFile.name})` : ''}`
+    try {
+      const response = await submitProfileUpdateRequest({
+        lecturerId: user._id || user.id,
+        lecturerName: lecturer.name,
+        lecturerEmail: lecturer.email,
+        requestType: uploadFile ? 'Module Upload' : 'Content Update',
+        detail,
+        changes: moduleForm,
+      })
+      addRequest(normalizeRequest(response))
+      setModuleForm({ module: 'CS401', week: '', type: 'lecture', title: '', description: '' })
+      setUploadFile(null)
+      flash(setModuleOk)
+    } catch {
+      alert('Failed to submit module request. Please try again.')
+    }
   }
 
   // ── filtered students ─────────────────────────────────────────────────
@@ -211,6 +346,14 @@ function LectureProfile() {
   const classReady = classForm.topic && classForm.date && classForm.time && classForm.venue
 
   // ═══════════════════════════════════════════════════════════════════════
+  if (loading || !user) {
+    return (
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '2rem', textAlign: 'center' }}>
+        <div style={{ fontSize: 18, color: '#9ca3af', fontWeight: 600 }}>Loading your profile...</div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
@@ -230,17 +373,17 @@ function LectureProfile() {
             background: 'rgba(255,255,255,0.25)', border: '3px solid rgba(255,255,255,0.5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 24, fontWeight: 800, color: '#fff', flexShrink: 0,
-          }}>{LECTURER.initials}</div>
+          }}>{lecturer.initials}</div>
 
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.8)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>
               Lecturer Dashboard
             </div>
             <h1 style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>
-              {LECTURER.name}
+              {lecturer.name}
             </h1>
             <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
-              {LECTURER.title} · {LECTURER.department}
+              {lecturer.title} · {lecturer.department}
             </p>
           </div>
 
@@ -370,7 +513,7 @@ function LectureProfile() {
           <div style={cardStyle}>
             <h3 style={{ margin: '0 0 1rem', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>My Modules</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              {LECTURER.modules.map(m => (
+              {lecturer.modules.map(m => (
                 <div key={m.code} style={{
                   background: '#f8faff', border: '1.5px solid #e8ecf4', borderRadius: 12, padding: '12px 14px',
                   display: 'flex', alignItems: 'center', gap: 12,
@@ -506,7 +649,7 @@ function LectureProfile() {
                 {selectedStudent.courses.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                     {selectedStudent.courses.map(code => {
-                      const mod = LECTURER.modules.find(m => m.code === code)
+                      const mod = lecturer.modules.find(m => m.code === code)
                       const c = MODULE_COLORS[code] || '#9ca3af'
                       return mod ? (
                         <div key={code} style={{
@@ -615,7 +758,7 @@ function LectureProfile() {
               <div>
                 <label style={labelStyle}>Module</label>
                 <select value={classForm.module} onChange={e => setClassForm(p => ({ ...p, module: e.target.value }))} style={inputStyle}>
-                  {LECTURER.modules.map(m => <option key={m.code} value={m.code}>{m.code} — {m.name}</option>)}
+                  {lecturer.modules.map(m => <option key={m.code} value={m.code}>{m.code} — {m.name}</option>)}
                 </select>
               </div>
               <div>
@@ -699,7 +842,7 @@ function LectureProfile() {
               <div>
                 <label style={labelStyle}>Module</label>
                 <select value={moduleForm.module} onChange={e => setModuleForm(p => ({ ...p, module: e.target.value }))} style={inputStyle}>
-                  {LECTURER.modules.map(m => <option key={m.code} value={m.code}>{m.code} — {m.name}</option>)}
+                  {lecturer.modules.map(m => <option key={m.code} value={m.code}>{m.code} — {m.name}</option>)}
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
@@ -794,10 +937,10 @@ function LectureProfile() {
           {/* Form */}
           <CreateModuleForm
             lecturer={{
-              id:         LECTURER.id,
-              name:       LECTURER.name,
-              email:      LECTURER.email,
-              department: LECTURER.department,
+              id:         lecturer.id,
+              name:       lecturer.name,
+              email:      lecturer.email,
+              department: lecturer.department,
             }}
             onSuccess={newMod => setMyModules(prev => [newMod, ...prev])}
           />
@@ -921,6 +1064,9 @@ function LectureProfile() {
           {/* All requests */}
           <div style={cardStyle}>
             <h3 style={{ margin: '0 0 1.25rem', fontSize: 15, fontWeight: 700, color: '#1a1a2e' }}>All Activity Requests</h3>
+            {requestsLoading && (
+              <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: '0.75rem' }}>Loading requests...</div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {requests.map(r => (
                 <div key={r.id} style={{

@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["student", "lecturer", "admin", "coordinator"],
+      enum: ["student", "lecturer", "admin", "coordinator", "guardian"],
       default: "student",
     },
     title: {
@@ -53,6 +53,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
+    },
+    assignedStudentEmails: {
+      type: [String],
+      default: [],
     },
   },
   { timestamps: true }

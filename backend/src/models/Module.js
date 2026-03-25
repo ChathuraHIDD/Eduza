@@ -1,5 +1,37 @@
 const mongoose = require('mongoose');
 
+const weeklySyllabusSchema = new mongoose.Schema(
+  {
+    weekNumber: {
+      type: Number,
+      required: true,
+      min: 1,
+      max: 12,
+    },
+    topic: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    instructionText: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    pdfFileName: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    pdfFileUrl: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+  },
+  { _id: false }
+);
+
 const moduleSchema = new mongoose.Schema(
   {
     // ── Identity ──────────────────────────────────────────
@@ -29,7 +61,9 @@ const moduleSchema = new mongoose.Schema(
     },
     faculty: {
       type: String,
-      default: '',
+      enum: ['IT', 'EN', 'HS', 'BS'],
+      required: [true, 'Faculty is required'],
+      default: 'IT',
     },
     credits: {
       type: Number,
@@ -49,6 +83,7 @@ const moduleSchema = new mongoose.Schema(
     },
     semester: {
       type: String,
+      enum: ['Jan-Jun Semester', 'July-Dec Semester'],
       required: [true, 'Semester is required'],
       trim: true,
     },
@@ -97,6 +132,16 @@ const moduleSchema = new mongoose.Schema(
     syllabus: {
       type: String,
       default: '',
+    },
+    weeklySyllabus: {
+      type: [weeklySyllabusSchema],
+      default: [],
+      validate: {
+        validator: function (value) {
+          return Array.isArray(value) && value.length >= 1 && value.length <= 12;
+        },
+        message: 'Weekly syllabus must contain between 1 and 12 weeks',
+      },
     },
     tags: {
       type: [String],

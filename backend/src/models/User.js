@@ -24,6 +24,36 @@ const userSchema = new mongoose.Schema(
       enum: ["student", "lecturer", "admin", "coordinator"],
       default: "student",
     },
+    title: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    department: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    phone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    office: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    hours: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    bio: {
+      type: String,
+      default: "",
+      trim: true,
+    },
   },
   { timestamps: true }
 );

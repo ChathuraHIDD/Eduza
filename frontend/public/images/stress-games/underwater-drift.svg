@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600" fill="none">
+  <defs>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#0c4a6e"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="600" fill="url(#a)"/>
+  <ellipse cx="450" cy="100" rx="300" ry="120" fill="#bae6fd" fill-opacity="0.35"/>
+  <text x="52" y="540" fill="#e0f2fe" font-size="54" font-family="Arial, sans-serif" font-weight="700">Underwater Drift</text>
+</svg>

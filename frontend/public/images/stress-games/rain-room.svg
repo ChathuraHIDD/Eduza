@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600" fill="none">
+  <defs>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="600" fill="url(#a)"/>
+  <g stroke="#7dd3fc" stroke-opacity="0.5" stroke-width="3">
+    <line x1="120" y1="70" x2="100" y2="220"/><line x1="220" y1="30" x2="190" y2="220"/>
+    <line x1="340" y1="90" x2="320" y2="240"/><line x1="470" y1="20" x2="450" y2="200"/>
+    <line x1="590" y1="80" x2="560" y2="250"/><line x1="700" y1="35" x2="680" y2="220"/>
+    <line x1="800" y1="60" x2="780" y2="220"/>
+  </g>
+  <circle cx="460" cy="310" r="78" fill="#22d3ee" fill-opacity="0.55"/>
+  <text x="52" y="540" fill="#e2e8f0" font-size="54" font-family="Arial, sans-serif" font-weight="700">Rain Room</text>
+</svg>

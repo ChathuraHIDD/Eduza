@@ -14,6 +14,11 @@ function Layout() {
     user = null
   }
 
+  // If user is not authenticated, show only the content (Landing page)
+  if (!user) {
+    return <Outlet />
+  }
+
   // Guardians can only use student lookup and result pages.
   if (user?.role === 'guardian') {
     const allowedPaths = ['/coordinator', '/guardian/stress-result']

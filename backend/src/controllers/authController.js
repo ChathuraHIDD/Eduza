@@ -2,6 +2,20 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
+const toUserResponse = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  assignedStudentEmails: user.assignedStudentEmails || [],
+  title: user.title || "",
+  department: user.department || "",
+  phone: user.phone || "",
+  office: user.office || "",
+  hours: user.hours || "",
+  bio: user.bio || "",
+});
+
 // login/register
 const generateToken = (user) => {
   return jwt.sign(
@@ -27,7 +41,7 @@ const registerUser = async (req, res) => {
     }
 
     // login/register - allow these roles for registration
-    const allowedRoles = ["student", "lecturer", "coordinator", "admin"];
+    const allowedRoles = ["student", "lecturer", "coordinator", "admin", "guardian"];
     const selectedRole = role || "student";
 
     // login/register - validate selected role
@@ -58,12 +72,7 @@ const registerUser = async (req, res) => {
     return res.status(201).json({
       message: "Registration successful",
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: toUserResponse(user),
     });
   } catch (error) {
     return res.status(500).json({
@@ -102,12 +111,7 @@ const loginUser = async (req, res) => {
     return res.status(200).json({
       message: "Login successful",
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: toUserResponse(user),
     });
   } catch (error) {
     return res.status(500).json({
@@ -119,7 +123,7 @@ const loginUser = async (req, res) => {
 // login/register
 const getCurrentUser = async (req, res) => {
   return res.status(200).json({
-    user: req.user,
+    user: toUserResponse(req.user),
   });
 };
 

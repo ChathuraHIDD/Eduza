@@ -72,6 +72,8 @@ function SidebarContent({ onClose }) {
       ? '/lecturer'
       : user?.role === 'admin'
       ? '/admin'
+      : user?.role === 'guardian'
+      ? '/coordinator'
       : user?.role === 'coordinator'
       ? '/coordinator'
       : '/'
@@ -130,19 +132,25 @@ function SidebarContent({ onClose }) {
 
   const adminNavItems = [
     {
-      label: 'Lecture Profile',
-      path: '/lecture-profile',
-      icon: lectureProfileIcon,
+      label: 'All Requests',
+      path: '/admin/requests',
+      icon: aiNotesIcon,
     },
     {
-      label: 'Software Hub',
-      path: '/software-hub',
-      icon: softwareHubIcon,
+      label: 'Module Requests',
+      path: '/admin/module-requests',
+      icon: aiNotesIcon,
     },
+ 
     {
       label: 'Group Chat',
       path: '/group-chat',
       icon: groupChatIcon,
+    },
+    {
+      label: 'Stress Management',
+      path: '/admin/stress-management',
+      icon: stressIcon,
     },
   ]
 
@@ -169,11 +177,21 @@ function SidebarContent({ onClose }) {
     },
   ]
 
+  const guardianNavItems = [
+    {
+      label: 'Student Search',
+      path: '/coordinator',
+      icon: stressIcon,
+    },
+  ]
+
   const navItems =
     user?.role === 'lecturer'
       ? lecturerNavItems
       : user?.role === 'admin'
       ? adminNavItems
+      : user?.role === 'guardian'
+      ? guardianNavItems
       : user?.role === 'coordinator'
       ? coordinatorNavItems
       : studentNavItems

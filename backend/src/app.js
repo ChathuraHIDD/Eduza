@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const supportRoutes = require("./routes/supportRoutes");
@@ -12,6 +13,7 @@ const studySessionRoutes = require("./routes/studySessionRoutes");
 const mlRoutes = require("./routes/mlRoutes");
 const moduleRoutes = require("./routes/moduleRoutes");
 const kuppiSessionRoutes = require("./routes/kuppiSessionRoutes");
+const profileRequestRoutes = require("./routes/profileRequestRoutes");
 
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
@@ -24,6 +26,7 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -43,6 +46,7 @@ app.use("/api/ml", mlRoutes);
 app.use("/api/software", softwareRoutes);
 app.use("/api/modules", moduleRoutes);
 app.use("/api/kuppi-sessions", kuppiSessionRoutes);
+app.use("/api/profile-requests", profileRequestRoutes);
 
 //Login and Registration
 app.use("/api/auth", authRoutes); // login/register

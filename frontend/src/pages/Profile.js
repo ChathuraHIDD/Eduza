@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { getMeRequest } from '../utils/api'
 
 const skills = [
   { name: 'JavaScript', level: 85, color: '#f97316' },
@@ -26,9 +27,23 @@ const tabs = ['Overview', 'Courses', 'Achievements']
 
 function Profile() {
   const [activeTab, setActiveTab] = useState('Overview')
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'))
 
-  // login/register - get logged user from localStorage
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  useEffect(() => {
+    const syncUser = async () => {
+      try {
+        const me = await getMeRequest()
+        if (me?.user) {
+          setUser(me.user)
+          localStorage.setItem('user', JSON.stringify(me.user))
+        }
+      } catch {
+        // Keep last known local user if backend is unavailable.
+      }
+    }
+
+    syncUser()
+  }, [])
 
   // login/register - create avatar initials from logged user name
   const getInitials = (name = '') =>

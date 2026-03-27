@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
+import EmojiPicker from "emoji-picker-react";
 import "./GroupChat.css";
 
 function GroupChat() {
-  // Get logged in user from localStorage
   const storedUser = JSON.parse(localStorage.getItem("user")) || {};
 
   const currentUser = {
@@ -33,38 +33,11 @@ function GroupChat() {
       unread: 0,
       avatar: "K",
     },
-    {
-      id: 3,
-      name: "Tamara Shevchenko",
-      lastMessage: "are you going to be using...",
-      time: "10:05",
-      unread: 0,
-      avatar: "T",
-    },
-    {
-      id: 4,
-      name: "Joshua Clarkson",
-      lastMessage: "I suggest to start, I have n...",
-      time: "15:09",
-      unread: 0,
-      avatar: "J",
-    },
-    {
-      id: 5,
-      name: "Jeroen Zoet",
-      lastMessage: "We need to find a new re...",
-      time: "14:09",
-      unread: 0,
-      avatar: "J",
-    },
   ];
 
   const members = [
     { id: 1, name: currentUser.name, role: "Admin", status: "online", avatar: currentUser.avatar },
     { id: 2, name: "Kate Johnson", role: "Member", status: "online", avatar: "K" },
-    { id: 3, name: "Eva Scott", role: "Member", status: "away", avatar: "E" },
-    { id: 4, name: "Robert", role: "Member", status: "offline", avatar: "R" },
-    { id: 5, name: "Tamara", role: "Member", status: "online", avatar: "T" },
   ];
 
   const initialMessages = [
@@ -77,38 +50,10 @@ function GroupChat() {
     },
     {
       id: 2,
-      senderId: 2,
-      senderName: "Kate Johnson",
-      text: "Recently I saw properties in a great location that I did not pay attention to before 🤔",
-      time: "11:24 AM",
-    },
-    {
-      id: 3,
-      senderId: 3,
-      senderName: "Eva Scott",
-      text: "Ooo, why don't you say something more",
-      time: "11:25 AM",
-    },
-    {
-      id: 4,
-      senderId: 3,
-      senderName: "Eva Scott",
-      text: "@Robert ! 👀",
-      time: "11:25 AM",
-    },
-    {
-      id: 5,
       senderId: currentUser.id,
       senderName: currentUser.name,
       text: "He creates an atmosphere of mystery 😉",
       time: "11:26 AM",
-    },
-    {
-      id: 6,
-      senderId: 3,
-      senderName: "Eva Scott",
-      text: "Robert, don't be like that and say something more :)",
-      time: "11:34 AM",
     },
   ];
 
@@ -116,6 +61,7 @@ function GroupChat() {
   const [messages, setMessages] = useState(initialMessages);
   const [messageInput, setMessageInput] = useState("");
   const [activeTab, setActiveTab] = useState("messages");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const typingText = useMemo(() => {
     return "Robert is typing...";
@@ -137,6 +83,7 @@ function GroupChat() {
 
     setMessages((prev) => [...prev, newMessage]);
     setMessageInput("");
+    setShowEmojiPicker(false);
   };
 
   const handleKeyDown = (e) => {
@@ -144,6 +91,10 @@ function GroupChat() {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const onEmojiClick = (emojiData) => {
+    setMessageInput((prev) => prev + emojiData.emoji);
   };
 
   return (
@@ -165,7 +116,6 @@ function GroupChat() {
       </div>
 
       <div className="groupchat-main">
-        {/* Left Sidebar */}
         <aside className="chat-sidebar">
           <div className="sidebar-top">
             <div className="sidebar-title">Chat</div>
@@ -187,9 +137,7 @@ function GroupChat() {
             {chats.map((chat) => (
               <div
                 key={chat.id}
-                className={`chat-list-item ${
-                  selectedChat.id === chat.id ? "active" : ""
-                }`}
+                className={`chat-list-item ${selectedChat.id === chat.id ? "active" : ""}`}
                 onClick={() => setSelectedChat(chat)}
               >
                 <div className="chat-avatar">{chat.avatar}</div>
@@ -202,15 +150,12 @@ function GroupChat() {
                   <p>{chat.lastMessage}</p>
                 </div>
 
-                {chat.unread > 0 && (
-                  <div className="chat-unread">{chat.unread}</div>
-                )}
+                {chat.unread > 0 && <div className="chat-unread">{chat.unread}</div>}
               </div>
             ))}
           </div>
         </aside>
 
-        {/* Center Chat Area */}
         <section className="chat-center">
           <div className="chat-center-top">
             <div>
@@ -237,15 +182,14 @@ function GroupChat() {
           <div className="chat-messages-area">
             {messages.map((msg) => {
               const isOwn = msg.senderId === currentUser.id;
+
               return (
                 <div
                   key={msg.id}
                   className={`message-row ${isOwn ? "own-message" : "other-message"}`}
                 >
                   {!isOwn && (
-                    <div className="message-avatar">
-                      {msg.senderName.charAt(0)}
-                    </div>
+                    <div className="message-avatar">{msg.senderName.charAt(0)}</div>
                   )}
 
                   <div className="message-bubble-wrap">
@@ -273,52 +217,42 @@ function GroupChat() {
             <div className="typing-text">{typingText}</div>
           </div>
 
-          <div className="chat-input-area">
-            <button className="icon-btn">😊</button>
+          <div className="chat-input-wrapper">
+            {showEmojiPicker && (
+              <div className="emoji-picker-box">
+                <EmojiPicker onEmojiClick={onEmojiClick} />
+              </div>
+            )}
 
-            <textarea
-              placeholder="Write your message..."
-              value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={1}
-            />
+            <div className="chat-input-area">
+              <button
+                className="icon-btn"
+                onClick={() => setShowEmojiPicker((prev) => !prev)}
+              >
+                😊
+              </button>
 
-            <button className="icon-btn">📎</button>
-            <button className="send-btn" onClick={handleSendMessage}>
-              ➤
-            </button>
+              <textarea
+                placeholder="Write your message..."
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                rows={1}
+              />
+
+              <button className="icon-btn">📎</button>
+
+              <button className="send-btn" onClick={handleSendMessage}>
+                ➤
+              </button>
+            </div>
           </div>
         </section>
 
-        {/* Right Panel */}
         <aside className="chat-rightbar">
           <div className="rightbar-header">
             <h3>Members</h3>
             <p>{members.length} people</p>
-          </div>
-
-          <div className="members-list">
-            {members.map((member) => (
-              <div key={member.id} className="member-item">
-                <div className="member-left">
-                  <div className="member-avatar">{member.avatar}</div>
-                  <div>
-                    <h4>{member.name}</h4>
-                    <span>{member.role}</span>
-                  </div>
-                </div>
-
-                <div className={`status-dot ${member.status}`}></div>
-              </div>
-            ))}
-          </div>
-
-          <div className="shared-files-card">
-            <h4>Shared Files</h4>
-            <div className="file-item">📘 StudyNotes.pdf</div>
-            <div className="file-item">📝 GroupDiscussion.docx</div>
-            <div className="file-item">📊 SemesterPlan.xlsx</div>
           </div>
         </aside>
       </div>

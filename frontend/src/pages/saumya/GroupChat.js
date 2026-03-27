@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import EmojiPicker from "emoji-picker-react";
 import "./GroupChat.css";
 
@@ -22,7 +22,6 @@ function GroupChat() {
       lastMessage: "Hmm...",
       time: "11:15",
       unread: 2,
-      active: true,
       avatar: "R",
     },
     {
@@ -38,6 +37,8 @@ function GroupChat() {
   const members = [
     { id: 1, name: currentUser.name, role: "Admin", status: "online", avatar: currentUser.avatar },
     { id: 2, name: "Kate Johnson", role: "Member", status: "online", avatar: "K" },
+    { id: 3, name: "Eva Scott", role: "Member", status: "away", avatar: "E" },
+    { id: 4, name: "Robert", role: "Member", status: "offline", avatar: "R" },
   ];
 
   const initialMessages = [
@@ -47,6 +48,7 @@ function GroupChat() {
       senderName: "Kate Johnson",
       text: "Hi everyone, let’s start the real estate discussion 😊",
       time: "11:24 AM",
+      type: "text",
     },
     {
       id: 2,
@@ -54,6 +56,7 @@ function GroupChat() {
       senderName: currentUser.name,
       text: "He creates an atmosphere of mystery 😉",
       time: "11:26 AM",
+      type: "text",
     },
   ];
 
@@ -62,6 +65,8 @@ function GroupChat() {
   const [messageInput, setMessageInput] = useState("");
   const [activeTab, setActiveTab] = useState("messages");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const fileInputRef = useRef(null);
 
   const typingText = useMemo(() => {
     return "Robert is typing...";
@@ -79,6 +84,7 @@ function GroupChat() {
         hour: "2-digit",
         minute: "2-digit",
       }),
+      type: "text",
     };
 
     setMessages((prev) => [...prev, newMessage]);
@@ -95,6 +101,72 @@ function GroupChat() {
 
   const onEmojiClick = (emojiData) => {
     setMessageInput((prev) => prev + emojiData.emoji);
+  };
+
+  const handleFileButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const isImage = file.type.startsWith("image/");
+    const fileUrl = URL.createObjectURL(file);
+
+    const newFileMessage = {
+      id: Date.now(),
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      type: isImage ? "image" : "file",
+      fileName: file.name,
+      fileSize: `${(file.size / 1024).toFixed(1)} KB`,
+      fileUrl,
+    };
+
+    setMessages((prev) => [...prev, newFileMessage]);
+
+    e.target.value = "";
+  };
+
+  const renderMessageContent = (msg, isOwn) => {
+    if (msg.type === "image") {
+      return (
+        <div className={`message-bubble ${isOwn ? "own" : "other"} file-bubble`}>
+          <img src={msg.fileUrl} alt={msg.fileName} className="chat-image-preview" />
+          <div className="file-details">
+            <strong>{msg.fileName}</strong>
+            <span>{msg.fileSize}</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (msg.type === "file") {
+      return (
+        <a
+          href={msg.fileUrl}
+          download={msg.fileName}
+          className={`message-bubble ${isOwn ? "own" : "other"} file-bubble file-link`}
+        >
+          <div className="file-icon">📎</div>
+          <div className="file-details">
+            <strong>{msg.fileName}</strong>
+            <span>{msg.fileSize}</span>
+          </div>
+        </a>
+      );
+    }
+
+    return (
+      <div className={`message-bubble ${isOwn ? "own" : "other"}`}>
+        {msg.text}
+      </div>
+    );
   };
 
   return (
@@ -200,9 +272,7 @@ function GroupChat() {
                       </div>
                     )}
 
-                    <div className={`message-bubble ${isOwn ? "own" : "other"}`}>
-                      {msg.text}
-                    </div>
+                    {renderMessageContent(msg, isOwn)}
 
                     {isOwn && (
                       <div className="message-meta own-meta">
@@ -240,7 +310,16 @@ function GroupChat() {
                 rows={1}
               />
 
-              <button className="icon-btn">📎</button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                style={{ display: "none" }}
+              />
+
+              <button className="icon-btn" onClick={handleFileButtonClick}>
+                📎
+              </button>
 
               <button className="send-btn" onClick={handleSendMessage}>
                 ➤
@@ -253,6 +332,22 @@ function GroupChat() {
           <div className="rightbar-header">
             <h3>Members</h3>
             <p>{members.length} people</p>
+          </div>
+
+          <div className="members-list">
+            {members.map((member) => (
+              <div key={member.id} className="member-item">
+                <div className="member-left">
+                  <div className="member-avatar">{member.avatar}</div>
+                  <div>
+                    <h4>{member.name}</h4>
+                    <span>{member.role}</span>
+                  </div>
+                </div>
+
+                <div className={`status-dot ${member.status}`}></div>
+              </div>
+            ))}
           </div>
         </aside>
       </div>

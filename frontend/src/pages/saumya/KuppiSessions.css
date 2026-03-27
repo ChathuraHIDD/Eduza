@@ -117,6 +117,44 @@
     box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
   }
   
+  .calendar-card {
+    background: linear-gradient(180deg, #ffffff 0%, #fafcff 100%);
+  }
+  
+  .calendar-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  
+  .calendar-head h4 {
+    margin: 0;
+    color: #172033;
+  }
+  
+  .calendar-head span {
+    color: #8a90a7;
+    font-size: 13px;
+  }
+  
+  .enhanced-calendar-head {
+    gap: 12px;
+  }
+  
+  .calendar-nav-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 12px;
+    background: #fff3e8;
+    color: #f25c05;
+    font-size: 22px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  
   .calendar-weekdays {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -149,6 +187,7 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    position: relative;
   }
   
   .calendar-cell:hover,
@@ -158,6 +197,12 @@
     transform: translateY(-2px);
   }
   
+  .calendar-cell.selected {
+    background: #fff1e7;
+    border-color: #f25c05;
+    box-shadow: 0 0 0 2px rgba(242, 92, 5, 0.08);
+  }
+  
   .empty-cell {
     background: transparent;
     border: none;
@@ -165,10 +210,26 @@
     min-height: 72px;
   }
   
+  .calendar-cell-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  
   .calendar-cell-number {
     font-size: 15px;
     font-weight: 800;
     color: #1f2937;
+  }
+  
+  .calendar-more-count {
+    font-size: 10px;
+    font-weight: 800;
+    color: #f25c05;
+    background: #fff3e8;
+    border-radius: 999px;
+    padding: 2px 6px;
   }
   
   .calendar-dots {
@@ -209,6 +270,47 @@
     background: #64748b;
   }
   
+  .calendar-tooltip {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 8px);
+    transform: translateX(-50%);
+    min-width: 190px;
+    max-width: 220px;
+    background: #ffffff;
+    border: 1px solid #eef1f6;
+    border-radius: 14px;
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.14);
+    padding: 10px;
+    z-index: 25;
+  }
+  
+  .calendar-tooltip-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+  }
+  
+  .calendar-tooltip-item strong {
+    display: block;
+    color: #172033;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  
+  .calendar-tooltip-item small {
+    color: #8a90a7;
+    font-size: 11px;
+  }
+  
+  .calendar-tooltip-more {
+    margin-top: 4px;
+    font-size: 11px;
+    color: #f25c05;
+    font-weight: 700;
+  }
+  
   .calendar-legend {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -226,6 +328,50 @@
     gap: 8px;
     font-size: 12px;
     color: #6b7280;
+  }
+  
+  .calendar-hover-box {
+    border-radius: 18px;
+    background: #fff7f0;
+    border: 1px solid #ffe4cf;
+    padding: 14px;
+    min-height: 130px;
+  }
+  
+  .calendar-hover-box h5 {
+    margin: 0 0 12px 0;
+    color: #d45b12;
+    font-size: 15px;
+  }
+  
+  .calendar-hover-box ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .calendar-hover-box li {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f6dfcd;
+  }
+  
+  .calendar-hover-box li:last-child {
+    border-bottom: none;
+  }
+  
+  .calendar-hover-box li strong {
+    color: #172033;
+    font-size: 14px;
+  }
+  
+  .calendar-hover-box li span,
+  .no-calendar-task {
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.6;
   }
   
   .summary-card {
@@ -337,6 +483,34 @@
     box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.08);
   }
   
+  .selected-date-banner {
+    margin-top: 18px;
+    background: #fff7f0;
+    border: 1px solid #ffe4cf;
+    border-radius: 16px;
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .selected-date-banner span {
+    color: #7c2d12;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  
+  .selected-date-banner button {
+    border: none;
+    background: #f25c05;
+    color: white;
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  
   .kuppi-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(260px, 1fr));
@@ -400,6 +574,13 @@
     gap: 12px;
   }
   
+  .task-top-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  
   .task-chip {
     display: inline-block;
     padding: 7px 12px;
@@ -407,8 +588,27 @@
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.03em;
-    margin-bottom: 12px;
     text-transform: uppercase;
+  }
+  
+  .small-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+  
+  .pinned-badge {
+    background: #fff2e8;
+    color: #f25c05;
+  }
+  
+  .notify-badge {
+    background: #eef7ff;
+    color: #2563eb;
   }
   
   .accent-cyan {
@@ -461,6 +661,10 @@
     line-height: 1.5;
   }
   
+  .task-menu-wrapper {
+    position: relative;
+  }
+  
   .task-menu-btn {
     border: none;
     background: rgba(255, 255, 255, 0.55);
@@ -471,6 +675,49 @@
     color: #6c718e;
     cursor: pointer;
     line-height: 1;
+  }
+  
+  .task-dropdown-menu {
+    position: absolute;
+    top: 44px;
+    right: 0;
+    min-width: 180px;
+    background: #ffffff;
+    border: 1px solid #eef1f6;
+    border-radius: 16px;
+    box-shadow: 0 18px 30px rgba(15, 23, 42, 0.12);
+    padding: 8px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .task-dropdown-menu button {
+    width: 100%;
+    border: none;
+    background: #fff;
+    color: #172033;
+    text-align: left;
+    padding: 12px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .task-dropdown-menu button:hover {
+    background: #fff4ec;
+    color: #f25c05;
+  }
+  
+  .menu-subtext {
+    font-size: 12px;
+    color: #8a90a7;
+    font-weight: 500;
   }
   
   .kuppi-task-bottom {
@@ -763,6 +1010,17 @@
     .kuppi-section-title {
       font-size: 28px;
     }
+  
+    .calendar-tooltip {
+      left: 0;
+      transform: none;
+      min-width: 170px;
+    }
+  
+    .selected-date-banner {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
   
   @media (max-width: 600px) {
@@ -793,78 +1051,13 @@
     .modal-card {
       padding: 18px;
     }
-  }
-
-  .task-menu-wrapper {
-    position: relative;
-  }
   
-  .task-dropdown-menu {
-    position: absolute;
-    top: 44px;
-    right: 0;
-    min-width: 180px;
-    background: #ffffff;
-    border: 1px solid #eef1f6;
-    border-radius: 16px;
-    box-shadow: 0 18px 30px rgba(15, 23, 42, 0.12);
-    padding: 8px;
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
+    .full-calendar-grid {
+      gap: 6px;
+    }
   
-  .task-dropdown-menu button {
-    width: 100%;
-    border: none;
-    background: #fff;
-    color: #172033;
-    text-align: left;
-    padding: 12px 14px;
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  
-  .task-dropdown-menu button:hover {
-    background: #fff4ec;
-    color: #f25c05;
-  }
-  
-  .menu-subtext {
-    font-size: 12px;
-    color: #8a90a7;
-    font-weight: 500;
-  }
-  
-  .task-top-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-  
-  .small-status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 7px 10px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-  }
-  
-  .pinned-badge {
-    background: #fff2e8;
-    color: #f25c05;
-  }
-  
-  .notify-badge {
-    background: #eef7ff;
-    color: #2563eb;
+    .calendar-cell {
+      min-height: 64px;
+      padding: 6px;
+    }
   }

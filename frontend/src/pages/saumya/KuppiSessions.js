@@ -10,6 +10,34 @@ function KuppiSessions() {
     semester: storedUser.semester || "Semester 1",
   };
 
+  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [hoveredDate, setHoveredDate] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pinnedTasks, setPinnedTasks] = useState([1, 5, 7]);
+  const [notifyTasks, setNotifyTasks] = useState([]);
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  const weekNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  const currentMonthName = monthNames[currentCalendarDate.getMonth()];
+  const currentYearValue = currentCalendarDate.getFullYear();
+
   const allTasks = [
     {
       id: 1,
@@ -17,7 +45,8 @@ function KuppiSessions() {
       time: "10:00 AM - 11:30 AM",
       day: "Monday",
       date: 3,
-      month: "March",
+      month: currentMonthName,
+      yearNumber: currentYearValue,
       subject: "UI/UX",
       year: "3rd Year",
       semester: "Semester 1",
@@ -33,9 +62,10 @@ function KuppiSessions() {
       id: 2,
       title: "Web Development Kuppi",
       time: "01:00 PM - 02:30 PM",
-      day: "Monday",
+      day: "Wednesday",
       date: 5,
-      month: "March",
+      month: currentMonthName,
+      yearNumber: currentYearValue,
       subject: "Web Development",
       year: "3rd Year",
       semester: "Semester 1",
@@ -51,9 +81,10 @@ function KuppiSessions() {
       id: 3,
       title: "Software Engineering Discussion",
       time: "09:00 AM - 10:00 AM",
-      day: "Tuesday",
+      day: "Saturday",
       date: 8,
-      month: "March",
+      month: currentMonthName,
+      yearNumber: currentYearValue,
       subject: "Software Engineering",
       year: "3rd Year",
       semester: "Semester 1",
@@ -69,9 +100,10 @@ function KuppiSessions() {
       id: 4,
       title: "Database Systems Kuppi",
       time: "11:00 AM - 12:00 PM",
-      day: "Wednesday",
+      day: "Tuesday",
       date: 11,
-      month: "March",
+      month: currentMonthName,
+      yearNumber: currentYearValue,
       subject: "Database",
       year: "2nd Year",
       semester: "Semester 2",
@@ -87,9 +119,10 @@ function KuppiSessions() {
       id: 5,
       title: "Networking Revision",
       time: "02:00 PM - 03:30 PM",
-      day: "Thursday",
+      day: "Friday",
       date: 14,
-      month: "March",
+      month: currentMonthName,
+      yearNumber: currentYearValue,
       subject: "Networking",
       year: "2nd Year",
       semester: "Semester 2",
@@ -105,9 +138,10 @@ function KuppiSessions() {
       id: 6,
       title: "Java Programming Kuppi",
       time: "10:00 AM - 11:30 AM",
-      day: "Friday",
+      day: "Tuesday",
       date: 18,
-      month: "March",
+      month: currentMonthName,
+      yearNumber: currentYearValue,
       subject: "Programming",
       year: "1st Year",
       semester: "Semester 2",
@@ -123,9 +157,10 @@ function KuppiSessions() {
       id: 7,
       title: "Algorithms Kuppi",
       time: "03:00 PM - 04:30 PM",
-      day: "Saturday",
+      day: "Tuesday",
       date: 18,
-      month: "March",
+      month: currentMonthName,
+      yearNumber: currentYearValue,
       subject: "Algorithms",
       year: "3rd Year",
       semester: "Semester 1",
@@ -141,9 +176,10 @@ function KuppiSessions() {
       id: 8,
       title: "Mobile App Kuppi",
       time: "04:00 PM - 05:00 PM",
-      day: "Monday",
+      day: "Saturday",
       date: 22,
-      month: "March",
+      month: currentMonthName,
+      yearNumber: currentYearValue,
       subject: "Mobile Development",
       year: "3rd Year",
       semester: "Semester 1",
@@ -155,6 +191,25 @@ function KuppiSessions() {
       conductor: "Saumya",
       calendarColor: "calendar-orange",
     },
+    {
+      id: 9,
+      title: "React Revision",
+      time: "06:00 PM - 07:00 PM",
+      day: "Tuesday",
+      date: 18,
+      month: currentMonthName,
+      yearNumber: currentYearValue,
+      subject: "Web Development",
+      year: "3rd Year",
+      semester: "Semester 1",
+      type: "upcoming",
+      category: "Revision",
+      bgClass: "task-card-lavender",
+      avatars: ["A", "B", "C"],
+      accent: "accent-lavender",
+      conductor: "Nipuni",
+      calendarColor: "calendar-purple",
+    },
   ];
 
   const [filters, setFilters] = useState({
@@ -163,12 +218,6 @@ function KuppiSessions() {
     year: "All",
     semester: "All",
   });
-
-  const [hoveredDate, setHoveredDate] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState(null);
-  const [pinnedTasks, setPinnedTasks] = useState([1, 5, 7]); // example pinned tasks
-  const [notifyTasks, setNotifyTasks] = useState([]);
 
   const [conductorForm, setConductorForm] = useState({
     fullName: currentUser.name,
@@ -183,9 +232,6 @@ function KuppiSessions() {
     availability: "",
   });
 
-  const currentMonth = "March";
-  const currentYearValue = 2026;
-
   const uniqueSubjects = ["All", ...new Set(allTasks.map((task) => task.subject))];
   const uniqueYears = ["All", ...new Set(allTasks.map((task) => task.year))];
   const uniqueSemesters = ["All", ...new Set(allTasks.map((task) => task.semester))];
@@ -199,9 +245,21 @@ function KuppiSessions() {
       const matchSemester =
         filters.semester === "All" || task.semester === filters.semester;
 
-      return matchDay && matchSubject && matchYear && matchSemester;
+      const matchSelectedDate =
+        !selectedDate ||
+        (task.date === selectedDate &&
+          task.month === currentMonthName &&
+          task.yearNumber === currentYearValue);
+
+      return (
+        matchDay &&
+        matchSubject &&
+        matchYear &&
+        matchSemester &&
+        matchSelectedDate
+      );
     });
-  }, [filters]);
+  }, [allTasks, filters, selectedDate, currentMonthName, currentYearValue]);
 
   const sortedFilteredTasks = useMemo(() => {
     const pinned = filteredTasks.filter((task) => pinnedTasks.includes(task.id));
@@ -213,19 +271,23 @@ function KuppiSessions() {
   const upcomingTasks = sortedFilteredTasks.filter((task) => task.type === "upcoming");
 
   const hoveredDateTasks = hoveredDate
-    ? allTasks.filter((task) => task.date === hoveredDate && task.month === currentMonth)
+    ? allTasks.filter(
+        (task) =>
+          task.date === hoveredDate &&
+          task.month === currentMonthName &&
+          task.yearNumber === currentYearValue
+      )
     : [];
 
   const calendarDays = useMemo(() => {
     const year = currentYearValue;
-    const monthIndex = 2; // March
+    const monthIndex = currentCalendarDate.getMonth();
     const firstDay = new Date(year, monthIndex, 1).getDay();
     const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
 
-    const sundayBasedFirstDay = firstDay; // 0 sunday
     const days = [];
 
-    for (let i = 0; i < sundayBasedFirstDay; i++) {
+    for (let i = 0; i < firstDay; i++) {
       days.push({ type: "empty", key: `empty-${i}` });
     }
 
@@ -233,8 +295,16 @@ function KuppiSessions() {
       const pinnedMeetings = allTasks.filter(
         (task) =>
           task.date === d &&
-          task.month === currentMonth &&
+          task.month === currentMonthName &&
+          task.yearNumber === currentYearValue &&
           pinnedTasks.includes(task.id)
+      );
+
+      const allMeetings = allTasks.filter(
+        (task) =>
+          task.date === d &&
+          task.month === currentMonthName &&
+          task.yearNumber === currentYearValue
       );
 
       days.push({
@@ -242,11 +312,32 @@ function KuppiSessions() {
         date: d,
         key: `day-${d}`,
         pinnedMeetings,
+        allMeetings,
       });
     }
 
     return days;
-  }, [allTasks, pinnedTasks]);
+  }, [allTasks, pinnedTasks, currentCalendarDate, currentMonthName, currentYearValue]);
+
+  const handlePrevMonth = () => {
+    setCurrentCalendarDate(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+    );
+    setSelectedDate(null);
+    setHoveredDate(null);
+  };
+
+  const handleNextMonth = () => {
+    setCurrentCalendarDate(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+    );
+    setSelectedDate(null);
+    setHoveredDate(null);
+  };
+
+  const handleCalendarDateClick = (date) => {
+    setSelectedDate((prev) => (prev === date ? null : date));
+  };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -286,6 +377,10 @@ function KuppiSessions() {
       alert(`You will be notified 2 hours before "${task.title}".`);
     }
     setOpenMenuId(null);
+  };
+
+  const clearDateFilter = () => {
+    setSelectedDate(null);
   };
 
   const TaskCard = ({ task }) => {
@@ -450,6 +545,15 @@ function KuppiSessions() {
                 </select>
               </div>
             </div>
+
+            {selectedDate && (
+              <div className="selected-date-banner">
+                <span>
+                  Showing sessions for {currentMonthName} {selectedDate}, {currentYearValue}
+                </span>
+                <button onClick={clearDateFilter}>Clear</button>
+              </div>
+            )}
           </section>
 
           <section className="kuppi-section">
@@ -511,19 +615,22 @@ function KuppiSessions() {
 
         <aside className="kuppi-side-panel">
           <div className="side-card calendar-card">
-            <div className="calendar-head">
-              <h4>March Calendar</h4>
-              <span>Pinned sessions marked</span>
+            <div className="calendar-head enhanced-calendar-head">
+              <button className="calendar-nav-btn" onClick={handlePrevMonth}>
+                ‹
+              </button>
+              <h4>
+                {currentMonthName} {currentYearValue}
+              </h4>
+              <button className="calendar-nav-btn" onClick={handleNextMonth}>
+                ›
+              </button>
             </div>
 
             <div className="calendar-weekdays">
-              <span>Sun</span>
-              <span>Mon</span>
-              <span>Tue</span>
-              <span>Wed</span>
-              <span>Thu</span>
-              <span>Fri</span>
-              <span>Sat</span>
+              {weekNames.map((name) => (
+                <span key={name}>{name}</span>
+              ))}
             </div>
 
             <div className="full-calendar-grid">
@@ -535,11 +642,19 @@ function KuppiSessions() {
                     key={item.key}
                     className={`calendar-cell ${
                       hoveredDate === item.date ? "active" : ""
-                    }`}
+                    } ${selectedDate === item.date ? "selected" : ""}`}
                     onMouseEnter={() => setHoveredDate(item.date)}
                     onMouseLeave={() => setHoveredDate(null)}
+                    onClick={() => handleCalendarDateClick(item.date)}
                   >
-                    <div className="calendar-cell-number">{item.date}</div>
+                    <div className="calendar-cell-top">
+                      <div className="calendar-cell-number">{item.date}</div>
+                      {item.pinnedMeetings.length > 3 && (
+                        <span className="calendar-more-count">
+                          +{item.pinnedMeetings.length - 3}
+                        </span>
+                      )}
+                    </div>
 
                     <div className="calendar-dots">
                       {item.pinnedMeetings.slice(0, 3).map((meeting) => (
@@ -550,6 +665,27 @@ function KuppiSessions() {
                         ></span>
                       ))}
                     </div>
+
+                    {hoveredDate === item.date && item.allMeetings.length > 0 && (
+                      <div className="calendar-tooltip">
+                        {item.allMeetings.slice(0, 2).map((meeting) => (
+                          <div key={meeting.id} className="calendar-tooltip-item">
+                            <span
+                              className={`calendar-dot ${meeting.calendarColor}`}
+                            ></span>
+                            <div>
+                              <strong>{meeting.title}</strong>
+                              <small>{meeting.time}</small>
+                            </div>
+                          </div>
+                        ))}
+                        {item.allMeetings.length > 2 && (
+                          <div className="calendar-tooltip-more">
+                            +{item.allMeetings.length - 2} more
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               )}
@@ -568,7 +704,9 @@ function KuppiSessions() {
               {hoveredDate ? (
                 hoveredDateTasks.length > 0 ? (
                   <>
-                    <h5>Sessions on March {hoveredDate}</h5>
+                    <h5>
+                      Sessions on {currentMonthName} {hoveredDate}
+                    </h5>
                     <ul>
                       {hoveredDateTasks.map((task) => (
                         <li key={task.id}>
@@ -583,7 +721,7 @@ function KuppiSessions() {
                 )
               ) : (
                 <div className="no-calendar-task">
-                  Hover a date to see what sessions are available.
+                  Hover a date to preview sessions. Click a date to filter.
                 </div>
               )}
             </div>
@@ -593,7 +731,7 @@ function KuppiSessions() {
             <span className="side-card-label">Filtered Result</span>
             <h3>{filteredTasks.length} Sessions Found</h3>
             <p>
-              Based on your selected day, subject, year, and semester filters.
+              Based on your selected day, subject, year, semester, and date filter.
             </p>
           </div>
         </aside>

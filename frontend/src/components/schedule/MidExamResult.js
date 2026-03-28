@@ -2,6 +2,9 @@ import { useState } from 'react'
 
 const WEAKNESS_LABELS = { 1: 'Very Strong', 2: 'Strong', 3: 'Average', 4: 'Weak', 5: 'Very Weak' }
 const PREP_LABELS     = { 1: "Haven't Started", 2: 'Just Started', 3: 'Getting There', 4: 'Well Prepared', 5: 'Fully Ready' }
+const ACCENT = '#f97316'
+const ACCENT_DARK = '#c2410c'
+const ACCENT_RGBA = (a) => `rgba(249,115,22,${a})`
 
 function MidExamResult({ data, onBack }) {
   const [expandedDay, setExpandedDay] = useState(0)
@@ -38,8 +41,8 @@ function MidExamResult({ data, onBack }) {
 
       {/* Summary banner */}
       <div style={{
-        background: 'linear-gradient(135deg, #0d1a2d 0%, #0f1628 100%)',
-        border: '1px solid #1a2a40',
+        background: 'linear-gradient(135deg, #2a1608 0%, #1f1208 100%)',
+        border: '1px solid #4a2b14',
         borderRadius: 18, padding: '1.5rem 2rem',
         marginBottom: '1.25rem',
         position: 'relative', overflow: 'hidden',
@@ -47,18 +50,18 @@ function MidExamResult({ data, onBack }) {
         <div style={{
           position: 'absolute', right: -50, top: -50,
           width: 200, height: 200, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)',
+          background: `radial-gradient(circle, ${ACCENT_RGBA(0.12)} 0%, transparent 70%)`,
         }} />
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#3b82f6', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: ACCENT, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
               Semester Mid Exams
             </div>
             <h3 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: '#f5f5f5', letterSpacing: '-0.4px' }}>
               {exams.length} Exam{exams.length > 1 ? 's' : ''} · {totalDays} Day Plan
             </h3>
             <p style={{ margin: 0, fontSize: 13, color: '#555' }}>
-              Study time: <span style={{ color: '#3b82f6', fontWeight: 600 }}>
+              Study time: <span style={{ color: ACCENT, fontWeight: 600 }}>
                 {studyTime === 'morning' ? '🌅 Morning sessions' : '🌙 Night sessions'}
               </span>
             </p>
@@ -75,7 +78,7 @@ function MidExamResult({ data, onBack }) {
                 border: '1px solid rgba(255,255,255,0.06)',
                 borderRadius: 12, padding: '10px 16px', textAlign: 'center', minWidth: 70,
               }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#3b82f6', letterSpacing: '-0.5px' }}>{s.value}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: ACCENT, letterSpacing: '-0.5px' }}>{s.value}</div>
                 <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>{s.label}</div>
               </div>
             ))}
@@ -105,8 +108,8 @@ function MidExamResult({ data, onBack }) {
                 }} />
                 <span style={{
                   fontSize: 10, fontWeight: 700,
-                  color: exam.daysFromToday <= 3 ? '#ef4444' : exam.daysFromToday <= 7 ? '#f97316' : '#3b82f6',
-                  background: exam.daysFromToday <= 3 ? 'rgba(239,68,68,0.1)' : exam.daysFromToday <= 7 ? 'rgba(249,115,22,0.1)' : 'rgba(59,130,246,0.1)',
+                  color: exam.daysFromToday <= 3 ? '#ef4444' : exam.daysFromToday <= 7 ? '#f97316' : ACCENT,
+                  background: exam.daysFromToday <= 3 ? 'rgba(239,68,68,0.1)' : exam.daysFromToday <= 7 ? 'rgba(249,115,22,0.1)' : ACCENT_RGBA(0.1),
                   padding: '2px 7px', borderRadius: 20,
                 }}>
                   {exam.daysFromToday <= 3 ? 'URGENT' : exam.daysFromToday <= 7 ? 'SOON' : `${exam.daysFromToday}d`}
@@ -138,7 +141,7 @@ function MidExamResult({ data, onBack }) {
         <span style={{ fontSize: 12, color: '#555', marginRight: 4 }}>Filter:</span>
         <button
           onClick={() => setActiveSubject(null)}
-          style={filterBtn(activeSubject === null, '#3b82f6')}
+          style={filterBtn(activeSubject === null, ACCENT)}
         >All Subjects</button>
         {exams.map((e) => (
           <button key={e.subject}
@@ -153,7 +156,7 @@ function MidExamResult({ data, onBack }) {
 
       {/* Day-by-day schedule */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {filteredDays.map((day, idx) => {
+        {filteredDays.map((day) => {
           const globalIdx = days.indexOf(day)
           const isOpen = expandedDay === globalIdx
 
@@ -379,10 +382,10 @@ function MidExamResult({ data, onBack }) {
           </div>
         </div>
         <button onClick={onBack} style={{
-          background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+          background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT_DARK})`,
           border: 'none', borderRadius: 10, color: '#fff',
           padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          boxShadow: '0 4px 18px rgba(59,130,246,0.3)',
+          boxShadow: `0 4px 18px ${ACCENT_RGBA(0.3)}`,
         }}>Create Another Plan</button>
       </div>
     </div>

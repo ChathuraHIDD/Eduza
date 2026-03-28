@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import LogoutModal from './LogoutModal'
+import BrandLogo from './BrandLogo'
 
 function Sidebar({ open, onClose }) {
   return (
@@ -245,27 +246,7 @@ function SidebarContent({ onClose }) {
         }}
       >
         <NavLink to={homePath} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, #f97316, #c2410c)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 16,
-              fontWeight: 800,
-              color: '#fff',
-              letterSpacing: '-0.5px',
-              boxShadow: '0 10px 24px rgba(249,115,22,0.22)',
-            }}
-          >
-            E
-          </div>
-          <span style={{ fontSize: 20, fontWeight: 700, color: '#132a60', letterSpacing: '-0.5px' }}>
-            EDU<span style={{ color: '#f97316' }}>ZA</span>
-          </span>
+          <BrandLogo width={128} height={44} rounded={12} scale={1.08} />
         </NavLink>
 
         <button

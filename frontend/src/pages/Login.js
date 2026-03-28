@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginRequest, setAuthData } from "../utils/api";
+import BrandLogo from "../components/BrandLogo";
 
 // login/register
 export default function Login() {
@@ -53,7 +54,21 @@ export default function Login() {
           <div style={styles.leftCircleTop} />
           <div style={styles.leftCircleBottom} />
 
-          <div style={styles.logoBox}>E</div>
+          <BrandLogo
+            width={260}
+            height={128}
+            rounded={18}
+            bg="rgba(255,255,255,0.12)"
+            padding={8}
+            scale={1.25}
+            imageStyle={{ objectFit: "cover" }}
+            style={{
+              marginBottom: 34,
+              position: "relative",
+              zIndex: 1,
+              alignSelf: "center",
+            }}
+          />
           <h1 style={styles.title}>Welcome to EDUZA</h1>
           <p style={styles.subtitle}>
             Smart academic support for students, lecturers, admins, and coordinators.

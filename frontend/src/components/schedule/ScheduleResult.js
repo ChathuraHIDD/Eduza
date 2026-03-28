@@ -7,8 +7,8 @@ const INTENSITY_COLORS = { 4: '#ef4444', 3: '#f97316', 2: '#eab308', 1: '#22c55e
 function ScheduleResult({ data, onBack }) {
   const [expandedDay, setExpandedDay] = useState(0)
 
-  const handleDownloadPdf = () => {
-    downloadSchedulePdf({ planType: 'assignment', data })
+  const handleDownloadPdf = async () => {
+    await downloadSchedulePdf({ planType: 'assignment', data })
   }
 
   const {

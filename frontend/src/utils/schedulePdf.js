@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf'
+import { drawEduzaLogo } from './pdfBranding'
 
 const ORANGE = [249, 115, 22]
 const ORANGE_DARK = [194, 65, 12]
@@ -19,20 +20,23 @@ function drawFrame(doc) {
   doc.rect(10, 10, w - 20, h - 20)
 }
 
-function drawHeader(doc, title) {
+async function drawHeader(doc, title) {
   const w = doc.internal.pageSize.getWidth()
 
   doc.setFillColor(...ORANGE)
   doc.rect(10, 10, w - 20, 22, 'F')
 
   doc.setTextColor(...WHITE)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(16)
-  doc.text('EDUZA', 14, 19)
+  const hasLogo = await drawEduzaLogo(doc, 14, 12, 24, 18)
+  if (!hasLogo) {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(16)
+    doc.text('EDUZA', 14, 19)
+  }
 
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
-  doc.text('Smart Schedule', 14, 26)
+  doc.text('Smart Schedule', hasLogo ? 40 : 14, 26)
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
@@ -41,7 +45,7 @@ function drawHeader(doc, title) {
   doc.setTextColor(...TEXT_DARK)
 }
 
-function ensureSpace(doc, y, needed) {
+async function ensureSpace(doc, y, needed, title = 'Generated Plan') {
   const h = doc.internal.pageSize.getHeight()
   if (y + needed < h - 14) {
     return y
@@ -49,7 +53,7 @@ function ensureSpace(doc, y, needed) {
 
   doc.addPage()
   drawFrame(doc)
-  drawHeader(doc, 'Generated Plan')
+  await drawHeader(doc, title)
   return 40
 }
 
@@ -107,7 +111,7 @@ function sessionLines(day) {
   })
 }
 
-export function downloadSchedulePdf({ planType, data }) {
+export async function downloadSchedulePdf({ planType, data }) {
   const planTitle =
     planType === 'assignment'
       ? 'Assignment Plan'
@@ -117,7 +121,7 @@ export function downloadSchedulePdf({ planType, data }) {
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   drawFrame(doc)
-  drawHeader(doc, planTitle)
+  await drawHeader(doc, planTitle)
 
   let y = 42
 
@@ -145,14 +149,14 @@ export function downloadSchedulePdf({ planType, data }) {
       ['Study Time', data?.studyTime === 'morning' ? 'Morning' : data?.studyTime === 'night' ? 'Night' : '-'],
     ]
 
-  summaryRows.forEach(([label, value]) => {
-    y = ensureSpace(doc, y, 7)
+  for (const [label, value] of summaryRows) {
+    y = await ensureSpace(doc, y, 7, planTitle)
     writeLabelValue(doc, y, label, value)
     y += 6
-  })
+  }
 
   y += 3
-  y = ensureSpace(doc, y, 12)
+  y = await ensureSpace(doc, y, 12, planTitle)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
   doc.setTextColor(...TEXT_DARK)
@@ -160,8 +164,9 @@ export function downloadSchedulePdf({ planType, data }) {
   y += 6
 
   const days = Array.isArray(data?.days) ? data.days : []
-  days.forEach((day, idx) => {
-    y = ensureSpace(doc, y, 10)
+  for (let idx = 0; idx < days.length; idx += 1) {
+    const day = days[idx]
+    y = await ensureSpace(doc, y, 10, planTitle)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(10)
     doc.setTextColor(...ORANGE_DARK)
@@ -173,15 +178,15 @@ export function downloadSchedulePdf({ planType, data }) {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9.5)
     doc.setTextColor(...TEXT_MID)
-    lines.forEach((item) => {
-      y = ensureSpace(doc, y, 6)
+    for (const item of lines) {
+      y = await ensureSpace(doc, y, 6, planTitle)
       const wrapped = doc.splitTextToSize(item, 175)
       doc.text(wrapped, 18, y)
       y += wrapped.length * 4.4
-    })
+    }
 
     y += 1.5
-  })
+  }
 
   const stampY = doc.internal.pageSize.getHeight() - 14
   doc.setFont('helvetica', 'italic')

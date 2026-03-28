@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
+import { drawEduzaLogo } from "../utils/pdfBranding";
 
 const QUIZ_STORAGE_KEY = "moduleQuizzes";
 const QUIZ_ATTEMPTS_STORAGE_KEY = "quizAttempts";
@@ -375,7 +376,7 @@ function ProgressTracker() {
     return { latest, average, progress, best };
   }, [selfCheckAttemptSeries]);
 
-  const handleDownloadWrongAnswersPdf = () => {
+  const handleDownloadWrongAnswersPdf = async () => {
     if (!selectedQuiz || !quizResult) {
       alert("No quiz result available to export.");
       return;
@@ -390,7 +391,7 @@ function ProgressTracker() {
     const contentWidth = pageWidth - contentX * 2;
     let y = 132;
 
-    const drawPageFrame = () => {
+    const drawPageFrame = async () => {
       doc.setDrawColor(249, 115, 22);
       doc.setLineWidth(1.6);
       doc.rect(border, border, pageWidth - border * 2, pageHeight - border * 2);
@@ -399,9 +400,12 @@ function ProgressTracker() {
       doc.rect(border + 8, border + 8, pageWidth - (border + 8) * 2, 64, "F");
 
       doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(24);
-      doc.text("EDUZA", border + 20, border + 48);
+      const hasLogo = await drawEduzaLogo(doc, border + 16, border + 16, 66, 44);
+      if (!hasLogo) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(24);
+        doc.text("EDUZA", border + 20, border + 48);
+      }
 
       doc.setFontSize(12);
       doc.text("Wrong Answers Report", pageWidth - border - 20, border + 48, {
@@ -417,14 +421,14 @@ function ProgressTracker() {
       doc.text(moduleName, contentX, 118);
     };
 
-    const ensureSpace = (requiredHeight) => {
+    const ensureSpace = async (requiredHeight) => {
       if (y + requiredHeight <= pageHeight - 52) return;
       doc.addPage();
-      drawPageFrame();
+      await drawPageFrame();
       y = 132;
     };
 
-    drawPageFrame();
+    await drawPageFrame();
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
@@ -452,7 +456,7 @@ function ProgressTracker() {
       doc.setTextColor(22, 163, 74);
       doc.text("No wrong answers found for the current filter.", contentX, y);
     } else {
-      reportItems.forEach((item) => {
+      for (const item of reportItems) {
         const qLines = doc.splitTextToSize(
           `${item.questionNumber}. ${item.questionText}`,
           contentWidth
@@ -468,7 +472,7 @@ function ProgressTracker() {
         const blockHeight =
           qLines.length * 14 + yourLines.length * 14 + correctLines.length * 14 + 28;
 
-        ensureSpace(blockHeight);
+        await ensureSpace(blockHeight);
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
@@ -488,7 +492,7 @@ function ProgressTracker() {
         doc.setDrawColor(253, 186, 116);
         doc.line(contentX, y, pageWidth - contentX, y);
         y += 12;
-      });
+      }
     }
 
     const slug = (selectedQuiz.moduleCode || selectedQuiz.moduleName || "quiz")

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import BrandLogo from '../components/BrandLogo'
 
 const services = [
   {
@@ -93,7 +94,7 @@ function Navbar() {
           width: '100%',
           maxWidth: 1440,
           margin: '0 auto',
-          padding: '1.2rem 2.5rem',
+          padding: '1rem 2.5rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -101,24 +102,16 @@ function Navbar() {
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 10,
-              background: '#f97316',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontSize: 15,
-              fontWeight: 700,
-            }}
-          >
-            🧡
-          </div>
-          <div style={{ fontSize: 17, fontWeight: 800, color: '#374151' }}>EduBuzz</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 220 }}>
+          <BrandLogo
+            width={188}
+            height={62}
+            rounded={14}
+            scale={1.1}
+            bg='transparent'
+            padding={0}
+            imageStyle={{ objectFit: 'contain' }}
+          />
         </div>
 
         <nav
@@ -806,23 +799,15 @@ function Home() {
         >
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <div
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 10,
-                  background: '#f97316',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              >
-                🧡
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#374151' }}>EduBuzz</div>
+              <BrandLogo
+                width={166}
+                height={56}
+                rounded={12}
+                scale={1.06}
+                bg='transparent'
+                padding={0}
+                imageStyle={{ objectFit: 'contain' }}
+              />
             </div>
 
             <div style={{ display: 'flex', gap: 10, fontSize: 18 }}>

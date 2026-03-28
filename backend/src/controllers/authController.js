@@ -7,6 +7,7 @@ const toUserResponse = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  assignedStudentEmails: user.assignedStudentEmails || [],
   title: user.title || "",
   department: user.department || "",
   phone: user.phone || "",
@@ -40,7 +41,7 @@ const registerUser = async (req, res) => {
     }
 
     // login/register - allow these roles for registration
-    const allowedRoles = ["student", "lecturer", "coordinator", "admin"];
+    const allowedRoles = ["student", "lecturer", "coordinator", "admin", "guardian"];
     const selectedRole = role || "student";
 
     // login/register - validate selected role

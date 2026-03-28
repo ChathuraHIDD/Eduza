@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600" fill="none">
+  <defs>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#7c2d12"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="600" fill="url(#a)"/>
+  <circle cx="450" cy="220" r="90" fill="#fde68a"/>
+  <path d="M0 420 C200 360, 380 470, 560 420 C700 380, 780 440, 900 410 L900 600 L0 600 Z" fill="#a16207"/>
+  <path d="M0 470 C210 420, 420 520, 620 460 C730 430, 820 490, 900 460 L900 600 L0 600 Z" fill="#78350f"/>
+  <text x="52" y="540" fill="#fff7ed" font-size="54" font-family="Arial, sans-serif" font-weight="700">Desert Sunrise</text>
+</svg>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { getPendingProfileRequests, updateProfileRequestStatus } from '../utils/profileRequestApi'
 import { fetchModules, updateModuleApproval } from '../utils/moduleApi'
+import { acknowledgeStressAlert, getStressAdminSummary, getStressAlerts } from '../utils/stressHubApi'
 
 const cardStyle = {
   background: '#ffffff',
@@ -27,12 +28,48 @@ function AdminDashboard() {
   const [modulesLoading, setModulesLoading] = useState(true)
   const [modulesError, setModulesError] = useState('')
   const [moduleProcessing, setModuleProcessing] = useState(false)
+  const [stressAlerts, setStressAlerts] = useState([])
+  const [stressAlertsLoading, setStressAlertsLoading] = useState(true)
+  const [stressAlertsError, setStressAlertsError] = useState('')
+  const [stressSummary, setStressSummary] = useState(null)
+  const [stressSummaryLoading, setStressSummaryLoading] = useState(true)
+  const [stressSummaryError, setStressSummaryError] = useState('')
 
   // Fetch pending requests on component mount
   useEffect(() => {
     fetchPendingRequests()
     fetchPendingModuleRequests()
+    fetchOpenStressAlerts()
+    fetchStressSummary()
   }, [])
+
+  const fetchStressSummary = async () => {
+    try {
+      setStressSummaryLoading(true)
+      setStressSummaryError('')
+      const data = await getStressAdminSummary(30, 12)
+      setStressSummary(data)
+    } catch (err) {
+      setStressSummaryError('Failed to load stress summary')
+      console.error(err)
+    } finally {
+      setStressSummaryLoading(false)
+    }
+  }
+
+  const fetchOpenStressAlerts = async () => {
+    try {
+      setStressAlertsLoading(true)
+      setStressAlertsError('')
+      const data = await getStressAlerts(undefined, 'OPEN')
+      setStressAlerts(Array.isArray(data) ? data : [])
+    } catch (err) {
+      setStressAlertsError('Failed to load stress alerts')
+      console.error(err)
+    } finally {
+      setStressAlertsLoading(false)
+    }
+  }
 
   const fetchPendingRequests = async () => {
     try {
@@ -127,9 +164,19 @@ function AdminDashboard() {
   const stats = [
     { label: 'Pending Requests', value: pendingRequests.length.toString(), icon: '⏳', note: 'Awaiting approval' },
     { label: 'Pending Modules', value: pendingModuleRequests.length.toString(), icon: '📚', note: 'New module submissions' },
+    { label: 'Open Stress Alerts', value: stressAlerts.length.toString(), icon: '🚨', note: 'Student follow-up needed' },
     { label: 'Total Users', value: '1,284', icon: '👥', note: '+24 this month' },
-    { label: 'Lecturers', value: '48', icon: '🎓', note: 'Active staff' },
   ]
+
+  const handleAcknowledgeStressAlert = async (alertId) => {
+    try {
+      await acknowledgeStressAlert(alertId)
+      await fetchOpenStressAlerts()
+      alert('Stress alert acknowledged')
+    } catch (err) {
+      alert('Failed to acknowledge stress alert: ' + err.message)
+    }
+  }
 
   const recent = [
     'New lecturer account created',
@@ -445,6 +492,168 @@ function AdminDashboard() {
             <div style={{ color: '#9ca3af', fontSize: 12, marginTop: 6 }}>{item.note}</div>
           </div>
         ))}
+      </div>
+
+      <div style={{
+        ...cardStyle,
+        borderRadius: 14,
+        padding: '1.25rem',
+        marginBottom: '1.5rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, color: '#1a1a2e', fontSize: 18 }}>
+            🚨 Student High-Stress Alerts ({stressAlerts.length})
+          </h3>
+        </div>
+
+        {stressAlertsLoading && <div style={{ color: '#9ca3af' }}>Loading stress alerts...</div>}
+        {stressAlertsError && <div style={{ color: '#ef4444' }}>{stressAlertsError}</div>}
+
+        {!stressAlertsLoading && stressAlerts.length === 0 && (
+          <div style={{ color: '#9ca3af', textAlign: 'center', padding: '1.5rem' }}>
+            No active high-stress alerts right now.
+          </div>
+        )}
+
+        {!stressAlertsLoading && stressAlerts.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            {stressAlerts.map((alert) => (
+              <div
+                key={alert._id}
+                style={{
+                  background: '#fff7f7',
+                  border: '1.5px solid #fecaca',
+                  borderRadius: 12,
+                  padding: '1rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                  <div style={{ color: '#b91c1c', fontSize: 14, fontWeight: 800 }}>{alert.title || 'High Stress Detected'}</div>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 16, background: '#fee2e2', color: '#991b1b' }}>
+                    {alert.severity || 'HIGH'}
+                  </span>
+                </div>
+                <div style={{ color: '#7f1d1d', fontSize: 13, lineHeight: 1.5 }}>{alert.message}</div>
+                <div style={{ color: '#9ca3af', fontSize: 11, marginTop: '0.6rem' }}>
+                  {new Date(alert.createdAt).toLocaleString()}
+                </div>
+                <button
+                  onClick={() => handleAcknowledgeStressAlert(alert._id)}
+                  style={{
+                    marginTop: '0.7rem',
+                    background: '#dc2626',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '6px 12px',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: 11,
+                  }}
+                >
+                  Acknowledge Alert
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{
+        ...cardStyle,
+        borderRadius: 14,
+        padding: '1.25rem',
+        marginBottom: '1.5rem',
+      }}>
+        <h3 style={{ margin: '0 0 1rem', color: '#1a1a2e', fontSize: 18 }}>
+          📊 Stress Level Percentages (Last 30 Days)
+        </h3>
+
+        {stressSummaryLoading && <div style={{ color: '#9ca3af' }}>Loading stress chart...</div>}
+        {stressSummaryError && <div style={{ color: '#ef4444' }}>{stressSummaryError}</div>}
+
+        {!stressSummaryLoading && stressSummary && (
+          <>
+            <div style={{ display: 'grid', gap: '0.8rem', marginBottom: '1.2rem' }}>
+              {[
+                { key: 'HIGH', label: 'High', color: '#dc2626' },
+                { key: 'MEDIUM', label: 'Medium', color: '#f59e0b' },
+                { key: 'LOW', label: 'Low', color: '#16a34a' },
+              ].map((item) => {
+                const row = stressSummary.levelBreakdown?.[item.key] || { count: 0, percentage: 0 }
+                return (
+                  <div key={item.key}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                      <span style={{ color: '#374151', fontWeight: 700 }}>{item.label}</span>
+                      <span style={{ color: '#6b7280' }}>{row.percentage}% ({row.count})</span>
+                    </div>
+                    <div style={{ width: '100%', height: 10, borderRadius: 999, background: '#e5e7eb', overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          width: `${Math.max(0, Math.min(100, row.percentage))}%`,
+                          height: '100%',
+                          background: item.color,
+                          transition: 'width 260ms ease',
+                        }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ background: '#f8faff', border: '1px solid #e8ecf4', borderRadius: 10, padding: '0.75rem' }}>
+                <div style={{ color: '#9ca3af', fontSize: 11 }}>Total Submissions</div>
+                <div style={{ color: '#1a1a2e', fontSize: 20, fontWeight: 800 }}>{stressSummary.totalSubmissions || 0}</div>
+              </div>
+              <div style={{ background: '#f8faff', border: '1px solid #e8ecf4', borderRadius: 10, padding: '0.75rem' }}>
+                <div style={{ color: '#9ca3af', fontSize: 11 }}>Average Stress Score</div>
+                <div style={{ color: '#1a1a2e', fontSize: 20, fontWeight: 800 }}>{stressSummary.averageStressScore || 0}</div>
+              </div>
+              <div style={{ background: '#f8faff', border: '1px solid #e8ecf4', borderRadius: 10, padding: '0.75rem' }}>
+                <div style={{ color: '#9ca3af', fontSize: 11 }}>Period</div>
+                <div style={{ color: '#1a1a2e', fontSize: 20, fontWeight: 800 }}>{stressSummary.periodDays || 30}d</div>
+              </div>
+            </div>
+
+            <h4 style={{ margin: '0 0 0.75rem', color: '#1f2937', fontSize: 15 }}>Recent Student Stress Submissions</h4>
+            {(!stressSummary.recentSubmissions || stressSummary.recentSubmissions.length === 0) && (
+              <div style={{ color: '#9ca3af', fontSize: 13 }}>No submissions in this period.</div>
+            )}
+            {stressSummary.recentSubmissions && stressSummary.recentSubmissions.length > 0 && (
+              <div style={{ display: 'grid', gap: '0.65rem' }}>
+                {stressSummary.recentSubmissions.map((row) => (
+                  <div
+                    key={row.id}
+                    style={{
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 10,
+                      padding: '0.7rem 0.85rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                      <div>
+                        <div style={{ color: '#111827', fontSize: 13, fontWeight: 700 }}>{row.studentName}</div>
+                        <div style={{ color: '#6b7280', fontSize: 12 }}>{row.studentEmail || 'No email'}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: row.stressLevel === 'HIGH' ? '#dc2626' : row.stressLevel === 'MEDIUM' ? '#b45309' : '#166534' }}>
+                          {row.stressLevel}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#475569' }}>Score: {row.stressScore}</div>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 6, color: '#6b7280', fontSize: 11 }}>
+                      Colors: {(row.selectedColors || []).join(', ') || 'N/A'} • {new Date(row.submittedAt).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Pending Profile Requests Section */}

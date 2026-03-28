@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 function ProgressTracker() {
   const categories = [
@@ -47,17 +47,26 @@ function ProgressTracker() {
     { grade: "E", gpa: 0.0, marks: "0-29" },
   ];
 
+  const modeOptions = [
+    { title: "Custom", subtitle: "Add your own" },
+    { title: "Y1S1 Only", subtitle: "New Syllabus" },
+    { title: "Y1S1 Only", subtitle: "Old Syllabus" },
+    { title: "Y1S2 Only", subtitle: "New Syllabus" },
+    { title: "Y1S2 Only", subtitle: "Old Syllabus" },
+    { title: "Y2S1 Only", subtitle: "Old Syllabus" },
+    { title: "Y2S2 Only", subtitle: "Old Syllabus" },
+    { title: "Up to Y1S2", subtitle: "New Syllabus" },
+    { title: "Up to Y2S1", subtitle: "Old Syllabus" },
+    { title: "Up to Y2S2", subtitle: "Old Syllabus" },
+  ];
+
   const [activeCategory, setActiveCategory] = useState("gpa");
+  const [selectedMode, setSelectedMode] = useState("Custom-Add your own");
   const [modules, setModules] = useState([
     { id: 1, moduleName: "", credits: 3, grade: "A" },
   ]);
-
-  const [quizModules] = useState([
-    { name: "Mathematics for Computing", questions: 15, score: 78, status: "Completed" },
-    { name: "Database Systems", questions: 12, score: 85, status: "Completed" },
-    { name: "Software Engineering", questions: 20, score: 0, status: "Not Started" },
-    { name: "DSA", questions: 18, score: 64, status: "In Progress" },
-  ]);
+  const [quizModules, setQuizModules] = useState([]);
+  const [reportGenerated, setReportGenerated] = useState(false);
 
   const [selfCheckData] = useState([
     { label: "Week 1", value: 58 },
@@ -75,6 +84,11 @@ function ProgressTracker() {
     level: "Gold Badge",
   });
 
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem("moduleQuizzes") || "[]");
+    setQuizModules(saved);
+  }, []);
+
   const getGradePoint = (grade) => {
     const found = gradingScale.find((item) => item.grade === grade);
     return found ? found.gpa : 0;
@@ -86,6 +100,7 @@ function ProgressTracker() {
         module.id === id ? { ...module, [field]: value } : module
       )
     );
+    setReportGenerated(false);
   };
 
   const addModule = () => {
@@ -98,18 +113,22 @@ function ProgressTracker() {
         grade: "A",
       },
     ]);
+    setReportGenerated(false);
   };
 
   const removeModule = (id) => {
     if (modules.length === 1) return;
     setModules((prev) => prev.filter((module) => module.id !== id));
+    setReportGenerated(false);
   };
 
-  const summary = useMemo(() => {
-    const validModules = modules.filter(
+  const validModules = useMemo(() => {
+    return modules.filter(
       (m) => m.moduleName.trim() !== "" && Number(m.credits) > 0
     );
+  }, [modules]);
 
+  const summary = useMemo(() => {
     const totalCredits = validModules.reduce(
       (sum, module) => sum + Number(module.credits),
       0
@@ -129,7 +148,7 @@ function ProgressTracker() {
       totalCredits,
       gpa,
     };
-  }, [modules]);
+  }, [validModules]);
 
   const getGpaLabel = (gpa) => {
     const value = Number(gpa);
@@ -139,6 +158,114 @@ function ProgressTracker() {
     if (value >= 2.0) return "Average";
     if (value > 0) return "Needs Improvement";
     return "No Data";
+  };
+
+  const getReportMessage = (gpa) => {
+    const value = Number(gpa);
+
+    if (value >= 3.7) {
+      return "Outstanding academic performance. You are maintaining a very strong GPA and showing excellent consistency across your modules.";
+    }
+    if (value >= 3.3) {
+      return "Very strong academic performance. You are doing well in most subjects and are close to excellent standing.";
+    }
+    if (value >= 3.0) {
+      return "Good academic performance. You have a solid GPA, but there is still room to improve a few modules for a stronger result.";
+    }
+    if (value >= 2.0) {
+      return "Average academic performance. Focus more on weaker modules and improve consistency to raise your GPA.";
+    }
+    if (value > 0) {
+      return "Your GPA needs improvement. It is important to review difficult modules, practice regularly, and seek support when needed.";
+    }
+    return "No GPA report can be generated yet. Please enter valid module details first.";
+  };
+
+  const getStrengthModules = () => {
+    return validModules.filter((m) => getGradePoint(m.grade) >= 3.3);
+  };
+
+  const getWeakModules = () => {
+    return validModules.filter((m) => getGradePoint(m.grade) < 3.0);
+  };
+
+  const handleGenerateReport = () => {
+    if (validModules.length === 0) {
+      alert("Please add at least one valid module before generating the report.");
+      return;
+    }
+    setReportGenerated(true);
+  };
+
+  const handleDownloadReport = () => {
+    if (!reportGenerated) {
+      alert("Please generate the report first.");
+      return;
+    }
+
+    const reportDate = new Date().toLocaleString();
+
+    const moduleLines = validModules
+      .map(
+        (module, index) =>
+          `${index + 1}. ${module.moduleName} | Credits: ${module.credits} | Grade: ${module.grade} | Grade Point: ${getGradePoint(module.grade)}`
+      )
+      .join("\n");
+
+    const strongLines =
+      getStrengthModules().length > 0
+        ? getStrengthModules().map((m) => `- ${m.moduleName} (${m.grade})`).join("\n")
+        : "None";
+
+    const weakLines =
+      getWeakModules().length > 0
+        ? getWeakModules().map((m) => `- ${m.moduleName} (${m.grade})`).join("\n")
+        : "None";
+
+    const reportText = `
+EDUZA GPA REPORT
+==============================
+
+Generated On:
+${reportDate}
+
+Selected Mode:
+${selectedMode}
+
+Overall Summary:
+- Total Modules: ${summary.totalModules}
+- Total Credits: ${summary.totalCredits}
+- GPA: ${summary.gpa}
+- Performance Level: ${getGpaLabel(summary.gpa)}
+
+Module Details:
+${moduleLines}
+
+Performance Report:
+${getReportMessage(summary.gpa)}
+
+Strong Modules:
+${strongLines}
+
+Modules That Need Improvement:
+${weakLines}
+
+Suggestions:
+- Focus on low-grade modules first
+- Improve time management and revision planning
+- Practice quizzes and past papers
+- Stay consistent with weekly study goals
+`;
+
+    const blob = new Blob([reportText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "gpa-report.txt";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const getCardStyles = (accent, active) => {
@@ -216,12 +343,7 @@ function ProgressTracker() {
                     stroke="#e2e8f0"
                     strokeDasharray="4 4"
                   />
-                  <text
-                    x={10}
-                    y={y + 4}
-                    fontSize="12"
-                    fill="#64748b"
-                  >
+                  <text x={10} y={y + 4} fontSize="12" fill="#64748b">
                     {value}
                   </text>
                 </g>
@@ -292,7 +414,6 @@ function ProgressTracker() {
   return (
     <div className="min-h-screen bg-[#f4f4f5] p-4 md:p-6">
       <div className="mx-auto max-w-7xl">
-        {/* Header */}
         <div className="relative mb-8 overflow-hidden rounded-[28px] bg-gradient-to-r from-orange-500 via-orange-600 to-orange-700 px-8 py-10 shadow-[0_18px_40px_rgba(249,115,22,0.25)]">
           <div className="absolute right-[-50px] top-[-40px] h-52 w-52 rounded-full bg-white/10"></div>
           <div className="absolute bottom-[-60px] right-20 h-44 w-44 rounded-full bg-white/8"></div>
@@ -317,7 +438,6 @@ function ProgressTracker() {
           </div>
         </div>
 
-        {/* Category Cards */}
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           {categories.map((item) => (
             <button
@@ -349,10 +469,8 @@ function ProgressTracker() {
           ))}
         </div>
 
-        {/* Dynamic Content */}
         {activeCategory === "gpa" && (
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-            {/* GPA Calculator */}
             <div className="xl:col-span-2">
               <div className="rounded-[28px] border border-orange-100 bg-white p-5 shadow-sm md:p-6">
                 <div className="mb-6 flex items-center gap-4">
@@ -366,6 +484,35 @@ function ProgressTracker() {
                     <p className="mt-1 text-sm text-slate-500">
                       Add your modules, credits, and grades to calculate GPA.
                     </p>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <p className="mb-3 text-sm font-bold text-slate-700">Select Mode</p>
+
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    {modeOptions.map((mode) => {
+                      const modeKey = `${mode.title}-${mode.subtitle}`;
+                      const isActive = selectedMode === modeKey;
+
+                      return (
+                        <button
+                          key={modeKey}
+                          onClick={() => {
+                            setSelectedMode(modeKey);
+                            setReportGenerated(false);
+                          }}
+                          className={`rounded-2xl border px-4 py-5 text-center transition ${
+                            isActive
+                              ? "border-purple-400 bg-purple-100 text-purple-900"
+                              : "border-purple-200 bg-white text-slate-800 hover:bg-purple-50"
+                          }`}
+                        >
+                          <div className="text-base font-extrabold">{mode.title}</div>
+                          <div className="mt-1 text-sm text-slate-500">{mode.subtitle}</div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -436,13 +583,27 @@ function ProgressTracker() {
                   ))}
                 </div>
 
-                <div className="mt-5">
+                <div className="mt-5 flex flex-wrap gap-3">
                   <button
                     onClick={addModule}
                     className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 font-bold text-white transition hover:bg-orange-600"
                   >
                     <span className="text-lg">⊕</span>
                     Add Module
+                  </button>
+
+                  <button
+                    onClick={handleGenerateReport}
+                    className="rounded-2xl bg-slate-900 px-5 py-3 font-bold text-white transition hover:bg-slate-800"
+                  >
+                    Generate Report
+                  </button>
+
+                  <button
+                    onClick={handleDownloadReport}
+                    className="rounded-2xl border border-orange-300 bg-white px-5 py-3 font-bold text-orange-600 transition hover:bg-orange-50"
+                  >
+                    Download Report
                   </button>
                 </div>
 
@@ -487,10 +648,77 @@ function ProgressTracker() {
                     </div>
                   </div>
                 </div>
+
+                {reportGenerated && (
+                  <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50 p-5">
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-lg shadow-sm">
+                        🧾
+                      </div>
+                      <h4 className="text-xl font-bold text-slate-900">GPA Report</h4>
+                    </div>
+
+                    <div className="space-y-4 text-sm text-slate-700">
+                      <div>
+                        <span className="font-bold">Selected Mode:</span> {selectedMode}
+                      </div>
+
+                      <div>
+                        <span className="font-bold">Performance Level:</span> {getGpaLabel(summary.gpa)}
+                      </div>
+
+                      <div>
+                        <span className="font-bold">Report:</span>
+                        <p className="mt-2 leading-7 text-slate-600">
+                          {getReportMessage(summary.gpa)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <span className="font-bold">Strong Modules:</span>
+                        {getStrengthModules().length > 0 ? (
+                          <ul className="mt-2 list-disc pl-5 text-slate-600">
+                            {getStrengthModules().map((module) => (
+                              <li key={module.id}>
+                                {module.moduleName} ({module.grade})
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-slate-600">No strong modules identified yet.</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <span className="font-bold">Modules Needing Improvement:</span>
+                        {getWeakModules().length > 0 ? (
+                          <ul className="mt-2 list-disc pl-5 text-slate-600">
+                            {getWeakModules().map((module) => (
+                              <li key={module.id}>
+                                {module.moduleName} ({module.grade})
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-slate-600">No weak modules identified.</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <span className="font-bold">Suggestions:</span>
+                        <ul className="mt-2 list-disc pl-5 leading-7 text-slate-600">
+                          <li>Revise weak modules first.</li>
+                          <li>Use weekly study planning for better consistency.</li>
+                          <li>Practice quizzes and assessments regularly.</li>
+                          <li>Keep tracking your progress every semester.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Grading Scale */}
             <div className="xl:col-span-1">
               <div className="rounded-[28px] border border-orange-100 bg-white p-5 shadow-sm md:p-6">
                 <div className="mb-5 flex items-center gap-3">
@@ -565,30 +793,46 @@ function ProgressTracker() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {quizModules.map((item, index) => (
-                <div
-                  key={index}
-                  className="rounded-[24px] border border-blue-100 bg-blue-50/40 p-5"
-                >
-                  <div className="mb-3 flex items-center justify-between">
-                    <h4 className="text-lg font-bold text-slate-900">{item.name}</h4>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-blue-600 shadow-sm">
-                      {item.status}
-                    </span>
+              {quizModules.length === 0 ? (
+                <div className="text-slate-500">No quizzes available</div>
+              ) : (
+                quizModules.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-[24px] border border-blue-100 bg-blue-50/40 p-5"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <h4 className="text-lg font-bold text-slate-900">
+                        {item.moduleName}
+                      </h4>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold shadow-sm ${
+                          item.status === "Completed"
+                            ? "bg-blue-100 text-blue-600"
+                            : item.status === "In Progress"
+                            ? "bg-indigo-100 text-indigo-600"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <p className="mb-2 text-sm text-slate-600">
+                      Questions: {item.questions}
+                    </p>
+
+                    <p className="mb-5 text-sm text-slate-600">
+                      Score: {item.score}%
+                    </p>
+
+                    <button className="rounded-2xl bg-blue-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-600">
+                      Open Quiz
+                    </button>
                   </div>
-
-                  <p className="mb-2 text-sm text-slate-600">
-                    Questions: {item.questions}
-                  </p>
-                  <p className="mb-5 text-sm text-slate-600">
-                    Score: {item.score}%
-                  </p>
-
-                  <button className="rounded-2xl bg-blue-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-600">
-                    Open Quiz
-                  </button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}

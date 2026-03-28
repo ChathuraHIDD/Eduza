@@ -12,6 +12,8 @@ import OtherExamResult from '../components/schedule/OtherExamResult'
 import OtherActivityModal from '../components/schedule/OtherActivityModal'
 import OtherActivityResult from '../components/schedule/OtherActivityResult'
 
+const SCHEDULE_ACCENT = '#f97316'
+
 const scheduleTypes = [
   {
     id: 'assignment',
@@ -26,7 +28,7 @@ const scheduleTypes = [
         <polyline points="10 9 9 9 8 9" />
       </svg>
     ),
-    color: '#f97316',
+    color: SCHEDULE_ACCENT,
     available: true,
   },
   {
@@ -39,7 +41,7 @@ const scheduleTypes = [
         <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
       </svg>
     ),
-    color: '#3b82f6',
+    color: SCHEDULE_ACCENT,
     available: true,
   },
   {
@@ -52,7 +54,7 @@ const scheduleTypes = [
         <polyline points="12 6 12 12 16 14" />
       </svg>
     ),
-    color: '#ef4444',
+    color: SCHEDULE_ACCENT,
     available: true,
   },
   {
@@ -67,7 +69,7 @@ const scheduleTypes = [
         <line x1="3" y1="10" x2="21" y2="10" />
       </svg>
     ),
-    color: '#22c55e',
+    color: SCHEDULE_ACCENT,
     available: true,
   },
   {
@@ -79,7 +81,7 @@ const scheduleTypes = [
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
       </svg>
     ),
-    color: '#a855f7',
+    color: SCHEDULE_ACCENT,
     available: true,
   },
   {
@@ -92,7 +94,7 @@ const scheduleTypes = [
         <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
       </svg>
     ),
-    color: '#06b6d4',
+    color: SCHEDULE_ACCENT,
     available: true,
   },
 ]
@@ -120,7 +122,11 @@ function deriveDifficultyFromTarget(targetPercent) {
 }
 
 async function predictTaskDuration({ current_progress, target_progress, past_study_pace, difficulty, daily_hours }) {
-  const baseUrl = (import.meta?.env?.VITE_API_URL || 'http://localhost:5001').replace(/\/$/, '')
+  const baseUrl = (
+    import.meta?.env?.VITE_API_BASE_URL ||
+    import.meta?.env?.VITE_API_URL ||
+    'http://localhost:5001'
+  ).replace(/\/$/, '')
 
   const res = await fetch(`${baseUrl}/api/ml/task-duration/predict`, {
     method: 'POST',

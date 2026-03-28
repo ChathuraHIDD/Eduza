@@ -1,0 +1,51 @@
+<svg width="1200" height="700" viewBox="0 0 1200 700" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="700" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="0.55" stop-color="#1E293B"/>
+      <stop offset="1" stop-color="#334155"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(820 210) rotate(115) scale(420 540)">
+      <stop stop-color="#F97316" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#F97316" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="melon" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F97316"/>
+      <stop offset="1" stop-color="#EA580C"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="700" fill="url(#bg)"/>
+  <rect width="1200" height="700" fill="url(#glow)"/>
+
+  <circle cx="210" cy="530" r="120" fill="#FED7AA" fill-opacity="0.18"/>
+  <circle cx="990" cy="120" r="160" fill="#FDBA74" fill-opacity="0.16"/>
+
+  <g transform="translate(180 130)">
+    <rect x="0" y="0" width="840" height="440" rx="36" fill="#FFF7ED"/>
+    <rect x="14" y="14" width="812" height="412" rx="30" stroke="#FDBA74" stroke-width="2"/>
+
+    <text x="44" y="72" fill="#9A3412" font-family="Arial, sans-serif" font-size="44" font-weight="700">Watermelon Maker 2048</text>
+    <text x="44" y="108" fill="#7C2D12" font-family="Arial, sans-serif" font-size="22">Merge fruits • Build calm focus • Beat your best</text>
+
+    <g transform="translate(56 150)">
+      <rect x="0" y="0" width="260" height="220" rx="24" fill="#FFEDD5"/>
+      <circle cx="130" cy="110" r="82" fill="url(#melon)"/>
+      <circle cx="130" cy="110" r="64" fill="#FDBA74"/>
+      <circle cx="102" cy="90" r="6" fill="#7C2D12"/>
+      <circle cx="142" cy="124" r="6" fill="#7C2D12"/>
+      <circle cx="164" cy="92" r="6" fill="#7C2D12"/>
+      <circle cx="112" cy="132" r="6" fill="#7C2D12"/>
+      <text x="130" y="204" fill="#9A3412" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">2048 Fruit</text>
+    </g>
+
+    <g transform="translate(344 150)">
+      <rect x="0" y="0" width="438" height="220" rx="24" fill="#FFF" stroke="#FED7AA"/>
+      <text x="26" y="48" fill="#9A3412" font-family="Arial, sans-serif" font-size="24" font-weight="700">Quick Mind Reset</text>
+      <text x="26" y="84" fill="#475569" font-family="Arial, sans-serif" font-size="20">• Bright visuals</text>
+      <text x="26" y="116" fill="#475569" font-family="Arial, sans-serif" font-size="20">• Short rounds</text>
+      <text x="26" y="148" fill="#475569" font-family="Arial, sans-serif" font-size="20">• Gentle challenge</text>
+      <text x="26" y="180" fill="#475569" font-family="Arial, sans-serif" font-size="20">• Relaxing focus flow</text>
+    </g>
+  </g>
+</svg>

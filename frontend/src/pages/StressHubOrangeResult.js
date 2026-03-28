@@ -45,6 +45,15 @@ const ORANGE_GAMES = [
     image: '/images/stress-games/firefly-forest.jpg',
     vibe: 'Nature Calm',
   },
+  {
+    slug: 'watermelon-maker-2048',
+    title: 'Watermelon Maker 2048',
+    subtitle: 'Merge fruits and unwind with a playful focus puzzle.',
+    image: '/images/stress-games/watermelon-maker.svg',
+    vibe: 'Playful Focus',
+    externalUrl:
+      'https://www.msn.com/en-xl/play/games/watermelon-maker-2048/cg-9nj64jmp570j?cgfrom=cg_dsb_idx_0_gt_rp&cgdsbut=m&ocid=winpsearchboxexpcta2&cvid=4b05abcb0158434ea6dda4c91fe37baf&nclid=74D230D74AE4F8D5F6726C259212C186&ts=1774686089854&nclidts=1774686089&tsms=854&PC=WSBDSB',
+  },
 ]
 
 const FEATURED_PLAY_IMAGE = '/images/stress-games/featured-underwater.jpg'
@@ -120,8 +129,19 @@ function StressHubOrangeResult() {
     submitOrangeCheckIn()
   }, [isStudent])
 
+  const openGame = (game) => {
+    if (!game) return
+
+    if (game.externalUrl) {
+      window.open(game.externalUrl, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    navigate(`/stress-hub/orange/games/${game.slug}`)
+  }
+
   const launchSelectedGame = () => {
-    navigate(`/stress-hub/orange/games/${selectedGameSlug}`)
+    openGame(selectedGame)
   }
 
   return (
@@ -428,7 +448,7 @@ function StressHubOrangeResult() {
                   </div>
                   <div style={{ marginTop: 4, color: '#64748b', fontSize: 13 }}>{card.subtitle}</div>
                   <button
-                    onClick={() => navigate(`/stress-hub/orange/games/${card.slug}`)}
+                    onClick={() => openGame(card)}
                     style={{
                       marginTop: 10,
                       border: 'none',

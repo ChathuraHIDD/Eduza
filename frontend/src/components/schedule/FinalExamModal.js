@@ -14,12 +14,19 @@ const WEAKNESS_COLORS = { 1: '#22c55e', 2: '#86efac', 3: '#eab308', 4: '#f97316'
 const PREP_LABELS = { 1: "Haven't Started", 2: 'Just Started', 3: 'Getting There', 4: 'Well Prepared', 5: 'Fully Ready' }
 const PREP_COLORS = { 1: '#ef4444', 2: '#f97316', 3: '#eab308', 4: '#86efac', 5: '#22c55e' }
 
-const ACCENT = '#ef4444'
-const ACCENT_DARK = '#b91c1c'
-const ACCENT_BG = 'rgba(239,68,68,0.15)'
-const ACCENT_BORDER = 'rgba(239,68,68,0.3)'
-const ACCENT_RGBA = (a) => `rgba(239,68,68,${a})`
+const ACCENT = '#f97316'
+const ACCENT_DARK = '#c2410c'
+const ACCENT_BG = 'rgba(249,115,22,0.15)'
+const ACCENT_BORDER = 'rgba(249,115,22,0.3)'
+const ACCENT_RGBA = (a) => `rgba(249,115,22,${a})`
 const GRADIENT = `linear-gradient(135deg, ${ACCENT}, ${ACCENT_DARK})`
+
+const DISALLOWED_SPECIALS = /[!@#$%^&*()]/
+const SPECIAL_CHAR_ERROR = 'Special characters ! @ # $ % ^ & * ( ) are not allowed'
+
+function sanitizeTextValue(value) {
+  return value.replace(/[!@#$%^&*()]/g, '')
+}
 
 let nextId = 1
 function newExam() {
@@ -87,14 +94,37 @@ function FinalExamModal({ onClose, onGenerate }) {
   const addExam = () => setExams((e) => [...e, newExam()])
   const removeExam = (id) => setExams((e) => e.filter((x) => x.id !== id))
   const updateExam = (id, field, value) => {
+    if (field === 'subject') {
+      const hasSpecials = DISALLOWED_SPECIALS.test(value)
+      const cleaned = sanitizeTextValue(value)
+      setExams((e) => e.map((x) => x.id === id ? { ...x, [field]: cleaned } : x))
+      setErrors((err) => ({
+        ...err,
+        [`exam_${id}_${field}`]: hasSpecials ? SPECIAL_CHAR_ERROR : '',
+      }))
+      return
+    }
+
     setExams((e) => e.map((x) => x.id === id ? { ...x, [field]: value } : x))
     setErrors((err) => ({ ...err, [`exam_${id}_${field}`]: '' }))
   }
 
   // ── Subject detail helpers ──
   const getDetail = (id) => subjectDetails[id] || { weakness: 3, prep: 2, notes: '' }
-  const setDetail = (id, field, value) =>
+  const setDetail = (id, field, value) => {
+    if (field === 'notes') {
+      const hasSpecials = DISALLOWED_SPECIALS.test(value)
+      const cleaned = sanitizeTextValue(value)
+      setSubjectDetails((d) => ({ ...d, [id]: { ...getDetail(id), [field]: cleaned } }))
+      setErrors((err) => ({
+        ...err,
+        [`detail_${id}_${field}`]: hasSpecials ? SPECIAL_CHAR_ERROR : '',
+      }))
+      return
+    }
+
     setSubjectDetails((d) => ({ ...d, [id]: { ...getDetail(id), [field]: value } }))
+  }
 
   // ── File upload ──
   const handleFile = (file) => {
@@ -127,6 +157,7 @@ function FinalExamModal({ onClose, onGenerate }) {
       }
       exams.forEach((e) => {
         if (!e.subject.trim()) errs[`exam_${e.id}_subject`] = 'Required'
+        else if (DISALLOWED_SPECIALS.test(e.subject)) errs[`exam_${e.id}_subject`] = SPECIAL_CHAR_ERROR
         if (!e.date) errs[`exam_${e.id}_date`] = 'Required'
         else if (new Date(e.date) <= new Date()) errs[`exam_${e.id}_date`] = 'Must be future date'
       })
@@ -494,6 +525,7 @@ function FinalExamModal({ onClose, onGenerate }) {
                         fontFamily: 'inherit',
                       }}
                     />
+                    {errors[`detail_${exam.id}_notes`] && <div style={errStyle}>{errors[`detail_${exam.id}_notes`]}</div>}
                   </div>
                 </div>
               )

@@ -9,6 +9,16 @@ function SoftwareHub() {
   const [loading, setLoading] = useState(true);
   const menuRef = useRef(null);
 
+  const user = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  })();
+
+  const isStudent = user?.role === "student";
+
   useEffect(() => {
     const fetchSoftware = async () => {
       try {
@@ -67,6 +77,11 @@ function SoftwareHub() {
   };
 
   const handleAddNew = () => {
+    if (isStudent) {
+      window.alert("students cannot add software");
+      return;
+    }
+
     navigate("/upload-software");
   };
 

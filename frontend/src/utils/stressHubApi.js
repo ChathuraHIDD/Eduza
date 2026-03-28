@@ -1,9 +1,13 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
+const getToken = () => localStorage.getItem('token');
+
 const request = async (path, options = {}) => {
+  const token = getToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
     ...options,
@@ -62,3 +66,23 @@ export const acknowledgeStressAlert = (alertId) =>
   request(`/api/stress-hub/alerts/${alertId}/acknowledge`, {
     method: 'PATCH',
   });
+
+export const getStressAdminSummary = (periodDays = 30, limit = 12) => {
+  const params = new URLSearchParams();
+  params.append('periodDays', String(periodDays));
+  params.append('limit', String(limit));
+  return request(`/api/stress-hub/admin/summary?${params.toString()}`);
+};
+
+export const getFutureSelfMessage = () => request('/api/stress-hub/future-self-message');
+
+export const saveFutureSelfMessage = (message) =>
+  request('/api/stress-hub/future-self-message', {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  });
+
+export const getCalmStreak = () => request('/api/stress-hub/calm-streak');
+
+export const getGuardianStudentStress = (email) =>
+  request(`/api/stress-hub/guardian/student-stress?email=${encodeURIComponent(email)}`);

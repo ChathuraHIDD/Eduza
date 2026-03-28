@@ -72,6 +72,8 @@ function SidebarContent({ onClose }) {
       ? '/lecturer'
       : user?.role === 'admin'
       ? '/admin'
+      : user?.role === 'guardian'
+      ? '/coordinator'
       : user?.role === 'coordinator'
       ? '/coordinator'
       : '/'
@@ -126,6 +128,11 @@ function SidebarContent({ onClose }) {
       path: '/lecture-profile',
       icon: lectureProfileIcon,
     },
+    {
+      label: 'Module Quiz Manager',
+      path: '/lecturer/module-quiz',
+      icon: moduleQuizIcon,
+    },
   ]
 
   const adminNavItems = [
@@ -144,6 +151,11 @@ function SidebarContent({ onClose }) {
       label: 'Group Chat',
       path: '/group-chat',
       icon: groupChatIcon,
+    },
+    {
+      label: 'Stress Management',
+      path: '/admin/stress-management',
+      icon: stressIcon,
     },
   ]
 
@@ -170,11 +182,21 @@ function SidebarContent({ onClose }) {
     },
   ]
 
+  const guardianNavItems = [
+    {
+      label: 'Student Search',
+      path: '/coordinator',
+      icon: stressIcon,
+    },
+  ]
+
   const navItems =
     user?.role === 'lecturer'
       ? lecturerNavItems
       : user?.role === 'admin'
       ? adminNavItems
+      : user?.role === 'guardian'
+      ? guardianNavItems
       : user?.role === 'coordinator'
       ? coordinatorNavItems
       : studentNavItems
@@ -541,6 +563,15 @@ const softwareHubIcon = (
 const aiNotesIcon = (
   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+)
+
+const moduleQuizIcon = (
+  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+    <path d="M9 3h6l4 4v14H5V3h4z" />
+    <path d="M9 3v4h6" />
+    <path d="M9 12h6" />
+    <path d="M9 16h4" />
   </svg>
 )
 

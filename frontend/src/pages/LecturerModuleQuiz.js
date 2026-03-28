@@ -1,58 +1,243 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { fetchModules } from "../utils/moduleApi";
+
+const QUIZ_STORAGE_KEY = "moduleQuizzes";
+const QUESTION_COUNT = 10;
+const OPTION_LABELS = ["A", "B", "C", "D"];
+
+const createEmptyQuestion = (index) => ({
+  id: index + 1,
+  text: "",
+  options: ["", "", "", ""],
+  correctOption: "",
+});
+
+const createInitialForm = () => ({
+  moduleId: "",
+  status: "Not Started",
+  questions: Array.from({ length: QUESTION_COUNT }, (_, index) =>
+    createEmptyQuestion(index)
+  ),
+});
+
+const loadStoredQuizzes = () => {
+  try {
+    const raw = localStorage.getItem(QUIZ_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 function LecturerModuleQuiz() {
-  const [quizForm, setQuizForm] = useState({
-    moduleName: "",
-    questions: "",
-    score: "",
-    status: "Not Started",
-  });
-
-  const [quizzes, setQuizzes] = useState([]);
+  const [quizForm, setQuizForm] = useState(createInitialForm);
+  const [quizzes, setQuizzes] = useState(loadStoredQuizzes);
+  const [modules, setModules] = useState([]);
+  const [moduleLoadError, setModuleLoadError] = useState("");
+  const [modulesLoading, setModulesLoading] = useState(true);
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    const savedQuizzes = JSON.parse(localStorage.getItem("moduleQuizzes") || "[]");
-    setQuizzes(savedQuizzes);
+    let isMounted = true;
+
+    const loadModules = async () => {
+      try {
+        setModulesLoading(true);
+        setModuleLoadError("");
+
+        const response = await fetchModules();
+        const payload = Array.isArray(response)
+          ? response
+          : response?.modules || response?.data || [];
+
+        if (!isMounted) return;
+
+        const normalized = payload
+          .filter((module) => module && (module._id || module.id))
+          .map((module) => ({
+            id: String(module._id || module.id),
+            name: module.name || module.moduleName || "Unnamed Module",
+            code: module.code || "",
+            status: module.status || "",
+            approvalStatus: module.approvalStatus || "",
+          }));
+
+        setModules(normalized);
+      } catch (error) {
+        if (!isMounted) return;
+        setModuleLoadError(
+          error?.message || "Failed to load modules from the database."
+        );
+      } finally {
+        if (isMounted) setModulesLoading(false);
+      }
+    };
+
+    loadModules();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const moduleOptions = useMemo(() => {
+    return modules
+      .filter((module) => {
+        const status = String(module.status || "").toLowerCase();
+        const approval = String(module.approvalStatus || "").toLowerCase();
+        const statusOk = !status || status === "active";
+        const approvalOk = !approval || approval === "approved";
+        return statusOk && approvalOk;
+      })
+      .sort((a, b) => {
+        const byCode = (a.code || "").localeCompare(b.code || "");
+        if (byCode !== 0) return byCode;
+        return (a.name || "").localeCompare(b.name || "");
+      });
+  }, [modules]);
+
+  const persistQuizzes = (nextQuizzes) => {
+    setQuizzes(nextQuizzes);
+    localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(nextQuizzes));
+  };
+
+  const handleModuleSelect = (event) => {
     setQuizForm((prev) => ({
       ...prev,
-      [name]: value,
+      moduleId: event.target.value,
+    }));
+    setFormError("");
+  };
+
+  const handleStatusChange = (event) => {
+    setQuizForm((prev) => ({
+      ...prev,
+      status: event.target.value,
     }));
   };
 
+  const handleQuestionTextChange = (index, value) => {
+    setQuizForm((prev) => {
+      const nextQuestions = [...prev.questions];
+      nextQuestions[index] = {
+        ...nextQuestions[index],
+        text: value,
+      };
+
+      return {
+        ...prev,
+        questions: nextQuestions,
+      };
+    });
+  };
+
+  const handleOptionChange = (questionIndex, optionIndex, value) => {
+    setQuizForm((prev) => {
+      const nextQuestions = [...prev.questions];
+      const nextOptions = [...nextQuestions[questionIndex].options];
+      nextOptions[optionIndex] = value;
+      nextQuestions[questionIndex] = {
+        ...nextQuestions[questionIndex],
+        options: nextOptions,
+      };
+
+      return {
+        ...prev,
+        questions: nextQuestions,
+      };
+    });
+  };
+
+  const handleCorrectOptionChange = (index, value) => {
+    setQuizForm((prev) => {
+      const nextQuestions = [...prev.questions];
+      nextQuestions[index] = {
+        ...nextQuestions[index],
+        correctOption: value,
+      };
+
+      return {
+        ...prev,
+        questions: nextQuestions,
+      };
+    });
+  };
+
+  const validateQuiz = () => {
+    if (!quizForm.moduleId) {
+      return "Please select a module from the database.";
+    }
+
+    if (quizForm.questions.length !== QUESTION_COUNT) {
+      return `Quiz must include exactly ${QUESTION_COUNT} questions.`;
+    }
+
+    for (let index = 0; index < quizForm.questions.length; index += 1) {
+      const question = quizForm.questions[index];
+
+      if (!question.text.trim()) {
+        return `Question ${index + 1} text is required.`;
+      }
+
+      for (let optionIndex = 0; optionIndex < question.options.length; optionIndex += 1) {
+        if (!question.options[optionIndex].trim()) {
+          return `Question ${index + 1} option ${OPTION_LABELS[optionIndex]} is required.`;
+        }
+      }
+
+      if (!OPTION_LABELS.includes(question.correctOption)) {
+        return `Please select the correct answer for question ${index + 1}.`;
+      }
+    }
+
+    return "";
+  };
+
   const handleAddQuiz = () => {
-    if (!quizForm.moduleName.trim() || !quizForm.questions) {
-      alert("Please fill module name and question count.");
+    const validationMessage = validateQuiz();
+    if (validationMessage) {
+      setFormError(validationMessage);
       return;
     }
 
+    const selectedModule = moduleOptions.find(
+      (module) => module.id === quizForm.moduleId
+    );
+
+    if (!selectedModule) {
+      setFormError("Selected module was not found. Please refresh module list.");
+      return;
+    }
+
+    const questions = quizForm.questions.map((question) => ({
+      id: question.id,
+      text: question.text.trim(),
+      options: question.options.map((option) => option.trim()),
+      correctOption: question.correctOption,
+      correctOptionIndex: OPTION_LABELS.indexOf(question.correctOption),
+    }));
+
     const newQuiz = {
       id: Date.now(),
-      moduleName: quizForm.moduleName,
-      questions: Number(quizForm.questions),
-      score: quizForm.score === "" ? 0 : Number(quizForm.score),
+      moduleId: selectedModule.id,
+      moduleName: selectedModule.name,
+      moduleCode: selectedModule.code,
       status: quizForm.status,
+      score: 0,
+      questionCount: QUESTION_COUNT,
+      questions,
+      createdAt: new Date().toISOString(),
     };
 
-    const updatedQuizzes = [...quizzes, newQuiz];
-    setQuizzes(updatedQuizzes);
-    localStorage.setItem("moduleQuizzes", JSON.stringify(updatedQuizzes));
-
-    setQuizForm({
-      moduleName: "",
-      questions: "",
-      score: "",
-      status: "Not Started",
-    });
+    persistQuizzes([newQuiz, ...quizzes]);
+    setQuizForm(createInitialForm());
+    setFormError("");
   };
 
   const handleDeleteQuiz = (id) => {
     const updatedQuizzes = quizzes.filter((quiz) => quiz.id !== id);
-    setQuizzes(updatedQuizzes);
-    localStorage.setItem("moduleQuizzes", JSON.stringify(updatedQuizzes));
+    persistQuizzes(updatedQuizzes);
   };
 
   const handleClearAll = () => {
@@ -60,22 +245,22 @@ function LecturerModuleQuiz() {
     if (!confirmed) return;
 
     setQuizzes([]);
-    localStorage.removeItem("moduleQuizzes");
+    localStorage.removeItem(QUIZ_STORAGE_KEY);
   };
 
   const getStatusBadgeStyle = (status) => {
     switch (status) {
       case "Completed":
         return {
-          background: "#eff6ff",
-          color: "#2563eb",
-          border: "1px solid #dbeafe",
+          background: "#dcfce7",
+          color: "#166534",
+          border: "1px solid #86efac",
         };
       case "In Progress":
         return {
-          background: "#eef2ff",
-          color: "#4f46e5",
-          border: "1px solid #c7d2fe",
+          background: "#ffedd5",
+          color: "#9a3412",
+          border: "1px solid #fdba74",
         };
       default:
         return {
@@ -88,8 +273,7 @@ function LecturerModuleQuiz() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f5", padding: "24px" }}>
-      <div style={{ maxWidth: "1320px", margin: "0 auto" }}>
-        {/* Header */}
+      <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         <div
           style={{
             position: "relative",
@@ -142,20 +326,6 @@ function LecturerModuleQuiz() {
               textTransform: "uppercase",
             }}
           >
-            <span
-              style={{
-                width: "24px",
-                height: "24px",
-                borderRadius: "8px",
-                background: "rgba(255,255,255,0.16)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "14px",
-              }}
-            >
-              📝
-            </span>
             Lecturer Panel
           </div>
 
@@ -175,7 +345,7 @@ function LecturerModuleQuiz() {
           <p
             style={{
               margin: 0,
-              maxWidth: "760px",
+              maxWidth: "840px",
               color: "rgba(255,255,255,0.92)",
               fontSize: "15px",
               lineHeight: "1.8",
@@ -183,20 +353,20 @@ function LecturerModuleQuiz() {
               zIndex: 1,
             }}
           >
-            Add and manage module quizzes here. These quizzes will be shown later
-            on the student Progress Tracker page.
+            Create quizzes with exactly 10 questions. Each question must include
+            four answer options and one correct answer. Saved quizzes will be shown
+            in Progress Tracker under the selected module.
           </p>
         </div>
 
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1.1fr 1.9fr",
+            gridTemplateColumns: "2fr 1fr",
             gap: "24px",
             alignItems: "start",
           }}
         >
-          {/* Left Form */}
           <div
             style={{
               background: "#fff",
@@ -215,7 +385,7 @@ function LecturerModuleQuiz() {
                   color: "#0f172a",
                 }}
               >
-                Add Quiz
+                Create Module Quiz
               </h2>
               <p
                 style={{
@@ -225,11 +395,19 @@ function LecturerModuleQuiz() {
                   color: "#64748b",
                 }}
               >
-                Fill the form and add a new module quiz for students.
+                Modules are loaded from the database. Choose one module, then
+                complete all 10 questions.
               </p>
             </div>
 
-            <div style={{ display: "grid", gap: "16px" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 220px",
+                gap: "14px",
+                marginBottom: "20px",
+              }}
+            >
               <div>
                 <label
                   style={{
@@ -240,14 +418,12 @@ function LecturerModuleQuiz() {
                     color: "#334155",
                   }}
                 >
-                  Module Name
+                  Module (DB)
                 </label>
-                <input
-                  type="text"
-                  name="moduleName"
-                  value={quizForm.moduleName}
-                  onChange={handleChange}
-                  placeholder="Enter module name"
+                <select
+                  value={quizForm.moduleId}
+                  onChange={handleModuleSelect}
+                  disabled={modulesLoading}
                   style={{
                     width: "100%",
                     boxSizing: "border-box",
@@ -257,70 +433,19 @@ function LecturerModuleQuiz() {
                     padding: "14px 16px",
                     fontSize: "14px",
                     outline: "none",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "14px",
-                    fontWeight: "700",
-                    color: "#334155",
                   }}
                 >
-                  Number of Questions
-                </label>
-                <input
-                  type="number"
-                  name="questions"
-                  value={quizForm.questions}
-                  onChange={handleChange}
-                  placeholder="Enter question count"
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    border: "1px solid #fdba74",
-                    background: "#fff7ed",
-                    borderRadius: "16px",
-                    padding: "14px 16px",
-                    fontSize: "14px",
-                    outline: "none",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "14px",
-                    fontWeight: "700",
-                    color: "#334155",
-                  }}
-                >
-                  Score (%)
-                </label>
-                <input
-                  type="number"
-                  name="score"
-                  value={quizForm.score}
-                  onChange={handleChange}
-                  placeholder="Enter score"
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    border: "1px solid #fdba74",
-                    background: "#fff7ed",
-                    borderRadius: "16px",
-                    padding: "14px 16px",
-                    fontSize: "14px",
-                    outline: "none",
-                  }}
-                />
+                  <option value="">
+                    {modulesLoading
+                      ? "Loading modules..."
+                      : "Select module from database"}
+                  </option>
+                  {moduleOptions.map((module) => (
+                    <option key={module.id} value={module.id}>
+                      {module.code ? `${module.code} - ${module.name}` : module.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -336,9 +461,8 @@ function LecturerModuleQuiz() {
                   Status
                 </label>
                 <select
-                  name="status"
                   value={quizForm.status}
-                  onChange={handleChange}
+                  onChange={handleStatusChange}
                   style={{
                     width: "100%",
                     boxSizing: "border-box",
@@ -355,11 +479,176 @@ function LecturerModuleQuiz() {
                   <option value="Completed">Completed</option>
                 </select>
               </div>
+            </div>
 
+            {moduleLoadError ? (
+              <div
+                style={{
+                  marginBottom: "16px",
+                  borderRadius: "14px",
+                  padding: "12px 14px",
+                  border: "1px solid #fecaca",
+                  background: "#fff1f2",
+                  color: "#dc2626",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                }}
+              >
+                {moduleLoadError}
+              </div>
+            ) : null}
+
+            {formError ? (
+              <div
+                style={{
+                  marginBottom: "16px",
+                  borderRadius: "14px",
+                  padding: "12px 14px",
+                  border: "1px solid #fecaca",
+                  background: "#fff1f2",
+                  color: "#dc2626",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                }}
+              >
+                {formError}
+              </div>
+            ) : null}
+
+            <div
+              style={{
+                maxHeight: "68vh",
+                overflowY: "auto",
+                paddingRight: "4px",
+                display: "grid",
+                gap: "14px",
+              }}
+            >
+              {quizForm.questions.map((question, index) => (
+                <div
+                  key={question.id}
+                  style={{
+                    border: "1px solid #fed7aa",
+                    borderRadius: "18px",
+                    background: "#fffaf5",
+                    padding: "14px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: "16px",
+                        fontWeight: "800",
+                        color: "#0f172a",
+                      }}
+                    >
+                      Question {index + 1}
+                    </h3>
+
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        color: "#9a3412",
+                        background: "#ffedd5",
+                        borderRadius: "999px",
+                        padding: "4px 10px",
+                      }}
+                    >
+                      4 options + 1 correct
+                    </span>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={question.text}
+                    onChange={(event) =>
+                      handleQuestionTextChange(index, event.target.value)
+                    }
+                    placeholder={`Enter question ${index + 1}`}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      border: "1px solid #fdba74",
+                      background: "#fff",
+                      borderRadius: "12px",
+                      padding: "12px 14px",
+                      fontSize: "14px",
+                      outline: "none",
+                      marginBottom: "10px",
+                    }}
+                  />
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "10px",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    {OPTION_LABELS.map((label, optionIndex) => (
+                      <input
+                        key={label}
+                        type="text"
+                        value={question.options[optionIndex]}
+                        onChange={(event) =>
+                          handleOptionChange(index, optionIndex, event.target.value)
+                        }
+                        placeholder={`Option ${label}`}
+                        style={{
+                          width: "100%",
+                          boxSizing: "border-box",
+                          border: "1px solid #fdba74",
+                          background: "#fff",
+                          borderRadius: "12px",
+                          padding: "10px 12px",
+                          fontSize: "14px",
+                          outline: "none",
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <select
+                    value={question.correctOption}
+                    onChange={(event) =>
+                      handleCorrectOptionChange(index, event.target.value)
+                    }
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      border: "1px solid #fdba74",
+                      background: "#fff7ed",
+                      borderRadius: "12px",
+                      padding: "10px 12px",
+                      fontSize: "14px",
+                      outline: "none",
+                    }}
+                  >
+                    <option value="">Select correct option</option>
+                    {OPTION_LABELS.map((label) => (
+                      <option key={label} value={label}>
+                        Correct Answer: {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: "18px", display: "flex", gap: "10px" }}>
               <button
                 onClick={handleAddQuiz}
                 style={{
-                  marginTop: "6px",
                   border: "none",
                   background: "linear-gradient(135deg, #f97316, #ea580c)",
                   color: "#fff",
@@ -371,28 +660,30 @@ function LecturerModuleQuiz() {
                   boxShadow: "0 12px 24px rgba(249,115,22,0.24)",
                 }}
               >
-                Add Module Quiz
+                Save 10-Question Quiz
               </button>
 
               <button
-                onClick={handleClearAll}
+                onClick={() => {
+                  setQuizForm(createInitialForm());
+                  setFormError("");
+                }}
                 style={{
-                  border: "1px solid #fecaca",
-                  background: "#fff1f2",
-                  color: "#dc2626",
+                  border: "1px solid #fdba74",
+                  background: "#fff",
+                  color: "#9a3412",
                   borderRadius: "16px",
-                  padding: "13px 18px",
+                  padding: "14px 18px",
                   fontSize: "14px",
                   fontWeight: "700",
                   cursor: "pointer",
                 }}
               >
-                Clear All Quizzes
+                Reset Form
               </button>
             </div>
           </div>
 
-          {/* Right Quiz List */}
           <div
             style={{
               background: "#fff",
@@ -402,16 +693,16 @@ function LecturerModuleQuiz() {
               boxShadow: "0 8px 24px rgba(15,23,42,0.05)",
             }}
           >
-            <div style={{ marginBottom: "20px" }}>
+            <div style={{ marginBottom: "14px" }}>
               <h2
                 style={{
                   margin: "0 0 8px 0",
-                  fontSize: "26px",
+                  fontSize: "24px",
                   fontWeight: "800",
                   color: "#0f172a",
                 }}
               >
-                Added Module Quizzes
+                Saved Quizzes
               </h2>
               <p
                 style={{
@@ -421,40 +712,52 @@ function LecturerModuleQuiz() {
                   color: "#64748b",
                 }}
               >
-                These quizzes will be visible on the student side in the next step.
+                These are available in Progress Tracker under each module.
               </p>
             </div>
 
-            {quizzes.length === 0 ? (
-              <div
+            <div style={{ marginBottom: "12px", display: "flex", gap: "10px" }}>
+              <button
+                onClick={handleClearAll}
                 style={{
-                  border: "1px dashed #fdba74",
-                  background: "#fff7ed",
-                  borderRadius: "20px",
-                  padding: "34px 20px",
-                  textAlign: "center",
-                  color: "#9a3412",
-                  fontWeight: "600",
+                  border: "1px solid #fecaca",
+                  background: "#fff1f2",
+                  color: "#dc2626",
+                  borderRadius: "14px",
+                  padding: "10px 12px",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  cursor: "pointer",
                 }}
               >
-                No quizzes added yet.
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                  gap: "16px",
-                }}
-              >
-                {quizzes.map((quiz) => (
+                Clear All Quizzes
+              </button>
+            </div>
+
+            <div style={{ display: "grid", gap: "12px", maxHeight: "68vh", overflowY: "auto" }}>
+              {quizzes.length === 0 ? (
+                <div
+                  style={{
+                    border: "1px dashed #fdba74",
+                    background: "#fff7ed",
+                    borderRadius: "16px",
+                    padding: "24px 14px",
+                    textAlign: "center",
+                    color: "#9a3412",
+                    fontWeight: "600",
+                  }}
+                >
+                  No quizzes added yet.
+                </div>
+              ) : (
+                quizzes.map((quiz) => (
                   <div
                     key={quiz.id}
                     style={{
-                      border: "1px solid #dbeafe",
-                      background: "#f8fbff",
-                      borderRadius: "24px",
-                      padding: "20px",
+                      border: "1px solid #fed7aa",
+                      background: "#fffaf5",
+                      borderRadius: "16px",
+                      padding: "14px",
                     }}
                   >
                     <div
@@ -462,28 +765,30 @@ function LecturerModuleQuiz() {
                         display: "flex",
                         alignItems: "start",
                         justifyContent: "space-between",
-                        gap: "12px",
-                        marginBottom: "14px",
+                        gap: "8px",
+                        marginBottom: "8px",
                       }}
                     >
                       <h3
                         style={{
                           margin: 0,
-                          fontSize: "18px",
+                          fontSize: "15px",
                           fontWeight: "800",
                           color: "#0f172a",
                           lineHeight: "1.4",
                         }}
                       >
-                        {quiz.moduleName}
+                        {quiz.moduleCode
+                          ? `${quiz.moduleCode} - ${quiz.moduleName}`
+                          : quiz.moduleName}
                       </h3>
 
                       <span
                         style={{
                           ...getStatusBadgeStyle(quiz.status),
                           borderRadius: "999px",
-                          padding: "6px 12px",
-                          fontSize: "12px",
+                          padding: "5px 10px",
+                          fontSize: "11px",
                           fontWeight: "800",
                           whiteSpace: "nowrap",
                         }}
@@ -492,33 +797,33 @@ function LecturerModuleQuiz() {
                       </span>
                     </div>
 
-                    <p style={{ margin: "0 0 8px 0", color: "#334155", fontSize: "15px" }}>
-                      Questions: {quiz.questions}
+                    <p style={{ margin: "0 0 4px 0", color: "#334155", fontSize: "13px" }}>
+                      Questions: {Array.isArray(quiz.questions) ? quiz.questions.length : 0}
                     </p>
 
-                    <p style={{ margin: "0 0 18px 0", color: "#334155", fontSize: "15px" }}>
-                      Score: {quiz.score}%
+                    <p style={{ margin: "0 0 12px 0", color: "#334155", fontSize: "13px" }}>
+                      Created: {new Date(quiz.createdAt || Date.now()).toLocaleString()}
                     </p>
 
                     <button
                       onClick={() => handleDeleteQuiz(quiz.id)}
                       style={{
                         border: "none",
-                        background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                        background: "#ef4444",
                         color: "#fff",
-                        borderRadius: "16px",
-                        padding: "12px 16px",
-                        fontSize: "14px",
-                        fontWeight: "800",
+                        borderRadius: "12px",
+                        padding: "8px 12px",
+                        fontSize: "13px",
+                        fontWeight: "700",
                         cursor: "pointer",
                       }}
                     >
                       Delete Quiz
                     </button>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

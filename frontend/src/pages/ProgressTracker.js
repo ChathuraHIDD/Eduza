@@ -1,4 +1,33 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { jsPDF } from "jspdf";
+
+const QUIZ_STORAGE_KEY = "moduleQuizzes";
+const OPTION_LABELS = ["A", "B", "C", "D"];
+const GRADING_SCALE = [
+  { grade: "A+", gpa: 4.0, marks: "90-100" },
+  { grade: "A", gpa: 4.0, marks: "80-89" },
+  { grade: "A-", gpa: 3.7, marks: "75-79" },
+  { grade: "B+", gpa: 3.3, marks: "70-74" },
+  { grade: "B", gpa: 3.0, marks: "65-69" },
+  { grade: "B-", gpa: 2.7, marks: "60-64" },
+  { grade: "C+", gpa: 2.3, marks: "55-59" },
+  { grade: "C", gpa: 2.0, marks: "45-54" },
+  { grade: "C-", gpa: 1.7, marks: "40-44" },
+  { grade: "D+", gpa: 1.3, marks: "35-39" },
+  { grade: "D", gpa: 1.0, marks: "30-34" },
+  { grade: "E", gpa: 0.0, marks: "0-29" },
+];
+
+const loadStoredQuizzes = () => {
+  try {
+    const raw = localStorage.getItem(QUIZ_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 function ProgressTracker() {
   const categories = [
@@ -32,20 +61,7 @@ function ProgressTracker() {
     },
   ];
 
-  const gradingScale = [
-    { grade: "A+", gpa: 4.0, marks: "90-100" },
-    { grade: "A", gpa: 4.0, marks: "80-89" },
-    { grade: "A-", gpa: 3.7, marks: "75-79" },
-    { grade: "B+", gpa: 3.3, marks: "70-74" },
-    { grade: "B", gpa: 3.0, marks: "65-69" },
-    { grade: "B-", gpa: 2.7, marks: "60-64" },
-    { grade: "C+", gpa: 2.3, marks: "55-59" },
-    { grade: "C", gpa: 2.0, marks: "45-54" },
-    { grade: "C-", gpa: 1.7, marks: "40-44" },
-    { grade: "D+", gpa: 1.3, marks: "35-39" },
-    { grade: "D", gpa: 1.0, marks: "30-34" },
-    { grade: "E", gpa: 0.0, marks: "0-29" },
-  ];
+  const gradingScale = GRADING_SCALE;
 
   const modeOptions = [
     { title: "Custom", subtitle: "Add your own" },
@@ -65,7 +81,12 @@ function ProgressTracker() {
   const [modules, setModules] = useState([
     { id: 1, moduleName: "", credits: 3, grade: "A" },
   ]);
-  const [quizModules, setQuizModules] = useState([]);
+  const [quizModules] = useState(loadStoredQuizzes);
+  const [selectedQuizId, setSelectedQuizId] = useState(null);
+  const [quizAttemptAnswers, setQuizAttemptAnswers] = useState({});
+  const [quizValidationError, setQuizValidationError] = useState("");
+  const [quizResult, setQuizResult] = useState(null);
+  const [wrongAnswerSearchQuery, setWrongAnswerSearchQuery] = useState("");
   const [reportGenerated, setReportGenerated] = useState(false);
 
   const [selfCheckData] = useState([
@@ -84,15 +105,277 @@ function ProgressTracker() {
     level: "Gold Badge",
   });
 
-  useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("moduleQuizzes") || "[]");
-    setQuizModules(saved);
-  }, []);
+  const normalizedQuizModules = useMemo(() => {
+    return quizModules.map((quiz) => {
+      const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+      return {
+        ...quiz,
+        moduleName: quiz.moduleName || "Unnamed Module",
+        moduleCode: quiz.moduleCode || "",
+        questionCount: questions.length || Number(quiz.questions) || 0,
+        questions,
+      };
+    });
+  }, [quizModules]);
 
-  const getGradePoint = (grade) => {
+  const selectedQuiz = useMemo(() => {
+    if (!selectedQuizId) return null;
+    return (
+      normalizedQuizModules.find((quiz) => String(quiz.id) === String(selectedQuizId)) ||
+      null
+    );
+  }, [normalizedQuizModules, selectedQuizId]);
+
+  const getCorrectOptionLabel = (question) => {
+    if (OPTION_LABELS.includes(question?.correctOption)) {
+      return question.correctOption;
+    }
+
+    const index = Number(question?.correctOptionIndex);
+    if (Number.isInteger(index) && index >= 0 && index < OPTION_LABELS.length) {
+      return OPTION_LABELS[index];
+    }
+
+    return "";
+  };
+
+  const getOptionTextByLabel = (question, label) => {
+    const index = OPTION_LABELS.indexOf(label);
+    if (index < 0) return "Not selected";
+    return Array.isArray(question?.options) ? question.options[index] || "" : "";
+  };
+
+  const handleStartQuiz = (quizId) => {
+    if (String(selectedQuizId) === String(quizId)) {
+      setSelectedQuizId(null);
+      setQuizAttemptAnswers({});
+      setQuizValidationError("");
+      setQuizResult(null);
+      setWrongAnswerSearchQuery("");
+      return;
+    }
+
+    setSelectedQuizId(quizId);
+    setQuizAttemptAnswers({});
+    setQuizValidationError("");
+    setQuizResult(null);
+    setWrongAnswerSearchQuery("");
+  };
+
+  const handleSelectAnswer = (questionIndex, optionLabel) => {
+    setQuizAttemptAnswers((prev) => ({
+      ...prev,
+      [questionIndex]: optionLabel,
+    }));
+    setQuizValidationError("");
+  };
+
+  const handleSubmitQuiz = () => {
+    if (!selectedQuiz || !Array.isArray(selectedQuiz.questions) || selectedQuiz.questions.length === 0) {
+      setQuizValidationError("This quiz has no available questions.");
+      return;
+    }
+
+    const unanswered = selectedQuiz.questions
+      .map((_, index) => index)
+      .filter((index) => !quizAttemptAnswers[index]);
+
+    if (unanswered.length > 0) {
+      setQuizValidationError(
+        `Please answer all questions before submitting. Missing: ${unanswered
+          .map((value) => value + 1)
+          .join(", ")}`
+      );
+      return;
+    }
+
+    const wrongAnswers = [];
+    let correctCount = 0;
+
+    selectedQuiz.questions.forEach((question, index) => {
+      const selectedLabel = quizAttemptAnswers[index];
+      const correctLabel = getCorrectOptionLabel(question);
+      const isCorrect = selectedLabel === correctLabel;
+
+      if (isCorrect) {
+        correctCount += 1;
+      } else {
+        wrongAnswers.push({
+          questionNumber: index + 1,
+          questionText: question.text || `Question ${index + 1}`,
+          selectedLabel,
+          selectedText: getOptionTextByLabel(question, selectedLabel),
+          correctLabel,
+          correctText: getOptionTextByLabel(question, correctLabel),
+        });
+      }
+    });
+
+    const score100 = Math.round(
+      (correctCount / selectedQuiz.questions.length) * 100
+    );
+
+    setQuizResult({
+      totalQuestions: selectedQuiz.questions.length,
+      correctCount,
+      wrongCount: wrongAnswers.length,
+      score100,
+      wrongAnswers,
+    });
+    setWrongAnswerSearchQuery("");
+    setQuizValidationError("");
+  };
+
+  const filteredWrongAnswers = useMemo(() => {
+    if (!quizResult) return [];
+    const source = Array.isArray(quizResult.wrongAnswers)
+      ? quizResult.wrongAnswers
+      : [];
+    const query = wrongAnswerSearchQuery.trim().toLowerCase();
+    if (!query) return source;
+
+    return source.filter((item) => {
+      return [
+        String(item.questionNumber || ""),
+        item.questionText || "",
+        item.selectedLabel || "",
+        item.selectedText || "",
+        item.correctLabel || "",
+        item.correctText || "",
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [quizResult, wrongAnswerSearchQuery]);
+
+  const handleDownloadWrongAnswersPdf = () => {
+    if (!selectedQuiz || !quizResult) {
+      alert("No quiz result available to export.");
+      return;
+    }
+
+    const reportItems = filteredWrongAnswers;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const border = 24;
+    const contentX = 46;
+    const contentWidth = pageWidth - contentX * 2;
+    let y = 132;
+
+    const drawPageFrame = () => {
+      doc.setDrawColor(249, 115, 22);
+      doc.setLineWidth(1.6);
+      doc.rect(border, border, pageWidth - border * 2, pageHeight - border * 2);
+
+      doc.setFillColor(249, 115, 22);
+      doc.rect(border + 8, border + 8, pageWidth - (border + 8) * 2, 64, "F");
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(24);
+      doc.text("EDUZA", border + 20, border + 48);
+
+      doc.setFontSize(12);
+      doc.text("Wrong Answers Report", pageWidth - border - 20, border + 48, {
+        align: "right",
+      });
+
+      doc.setTextColor(17, 24, 39);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      const moduleName = selectedQuiz.moduleCode
+        ? `${selectedQuiz.moduleCode} - ${selectedQuiz.moduleName}`
+        : selectedQuiz.moduleName;
+      doc.text(moduleName, contentX, 118);
+    };
+
+    const ensureSpace = (requiredHeight) => {
+      if (y + requiredHeight <= pageHeight - 52) return;
+      doc.addPage();
+      drawPageFrame();
+      y = 132;
+    };
+
+    drawPageFrame();
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(75, 85, 99);
+    const generatedAt = new Date().toLocaleString();
+    const filterLabel = wrongAnswerSearchQuery.trim()
+      ? `Filter: ${wrongAnswerSearchQuery.trim()}`
+      : "Filter: None";
+    doc.text(`Generated: ${generatedAt}`, contentX, y);
+    y += 18;
+    doc.text(
+      `Score: ${quizResult.score100}/100 | Wrong: ${quizResult.wrongCount} of ${quizResult.totalQuestions}`,
+      contentX,
+      y
+    );
+    y += 18;
+    doc.text(filterLabel, contentX, y);
+    y += 18;
+    doc.setDrawColor(251, 146, 60);
+    doc.line(contentX, y, pageWidth - contentX, y);
+    y += 16;
+
+    if (reportItems.length === 0) {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(22, 163, 74);
+      doc.text("No wrong answers found for the current filter.", contentX, y);
+    } else {
+      reportItems.forEach((item) => {
+        const qLines = doc.splitTextToSize(
+          `${item.questionNumber}. ${item.questionText}`,
+          contentWidth
+        );
+        const yourAnswer = `Your answer: ${item.selectedLabel || "Not selected"}${
+          item.selectedText ? ` - ${item.selectedText}` : ""
+        }`;
+        const correctAnswer = `Correct answer: ${item.correctLabel || "N/A"}${
+          item.correctText ? ` - ${item.correctText}` : ""
+        }`;
+        const yourLines = doc.splitTextToSize(yourAnswer, contentWidth - 8);
+        const correctLines = doc.splitTextToSize(correctAnswer, contentWidth - 8);
+        const blockHeight =
+          qLines.length * 14 + yourLines.length * 14 + correctLines.length * 14 + 28;
+
+        ensureSpace(blockHeight);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(17, 24, 39);
+        doc.text(qLines, contentX, y);
+        y += qLines.length * 14 + 4;
+
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(220, 38, 38);
+        doc.text(yourLines, contentX + 6, y);
+        y += yourLines.length * 14 + 2;
+
+        doc.setTextColor(22, 163, 74);
+        doc.text(correctLines, contentX + 6, y);
+        y += correctLines.length * 14 + 8;
+
+        doc.setDrawColor(253, 186, 116);
+        doc.line(contentX, y, pageWidth - contentX, y);
+        y += 12;
+      });
+    }
+
+    const slug = (selectedQuiz.moduleCode || selectedQuiz.moduleName || "quiz")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+    doc.save(`eduza-wrong-answers-${slug || "report"}.pdf`);
+  };
+
+  const getGradePoint = useCallback((grade) => {
     const found = gradingScale.find((item) => item.grade === grade);
     return found ? found.gpa : 0;
-  };
+  }, [gradingScale]);
 
   const handleModuleChange = (id, field, value) => {
     setModules((prev) =>
@@ -148,7 +431,7 @@ function ProgressTracker() {
       totalCredits,
       gpa,
     };
-  }, [validModules]);
+  }, [getGradePoint, validModules]);
 
   const getGpaLabel = (gpa) => {
     const value = Number(gpa);
@@ -783,29 +1066,28 @@ Suggestions:
                 📝
               </div>
               <div>
-                <h3 className="text-2xl font-extrabold text-slate-900">
-                  Module Quiz
-                </h3>
+                <h3 className="text-2xl font-extrabold text-slate-900">Module Quiz</h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  Quick module quizzes to test your understanding.
+                  Quizzes created by lecturers for each database module.
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {quizModules.length === 0 ? (
+              {normalizedQuizModules.length === 0 ? (
                 <div className="text-slate-500">No quizzes available</div>
               ) : (
-                quizModules.map((item) => (
+                normalizedQuizModules.map((item) => (
                   <div
                     key={item.id}
                     className="rounded-[24px] border border-blue-100 bg-blue-50/40 p-5"
                   >
                     <div className="mb-3 flex items-center justify-between">
                       <h4 className="text-lg font-bold text-slate-900">
-                        {item.moduleName}
+                        {item.moduleCode
+                          ? `${item.moduleCode} - ${item.moduleName}`
+                          : item.moduleName}
                       </h4>
-
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-bold shadow-sm ${
                           item.status === "Completed"
@@ -819,21 +1101,172 @@ Suggestions:
                       </span>
                     </div>
 
-                    <p className="mb-2 text-sm text-slate-600">
-                      Questions: {item.questions}
-                    </p>
+                    <p className="mb-2 text-sm text-slate-600">Questions: {item.questionCount}</p>
+                    <p className="mb-5 text-sm text-slate-600">Score: {item.score}%</p>
 
-                    <p className="mb-5 text-sm text-slate-600">
-                      Score: {item.score}%
-                    </p>
-
-                    <button className="rounded-2xl bg-blue-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-600">
-                      Open Quiz
+                    <button
+                      onClick={() => handleStartQuiz(item.id)}
+                      className="rounded-2xl bg-blue-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-600"
+                    >
+                      {String(selectedQuizId) === String(item.id)
+                        ? "Close Quiz Paper"
+                        : "Open Quiz Paper"}
                     </button>
                   </div>
                 ))
               )}
             </div>
+
+            {selectedQuiz ? (
+              <div className="mt-6 rounded-[24px] border border-orange-100 bg-orange-50/50 p-5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h4 className="text-xl font-extrabold text-slate-900">
+                    {selectedQuiz.moduleCode
+                      ? `${selectedQuiz.moduleCode} - ${selectedQuiz.moduleName}`
+                      : selectedQuiz.moduleName}
+                  </h4>
+                  <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
+                    {selectedQuiz.questionCount} Questions
+                  </span>
+                </div>
+
+                {selectedQuiz.questions.length === 0 ? (
+                  <p className="text-sm text-slate-600">
+                    This quiz only has summary data and no question details.
+                  </p>
+                ) : (
+                  <div className="grid gap-3">
+                    {selectedQuiz.questions.map((question, index) => (
+                      <div
+                        key={`${selectedQuiz.id}-${question.id || index}`}
+                        className="rounded-2xl border border-orange-100 bg-white p-4"
+                      >
+                        <p className="mb-3 text-sm font-semibold text-slate-900">
+                          {index + 1}. {question.text}
+                        </p>
+
+                        <div className="grid gap-2 md:grid-cols-2">
+                          {(Array.isArray(question.options) ? question.options : []).map(
+                            (option, optionIndex) => {
+                              const label = OPTION_LABELS[optionIndex] || "";
+                              const isSelected = quizAttemptAnswers[index] === label;
+
+                              return (
+                                <label
+                                  key={`${question.id || index}-${label}`}
+                                  className={`rounded-xl border px-3 py-2 text-sm ${
+                                    isSelected
+                                      ? "border-blue-300 bg-blue-50 text-blue-700"
+                                      : "border-slate-200 bg-slate-50 text-slate-600"
+                                  }`}
+                                >
+                                  <input
+                                    type="radio"
+                                    name={`quiz-${selectedQuiz.id}-question-${index}`}
+                                    value={label}
+                                    checked={isSelected}
+                                    onChange={() => handleSelectAnswer(index, label)}
+                                    className="mr-2 accent-blue-600"
+                                  />
+                                  <span className="font-bold">{label}.</span> {option}
+                                </label>
+                              );
+                            }
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedQuiz.questions.length > 0 ? (
+                  <div className="mt-5">
+                    {quizValidationError ? (
+                      <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+                        {quizValidationError}
+                      </p>
+                    ) : null}
+
+                    <button
+                      onClick={handleSubmitQuiz}
+                      className="rounded-2xl bg-orange-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-600"
+                    >
+                      Submit Quiz
+                    </button>
+                  </div>
+                ) : null}
+
+                {quizResult ? (
+                  <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <h5 className="text-lg font-extrabold text-emerald-800">Quiz Result</h5>
+                    <p className="mt-2 text-sm text-emerald-700">
+                      Score: <span className="font-extrabold">{quizResult.score100}/100</span>
+                    </p>
+                    <p className="text-sm text-emerald-700">
+                      Correct: {quizResult.correctCount} / {quizResult.totalQuestions}
+                    </p>
+                    <p className="text-sm text-emerald-700">Wrong: {quizResult.wrongCount}</p>
+
+                    <div className="mt-4">
+                      <h6 className="text-sm font-bold text-slate-900">Wrong Answers</h6>
+                      {quizResult.wrongAnswers.length === 0 ? (
+                        <p className="mt-1 text-sm text-emerald-700">
+                          No wrong answers. Great work!
+                        </p>
+                      ) : (
+                        <div className="mt-2">
+                          <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center">
+                            <input
+                              type="text"
+                              value={wrongAnswerSearchQuery}
+                              onChange={(event) =>
+                                setWrongAnswerSearchQuery(event.target.value)
+                              }
+                              placeholder="Search wrong answers..."
+                              className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-orange-400 md:max-w-sm"
+                            />
+
+                            <button
+                              onClick={handleDownloadWrongAnswersPdf}
+                              className="rounded-xl border border-orange-300 bg-orange-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-600"
+                            >
+                              Download Wrong Answers PDF
+                            </button>
+                          </div>
+
+                          {filteredWrongAnswers.length === 0 ? (
+                            <p className="text-sm text-slate-600">
+                              No wrong answers match your search.
+                            </p>
+                          ) : (
+                            <div className="grid gap-3">
+                              {filteredWrongAnswers.map((item) => (
+                            <div
+                              key={`wrong-${item.questionNumber}`}
+                              className="rounded-xl border border-red-100 bg-white p-3"
+                            >
+                              <p className="text-sm font-semibold text-slate-900">
+                                {item.questionNumber}. {item.questionText}
+                              </p>
+                              <p className="mt-1 text-sm text-red-600">
+                                Your answer: {item.selectedLabel || "Not selected"}
+                                {item.selectedText ? ` - ${item.selectedText}` : ""}
+                              </p>
+                              <p className="text-sm text-emerald-700">
+                                Correct answer: {item.correctLabel || "N/A"}
+                                {item.correctText ? ` - ${item.correctText}` : ""}
+                              </p>
+                            </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         )}
 

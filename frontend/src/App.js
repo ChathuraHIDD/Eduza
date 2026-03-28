@@ -33,6 +33,8 @@ import AINotes from './pages/saumya/AINotes'
 import SoftwareDetails from './pages/saumya/SoftwareDetails'
 import UploadSoftware from './pages/saumya/UploadSoftware'
 
+import LecturerModuleQuiz from './pages/LecturerModuleQuiz'
+
 function App() {
   return (
     <BrowserRouter>
@@ -71,6 +73,15 @@ function App() {
             element={
               <ProtectedRoute roles={['lecturer', 'admin']}>
                 <LecturerDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="lecturer/module-quiz"
+            element={
+              <ProtectedRoute roles={['lecturer', 'admin']}>
+                <LecturerModuleQuiz />
               </ProtectedRoute>
             }
           />
@@ -134,6 +145,7 @@ function App() {
           <Route path="software-hub" element={<SoftwareHub />} />
           <Route path="ai-notes" element={<AINotes />} />
           <Route path="software/:slug" element={<SoftwareDetails />} />
+
           <Route
             path="upload-software"
             element={
@@ -146,6 +158,7 @@ function App() {
 
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
         <Route
           path="/stress-hub/orange/games/:gameSlug"
           element={

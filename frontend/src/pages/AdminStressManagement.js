@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { jsPDF } from 'jspdf'
 import { acknowledgeStressAlert, getStressAdminSummary, getStressAlerts } from '../utils/stressHubApi'
+import { drawEduzaLogo } from '../utils/pdfBranding'
 
 const cardStyle = {
   background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
@@ -141,7 +142,7 @@ function AdminStressManagement() {
     }
   }
 
-  const handleDownloadSubmissionPdf = (row) => {
+  const handleDownloadSubmissionPdf = async (row) => {
     const doc = new jsPDF({ unit: 'pt', format: 'a4' })
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()
@@ -151,7 +152,7 @@ function AdminStressManagement() {
     const contentWidth = pageWidth - contentX * 2
     let cursorY = 132
 
-    const drawPageFrame = () => {
+    const drawPageFrame = async () => {
       doc.setDrawColor(194, 65, 12)
       doc.setLineWidth(1.6)
       doc.rect(borderMargin, borderMargin, pageWidth - borderMargin * 2, pageHeight - borderMargin * 2)
@@ -160,9 +161,12 @@ function AdminStressManagement() {
       doc.rect(borderMargin + 8, borderMargin + 8, pageWidth - (borderMargin + 8) * 2, 64, 'F')
 
       doc.setTextColor(255, 255, 255)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(24)
-      doc.text('EDUZA', borderMargin + 18, borderMargin + 48)
+      const hasLogo = await drawEduzaLogo(doc, borderMargin + 16, borderMargin + 16, 66, 44)
+      if (!hasLogo) {
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(24)
+        doc.text('EDUZA', borderMargin + 18, borderMargin + 48)
+      }
 
       doc.setFontSize(12)
       doc.text('Student Stress Report', pageWidth - borderMargin - 20, borderMargin + 48, { align: 'right' })
@@ -173,18 +177,18 @@ function AdminStressManagement() {
       doc.text(`Generated: ${new Date().toLocaleString()}`, contentX, 116)
     }
 
-    const ensureSpace = (neededHeight) => {
+    const ensureSpace = async (neededHeight) => {
       if (cursorY + neededHeight <= pageHeight - 48) return
       doc.addPage()
-      drawPageFrame()
+      await drawPageFrame()
       cursorY = 132
     }
 
-    const writeField = (label, value) => {
+    const writeField = async (label, value) => {
       const safeText = value || 'N/A'
       const lines = doc.splitTextToSize(String(safeText), contentWidth - 140)
       const rowHeight = Math.max(18, lines.length * 14)
-      ensureSpace(rowHeight + 8)
+      await ensureSpace(rowHeight + 8)
 
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(12)
@@ -198,21 +202,21 @@ function AdminStressManagement() {
       cursorY += rowHeight + 8
     }
 
-    drawPageFrame()
+    await drawPageFrame()
 
     const selectedColors = Array.isArray(row.selectedColors)
       ? row.selectedColors.join(', ')
       : 'N/A'
 
-    writeField('Student Name', row.studentName || 'Unknown Student')
-    writeField('Student Email', row.studentEmail || 'No email')
-    writeField('Stress Level', String(row.stressLevel || 'N/A').toUpperCase())
-    writeField('Stress Score', row.stressScore != null ? String(row.stressScore) : 'N/A')
-    writeField('Selected Colors', selectedColors || 'N/A')
-    writeField('Submitted At', row.submittedAt ? new Date(row.submittedAt).toLocaleString() : 'N/A')
+    await writeField('Student Name', row.studentName || 'Unknown Student')
+    await writeField('Student Email', row.studentEmail || 'No email')
+    await writeField('Stress Level', String(row.stressLevel || 'N/A').toUpperCase())
+    await writeField('Stress Score', row.stressScore != null ? String(row.stressScore) : 'N/A')
+    await writeField('Selected Colors', selectedColors || 'N/A')
+    await writeField('Submitted At', row.submittedAt ? new Date(row.submittedAt).toLocaleString() : 'N/A')
 
     if (row.notes) {
-      writeField('Notes', row.notes)
+      await writeField('Notes', row.notes)
     }
 
     const slug = String(row.studentName || 'student')

@@ -11,8 +11,8 @@ function MidExamResult({ data, onBack }) {
   const [expandedDay, setExpandedDay] = useState(0)
   const [activeSubject, setActiveSubject] = useState(null)
 
-  const handleDownloadPdf = () => {
-    downloadSchedulePdf({ planType: 'mid-exam', data })
+  const handleDownloadPdf = async () => {
+    await downloadSchedulePdf({ planType: 'mid-exam', data })
   }
 
   const { exams, totalDays, hoursPerDay, studyTime, targetLabel, totalHours, days } = data

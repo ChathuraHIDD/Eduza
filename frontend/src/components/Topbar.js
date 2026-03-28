@@ -1,16 +1,23 @@
 import { useLocation } from "react-router-dom";
+import BrandLogo from "./BrandLogo";
 
 const pageTitles = {
   "/": "Dashboard",
+  "/lecturer": "Lecturer Dashboard",
+  "/admin": "Admin Dashboard",
+  "/coordinator": "Coordinator Dashboard",
   "/smart-schedule": "Smart Schedule",
   "/stress-hub": "Stress Management Hub",
   "/profile": "My Profile",
   "/lecture-profile": "Lecture Profile",
+  "/software-hub": "Software Hub",
+  "/lecturer/module-quiz": "Module Quiz Manager",
+  "/progress-tracker": "Progress Tracker",
 };
 
 function Topbar({ onMenuClick }) {
   const location = useLocation();
-  const title = pageTitles[location.pathname] || "EDUZA";
+  const title = pageTitles[location.pathname] || "Dashboard";
 
   // get logged user from localStorage
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -60,18 +67,20 @@ function Topbar({ onMenuClick }) {
         </svg>
       </button>
 
-      {/* Page title */}
-      <h1
-        style={{
-          margin: 0,
-          fontSize: 17,
-          fontWeight: 700,
-          color: "#1a1a2e",
-          letterSpacing: "-0.3px",
-        }}
-      >
-        {title}
-      </h1>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <BrandLogo width={84} height={32} rounded={10} scale={1.04} />
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 17,
+            fontWeight: 700,
+            color: "#1a1a2e",
+            letterSpacing: "-0.3px",
+          }}
+        >
+          {title}
+        </h1>
+      </div>
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />

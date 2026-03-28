@@ -1,6 +1,13 @@
 const path = require("path");
 const { spawn } = require("child_process");
 
+function resolvePythonPath() {
+  const venvPython = path.join(__dirname, "../../../ml-service/.venv/bin/python");
+  if (require("fs").existsSync(venvPython)) return venvPython;
+  if (process.env.PYTHON_PATH) return process.env.PYTHON_PATH;
+  return "python3";
+}
+
 const predictTaskDuration = async (req, res) => {
   try {
     const payload = req.body;
@@ -8,33 +15,44 @@ const predictTaskDuration = async (req, res) => {
     // Path to python script (ml-service/predict.py)
     const scriptPath = path.join(__dirname, "../../../ml-service/predict.py");
 
-    // Use python from venv if you want (recommended)
-    const pythonPath = path.join(__dirname, "../../../ml-service/.venv/bin/python");
+    // Prefer project venv, then env override, then python3 from PATH.
+    const pythonPath = resolvePythonPath();
 
     const py = spawn(pythonPath, [scriptPath]);
 
     let result = "";
     let errText = "";
+    let settled = false;
+
+    const sendError = (message, error) => {
+      if (settled) return;
+      settled = true;
+      return res.status(500).json({ message, error });
+    };
+
+    const sendSuccess = (data) => {
+      if (settled) return;
+      settled = true;
+      return res.json(data);
+    };
 
     py.stdout.on("data", (data) => (result += data.toString()));
     py.stderr.on("data", (data) => (errText += data.toString()));
 
+    py.on("error", (err) => {
+      return sendError("ML prediction failed", err?.message || "Python process failed to start");
+    });
+
     py.on("close", (code) => {
       if (code !== 0) {
-        return res.status(500).json({
-          message: "ML prediction failed",
-          error: errText || result,
-        });
+        return sendError("ML prediction failed", errText || result || `Process exited with code ${code}`);
       }
 
       try {
         const json = JSON.parse(result);
-        return res.json(json);
+        return sendSuccess(json);
       } catch (e) {
-        return res.status(500).json({
-          message: "Invalid ML response",
-          raw: result,
-        });
+        return sendError("Invalid ML response", result || e.message);
       }
     });
 

@@ -94,20 +94,20 @@ function Navbar() {
           width: '100%',
           maxWidth: 1440,
           margin: '0 auto',
-          padding: '1rem 2.5rem',
-          display: 'flex',
+          padding: '0 2.5rem',
+          minHeight: 92,
+          display: 'grid',
+          gridTemplateColumns: 'auto 1fr auto',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '1rem',
-          flexWrap: 'wrap',
+          columnGap: '2rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 220 }}>
+        <div style={{ display: 'flex', alignItems: 'center', minWidth: 220, height: 72 }}>
           <BrandLogo
-            width={188}
-            height={62}
+            width={208}
+            height={72}
             rounded={14}
-            scale={1.1}
+            scale={1.05}
             bg='transparent'
             padding={0}
             imageStyle={{ objectFit: 'contain' }}
@@ -118,18 +118,20 @@ function Navbar() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '1.7rem',
-            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: '2.1rem',
             color: '#374151',
             fontSize: 14,
             fontWeight: 600,
+            lineHeight: 1,
+            height: 46,
           }}
         >
-          <span style={{ color: '#f97316' }}>Home</span>
-          <span>About us</span>
-          <span>Services</span>
-          <span>Contact us</span>
-          <span>Blog</span>
+          <span style={{ color: '#f97316', fontSize: 16 }}>Home</span>
+          <span style={{ fontSize: 16 }}>About us</span>
+          <span style={{ fontSize: 16 }}>Services</span>
+          <span style={{ fontSize: 16 }}>Contact us</span>
+          <span style={{ fontSize: 16 }}>Blog</span>
         </nav>
 
         <Link
@@ -138,11 +140,16 @@ function Navbar() {
             textDecoration: 'none',
             background: '#f97316',
             color: '#fff',
-            padding: '10px 18px',
+            padding: '0 22px',
             borderRadius: 10,
-            fontSize: 13,
+            fontSize: 15,
             fontWeight: 700,
             boxShadow: '0 8px 18px rgba(249,115,22,0.22)',
+            height: 46,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1,
           }}
         >
           Sign Up
@@ -800,10 +807,10 @@ function Home() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
               <BrandLogo
-                width={166}
-                height={56}
+                width={176}
+                height={60}
                 rounded={12}
-                scale={1.06}
+                scale={1.02}
                 bg='transparent'
                 padding={0}
                 imageStyle={{ objectFit: 'contain' }}

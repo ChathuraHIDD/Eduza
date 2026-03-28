@@ -23,7 +23,7 @@ function BrandLogo({
             width,
             height,
             borderRadius: rounded,
-            overflow: 'visible',
+            overflow: 'hidden',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

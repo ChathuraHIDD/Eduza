@@ -1,8 +1,10 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 
 const QUIZ_STORAGE_KEY = "moduleQuizzes";
+const QUIZ_ATTEMPTS_STORAGE_KEY = "quizAttempts";
 const OPTION_LABELS = ["A", "B", "C", "D"];
+const QUIZ_DURATION_SECONDS = 15 * 60;
 const GRADING_SCALE = [
   { grade: "A+", gpa: 4.0, marks: "90-100" },
   { grade: "A", gpa: 4.0, marks: "80-89" },
@@ -21,6 +23,17 @@ const GRADING_SCALE = [
 const loadStoredQuizzes = () => {
   try {
     const raw = localStorage.getItem(QUIZ_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const loadStoredQuizAttempts = () => {
+  try {
+    const raw = localStorage.getItem(QUIZ_ATTEMPTS_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -87,16 +100,12 @@ function ProgressTracker() {
   const [quizValidationError, setQuizValidationError] = useState("");
   const [quizResult, setQuizResult] = useState(null);
   const [wrongAnswerSearchQuery, setWrongAnswerSearchQuery] = useState("");
+  const [quizAttempts, setQuizAttempts] = useState(loadStoredQuizAttempts);
+  const [selfCheckQuizFilter, setSelfCheckQuizFilter] = useState("all");
+  const [quizTimeLeft, setQuizTimeLeft] = useState(QUIZ_DURATION_SECONDS);
+  const [isQuizTimerRunning, setIsQuizTimerRunning] = useState(false);
+  const [quizTimeoutMessage, setQuizTimeoutMessage] = useState("");
   const [reportGenerated, setReportGenerated] = useState(false);
-
-  const [selfCheckData] = useState([
-    { label: "Week 1", value: 58 },
-    { label: "Week 2", value: 63 },
-    { label: "Week 3", value: 60 },
-    { label: "Week 4", value: 72 },
-    { label: "Week 5", value: 78 },
-    { label: "Week 6", value: 84 },
-  ]);
 
   const [streakData] = useState({
     currentStreak: 9,
@@ -152,6 +161,9 @@ function ProgressTracker() {
       setQuizValidationError("");
       setQuizResult(null);
       setWrongAnswerSearchQuery("");
+      setSelfCheckQuizFilter("all");
+      setIsQuizTimerRunning(false);
+      setQuizTimeLeft(QUIZ_DURATION_SECONDS);
       return;
     }
 
@@ -160,7 +172,45 @@ function ProgressTracker() {
     setQuizValidationError("");
     setQuizResult(null);
     setWrongAnswerSearchQuery("");
+    setQuizTimeoutMessage("");
+    setQuizTimeLeft(QUIZ_DURATION_SECONDS);
+    setIsQuizTimerRunning(true);
   };
+
+  useEffect(() => {
+    if (!selectedQuiz || !isQuizTimerRunning) return undefined;
+
+    const timerId = window.setInterval(() => {
+      setQuizTimeLeft((prev) => {
+        if (prev <= 1) {
+          setSelectedQuizId(null);
+          setQuizAttemptAnswers({});
+          setQuizValidationError("");
+          setQuizResult(null);
+          setWrongAnswerSearchQuery("");
+          setIsQuizTimerRunning(false);
+          setQuizTimeoutMessage(
+            "Time is up. Quiz closed automatically after 15 minutes."
+          );
+          return QUIZ_DURATION_SECONDS;
+        }
+
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [isQuizTimerRunning, selectedQuiz]);
+
+  const timerDisplay = useMemo(() => {
+    const minutes = Math.floor(quizTimeLeft / 60)
+      .toString()
+      .padStart(2, "0");
+    const seconds = (quizTimeLeft % 60).toString().padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  }, [quizTimeLeft]);
 
   const handleSelectAnswer = (questionIndex, optionLabel) => {
     setQuizAttemptAnswers((prev) => ({
@@ -215,15 +265,40 @@ function ProgressTracker() {
       (correctCount / selectedQuiz.questions.length) * 100
     );
 
+    const quizId = String(selectedQuiz.id);
+    const attemptNumber =
+      quizAttempts.filter((attempt) => String(attempt.quizId) === quizId).length + 1;
+    const submittedAt = new Date().toISOString();
+
+    const newAttempt = {
+      id: `${quizId}-${Date.now()}`,
+      quizId,
+      moduleCode: selectedQuiz.moduleCode || "",
+      moduleName: selectedQuiz.moduleName || "Unnamed Module",
+      attemptNumber,
+      score100,
+      correctCount,
+      wrongCount: wrongAnswers.length,
+      totalQuestions: selectedQuiz.questions.length,
+      submittedAt,
+    };
+
+    const nextAttempts = [...quizAttempts, newAttempt];
+    setQuizAttempts(nextAttempts);
+    localStorage.setItem(QUIZ_ATTEMPTS_STORAGE_KEY, JSON.stringify(nextAttempts));
+
     setQuizResult({
       totalQuestions: selectedQuiz.questions.length,
       correctCount,
       wrongCount: wrongAnswers.length,
       score100,
       wrongAnswers,
+      attemptNumber,
+      submittedAt,
     });
     setWrongAnswerSearchQuery("");
     setQuizValidationError("");
+    setIsQuizTimerRunning(false);
   };
 
   const filteredWrongAnswers = useMemo(() => {
@@ -248,6 +323,57 @@ function ProgressTracker() {
         .includes(query);
     });
   }, [quizResult, wrongAnswerSearchQuery]);
+
+  const selfCheckQuizOptions = useMemo(() => {
+    const map = new Map();
+    quizAttempts.forEach((attempt) => {
+      const id = String(attempt.quizId || "");
+      if (!id || map.has(id)) return;
+      const label = attempt.moduleCode
+        ? `${attempt.moduleCode} - ${attempt.moduleName}`
+        : attempt.moduleName || "Unnamed Module";
+      map.set(id, { id, label });
+    });
+    return Array.from(map.values());
+  }, [quizAttempts]);
+
+  const selfCheckAttemptSeries = useMemo(() => {
+    return quizAttempts
+      .filter((attempt) => {
+        if (!attempt || typeof attempt.score100 !== "number") return false;
+        if (selfCheckQuizFilter === "all") return true;
+        return String(attempt.quizId) === String(selfCheckQuizFilter);
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.submittedAt || 0).getTime() -
+          new Date(b.submittedAt || 0).getTime()
+      );
+  }, [quizAttempts, selfCheckQuizFilter]);
+
+  const displayedSelfCheckSeries = useMemo(() => {
+    return selfCheckAttemptSeries.slice(-12).map((attempt) => ({
+      ...attempt,
+      label: `R${attempt.attemptNumber || 1}`,
+      value: Number(attempt.score100 || 0),
+    }));
+  }, [selfCheckAttemptSeries]);
+
+  const selfCheckStats = useMemo(() => {
+    if (selfCheckAttemptSeries.length === 0) {
+      return { latest: 0, average: 0, progress: 0, best: 0 };
+    }
+
+    const scores = selfCheckAttemptSeries.map((attempt) =>
+      Number(attempt.score100 || 0)
+    );
+    const latest = scores[scores.length - 1];
+    const average = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+    const best = Math.max(...scores);
+    const progress = scores.length > 1 ? latest - scores[0] : 0;
+
+    return { latest, average, progress, best };
+  }, [selfCheckAttemptSeries]);
 
   const handleDownloadWrongAnswersPdf = () => {
     if (!selectedQuiz || !quizResult) {
@@ -576,11 +702,25 @@ Suggestions:
     const padding = 40;
     const maxValue = 100;
 
-    const points = selfCheckData
+    if (displayedSelfCheckSeries.length === 0) {
+      return (
+        <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
+          <div className="mb-2 text-2xl font-bold text-slate-900">Self Check Progress</div>
+          <p className="text-sm text-slate-500">
+            No quiz attempts yet. Complete quizzes and submit them to track marks
+            progress here.
+          </p>
+        </div>
+      );
+    }
+
+    const xDivider = Math.max(1, displayedSelfCheckSeries.length - 1);
+
+    const points = displayedSelfCheckSeries
       .map((item, index) => {
         const x =
           padding +
-          (index * (width - padding * 2)) / (selfCheckData.length - 1);
+          (index * (width - padding * 2)) / xDivider;
         const y =
           height - padding - (item.value / maxValue) * (height - padding * 2);
         return `${x},${y}`;
@@ -593,7 +733,7 @@ Suggestions:
           <div>
             <h3 className="text-2xl font-bold text-slate-900">Self Check Progress</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Weekly confidence and performance trend
+              Quiz marks and repeat progress trend
             </p>
           </div>
           <div className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-orange-600">
@@ -633,13 +773,13 @@ Suggestions:
               );
             })}
 
-            {selfCheckData.map((item, index) => {
+            {displayedSelfCheckSeries.map((item, index) => {
               const x =
                 padding +
-                (index * (width - padding * 2)) / (selfCheckData.length - 1);
+                (index * (width - padding * 2)) / xDivider;
               return (
                 <text
-                  key={item.label}
+                  key={`${item.label}-${index}`}
                   x={x}
                   y={height - 10}
                   textAnchor="middle"
@@ -665,10 +805,10 @@ Suggestions:
               points={`${padding},${height - padding} ${points} ${width - padding},${height - padding}`}
             />
 
-            {selfCheckData.map((item, index) => {
+            {displayedSelfCheckSeries.map((item, index) => {
               const x =
                 padding +
-                (index * (width - padding * 2)) / (selfCheckData.length - 1);
+                (index * (width - padding * 2)) / xDivider;
               const y =
                 height - padding - (item.value / maxValue) * (height - padding * 2);
 
@@ -1117,6 +1257,12 @@ Suggestions:
               )}
             </div>
 
+            {quizTimeoutMessage ? (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                {quizTimeoutMessage}
+              </div>
+            ) : null}
+
             {selectedQuiz ? (
               <div className="mt-6 rounded-[24px] border border-orange-100 bg-orange-50/50 p-5">
                 <div className="mb-4 flex items-center justify-between gap-3">
@@ -1127,6 +1273,21 @@ Suggestions:
                   </h4>
                   <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
                     {selectedQuiz.questionCount} Questions
+                  </span>
+                </div>
+
+                <div className="mb-4 flex items-center justify-between rounded-xl border border-orange-200 bg-white px-4 py-3">
+                  <p className="text-sm font-semibold text-slate-700">
+                    Timer starts when you open the quiz.
+                  </p>
+                  <span
+                    className={`rounded-full px-3 py-1 text-sm font-extrabold ${
+                      quizTimeLeft <= 60
+                        ? "bg-red-100 text-red-600"
+                        : "bg-orange-100 text-orange-700"
+                    }`}
+                  >
+                    {timerDisplay}
                   </span>
                 </div>
 
@@ -1203,6 +1364,9 @@ Suggestions:
                       Score: <span className="font-extrabold">{quizResult.score100}/100</span>
                     </p>
                     <p className="text-sm text-emerald-700">
+                      Repeat: {quizResult.attemptNumber}
+                    </p>
+                    <p className="text-sm text-emerald-700">
                       Correct: {quizResult.correctCount} / {quizResult.totalQuestions}
                     </p>
                     <p className="text-sm text-emerald-700">Wrong: {quizResult.wrongCount}</p>
@@ -1272,23 +1436,94 @@ Suggestions:
 
         {activeCategory === "selfcheck" && (
           <div className="space-y-6">
+            <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h4 className="text-lg font-bold text-slate-900">Self Check Filter</h4>
+                  <p className="text-sm text-slate-500">
+                    Select a quiz to see repeat attempts and marks progress.
+                  </p>
+                </div>
+                <select
+                  value={selfCheckQuizFilter}
+                  onChange={(event) => setSelfCheckQuizFilter(event.target.value)}
+                  className="rounded-xl border border-orange-200 bg-orange-50/40 px-4 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-orange-400"
+                >
+                  <option value="all">All Quizzes</option>
+                  {selfCheckQuizOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {renderChart()}
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
               <div className="rounded-[24px] border border-purple-100 bg-white p-5 shadow-sm">
-                <p className="text-sm text-slate-500">Current Confidence</p>
-                <h4 className="mt-2 text-4xl font-extrabold text-purple-600">84%</h4>
+                <p className="text-sm text-slate-500">Latest Mark</p>
+                <h4 className="mt-2 text-4xl font-extrabold text-purple-600">
+                  {selfCheckStats.latest}%
+                </h4>
               </div>
 
               <div className="rounded-[24px] border border-purple-100 bg-white p-5 shadow-sm">
-                <p className="text-sm text-slate-500">Weekly Improvement</p>
-                <h4 className="mt-2 text-4xl font-extrabold text-purple-600">+26%</h4>
+                <p className="text-sm text-slate-500">Average Mark</p>
+                <h4 className="mt-2 text-4xl font-extrabold text-purple-600">
+                  {selfCheckStats.average}%
+                </h4>
               </div>
 
               <div className="rounded-[24px] border border-purple-100 bg-white p-5 shadow-sm">
-                <p className="text-sm text-slate-500">Consistency Rate</p>
-                <h4 className="mt-2 text-4xl font-extrabold text-purple-600">88%</h4>
+                <p className="text-sm text-slate-500">Progress</p>
+                <h4 className="mt-2 text-4xl font-extrabold text-purple-600">
+                  {selfCheckStats.progress >= 0 ? "+" : ""}
+                  {selfCheckStats.progress}%
+                </h4>
               </div>
+
+              <div className="rounded-[24px] border border-purple-100 bg-white p-5 shadow-sm">
+                <p className="text-sm text-slate-500">Best Mark</p>
+                <h4 className="mt-2 text-4xl font-extrabold text-purple-600">
+                  {selfCheckStats.best}%
+                </h4>
+              </div>
+            </div>
+
+            <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
+              <h4 className="text-xl font-bold text-slate-900">Quiz Repeat History</h4>
+              <p className="mt-1 text-sm text-slate-500">
+                All quiz repeats are stored with marks and timestamps.
+              </p>
+
+              {selfCheckAttemptSeries.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-500">No attempts recorded yet.</p>
+              ) : (
+                <div className="mt-4 grid gap-3">
+                  {[...selfCheckAttemptSeries].reverse().map((attempt) => (
+                    <div
+                      key={attempt.id}
+                      className="rounded-xl border border-orange-100 bg-orange-50/40 p-3"
+                    >
+                      <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {attempt.moduleCode
+                            ? `${attempt.moduleCode} - ${attempt.moduleName}`
+                            : attempt.moduleName}
+                        </p>
+                        <p className="text-xs font-bold text-orange-700">
+                          Repeat {attempt.attemptNumber} • {new Date(attempt.submittedAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Mark: {attempt.score100}% • Correct: {attempt.correctCount}/{attempt.totalQuestions}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

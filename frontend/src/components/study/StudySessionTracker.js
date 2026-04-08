@@ -9,6 +9,8 @@ import {
 } from '../../utils/studySessionApi'
 
 const ACTIVE_SESSION_STORAGE_KEY = 'eduza_active_study_session'
+const ORANGE_DARK = '#c2410c'
+const ORANGE_BASE = '#f97316'
 
 function pad(value) {
   return String(value).padStart(2, '0')
@@ -63,6 +65,27 @@ export default function StudySessionTracker({
   const isPaused = status === 'paused'
   const workedMinutes = Math.ceil(seconds / 60)
   const remainingMinutes = Math.max(0, Math.round(Number(plannedMinutesToday || 0) - workedMinutes))
+
+  const buttonBaseStyle = {
+    borderRadius: 10,
+    padding: '9px 14px',
+    fontWeight: 800,
+    cursor: loading ? 'not-allowed' : 'pointer',
+  }
+
+  const primaryButtonStyle = {
+    ...buttonBaseStyle,
+    background: `linear-gradient(135deg, ${ORANGE_BASE}, ${ORANGE_DARK})`,
+    color: '#fff',
+    border: 'none',
+  }
+
+  const secondaryButtonStyle = {
+    ...buttonBaseStyle,
+    background: '#fff',
+    color: ORANGE_DARK,
+    border: `1.5px solid ${ORANGE_BASE}`,
+  }
 
   const sendNotification = useCallback(async (titleSuffix, effectiveSeconds) => {
     try {
@@ -256,14 +279,44 @@ export default function StudySessionTracker({
       })
 
       const currentMinutes = Math.max(0, Number(stopped?.durationMinutes || workedMinutes))
-      setSeconds(currentMinutes * 60)
-      setStatus('completed')
+      setSeconds(0)
+      setStatus('idle')
       setSessionId('')
       lastCheckpointBucketRef.current = 0
       clearLocalSession()
       await sendNotification('completed', currentMinutes * 60)
     } catch (nextError) {
       setError(nextError?.message || 'Failed to stop session')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const startFromBeginning = async () => {
+    setError('')
+    setLoading(true)
+
+    try {
+      if (sessionId) {
+        await stopStudySession(sessionId, { createProgressLog: false })
+      }
+
+      const freshSession = await startStudySession({
+        moduleName,
+        sessionType,
+        studyPlanId,
+        moduleId,
+        plannedMinutesToday,
+      })
+
+      setSessionId(freshSession._id)
+      setSeconds(0)
+      setStatus('running')
+      lastCheckpointBucketRef.current = 0
+      saveLocalSession({ sessionId: freshSession._id, status: 'running', seconds: 0 })
+      await sendNotification('started from beginning', 0)
+    } catch (nextError) {
+      setError(nextError?.message || 'Failed to restart session from beginning')
     } finally {
       setLoading(false)
     }
@@ -301,15 +354,7 @@ export default function StudySessionTracker({
             type="button"
             onClick={start}
             disabled={loading}
-            style={{
-              background: '#f97316',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 10,
-              padding: '9px 14px',
-              fontWeight: 800,
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
+            style={primaryButtonStyle}
           >
             {loading ? 'Starting...' : 'Start'}
           </button>
@@ -320,15 +365,7 @@ export default function StudySessionTracker({
             type="button"
             onClick={pause}
             disabled={loading}
-            style={{
-              background: '#fff7ed',
-              color: '#c2410c',
-              border: '1px solid #fed7aa',
-              borderRadius: 10,
-              padding: '9px 14px',
-              fontWeight: 800,
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
+            style={secondaryButtonStyle}
           >
             {loading ? 'Pausing...' : 'Pause'}
           </button>
@@ -339,15 +376,7 @@ export default function StudySessionTracker({
             type="button"
             onClick={resume}
             disabled={loading}
-            style={{
-              background: '#ecfeff',
-              color: '#0891b2',
-              border: '1px solid #a5f3fc',
-              borderRadius: 10,
-              padding: '9px 14px',
-              fontWeight: 800,
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
+            style={secondaryButtonStyle}
           >
             {loading ? 'Resuming...' : 'Resume'}
           </button>
@@ -358,19 +387,20 @@ export default function StudySessionTracker({
             type="button"
             onClick={stop}
             disabled={loading}
-            style={{
-              background: '#ef4444',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 10,
-              padding: '9px 14px',
-              fontWeight: 800,
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
+            style={secondaryButtonStyle}
           >
             {loading ? 'Stopping...' : 'Stop'}
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={startFromBeginning}
+          disabled={loading}
+          style={primaryButtonStyle}
+        >
+          {loading ? 'Please wait...' : 'Start from beginning'}
+        </button>
 
         <div style={{ fontSize: 12, color: '#6b7280' }}>
           Remaining today: <span style={{ color: '#1a1a2e', fontWeight: 700 }}>{formatMinutes(remainingMinutes)}</span>

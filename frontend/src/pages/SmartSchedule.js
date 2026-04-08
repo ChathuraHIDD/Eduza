@@ -11,7 +11,12 @@ import OtherExamModal from '../components/schedule/OtherExamModal'
 import OtherExamResult from '../components/schedule/OtherExamResult'
 import OtherActivityModal from '../components/schedule/OtherActivityModal'
 import OtherActivityResult from '../components/schedule/OtherActivityResult'
-import { createStudyPlan, getStudyPlans } from '../utils/studyPlanApi'
+import {
+  createStudyPlan,
+  deleteStudyPlanById,
+  getStudyPlanById,
+  getStudyPlans,
+} from '../utils/studyPlanApi'
 
 const SCHEDULE_ACCENT = '#f97316'
 
@@ -215,6 +220,8 @@ function buildStudyPlanPayload(type, scheduleData, userId) {
     user: userId,
     title,
     scopeType,
+    uiScheduleType: type,
+    uiScheduleData: scheduleData,
     targetGrade: scheduleData?.targetLabel || undefined,
     startDate,
     targetDate,
@@ -297,6 +304,39 @@ function SmartSchedule() {
   const [pastLoading, setPastLoading] = useState(false)
   const [pastSchedules, setPastSchedules] = useState([])
   const [showPastSchedules, setShowPastSchedules] = useState(false)
+  const [pastScheduleSearch, setPastScheduleSearch] = useState('')
+  const [openingPlanId, setOpeningPlanId] = useState('')
+  const [deletingPlanId, setDeletingPlanId] = useState('')
+
+  const filteredPastSchedules = pastSchedules.filter((plan) => {
+    const query = pastScheduleSearch.trim().toLowerCase()
+    if (!query) return true
+
+    return [
+      plan.title,
+      plan.scopeType,
+      plan.targetGrade,
+      plan.uiScheduleType,
+      plan.uiScheduleData?.subject,
+      plan.uiScheduleData?.examTypeName,
+      plan.uiScheduleData?.goalName,
+      plan.uiScheduleData?.semesterLabel,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query))
+  })
+
+  const loadPastSchedules = async () => {
+    setPastLoading(true)
+    try {
+      const plans = await getStudyPlans(userId)
+      setPastSchedules(Array.isArray(plans) ? plans : [])
+    } catch (error) {
+      setSaveError(error?.message || 'Failed to load past schedules')
+    } finally {
+      setPastLoading(false)
+    }
+  }
 
   const persistSchedule = async (type, scheduleData) => {
     if (!userId) {
@@ -314,8 +354,7 @@ function SmartSchedule() {
       await createStudyPlan(payload)
       setSaveMessage('Schedule saved to database.')
       if (showPastSchedules) {
-        const plans = await getStudyPlans(userId)
-        setPastSchedules(Array.isArray(plans) ? plans : [])
+        await loadPastSchedules()
       }
     } catch (error) {
       setSaveError(error?.message || 'Failed to save schedule')
@@ -327,6 +366,7 @@ function SmartSchedule() {
   const handlePastSchedulesToggle = async () => {
     const next = !showPastSchedules
     setShowPastSchedules(next)
+    if (next) setPastScheduleSearch('')
 
     if (!next) return
     if (!userId) {
@@ -334,15 +374,54 @@ function SmartSchedule() {
       return
     }
 
-    setPastLoading(true)
+    await loadPastSchedules()
+  }
+
+  const handleOpenPastSchedule = async (id) => {
+    setOpeningPlanId(id)
+    setSaveError('')
+
     try {
-      const plans = await getStudyPlans(userId)
-      setPastSchedules(Array.isArray(plans) ? plans : [])
+      const plan = await getStudyPlanById(id)
+      if (!plan?.uiScheduleType || !plan?.uiScheduleData) {
+        setSaveError('This is an older schedule and cannot be reopened in full detail.')
+        return
+      }
+
+      setScheduleType(plan.uiScheduleType)
+      setGeneratedSchedule(plan.uiScheduleData)
+      setShowPastSchedules(false)
+      setPastScheduleSearch('')
     } catch (error) {
-      setSaveError(error?.message || 'Failed to load past schedules')
+      setSaveError(error?.message || 'Failed to open schedule details')
     } finally {
-      setPastLoading(false)
+      setOpeningPlanId('')
     }
+  }
+
+  const handleDeletePastSchedule = async (id, event) => {
+    event.stopPropagation()
+
+    const isConfirmed = window.confirm('Are you sure you want to delete this schedule?')
+    if (!isConfirmed) return
+
+    setDeletingPlanId(id)
+    setSaveError('')
+
+    try {
+      await deleteStudyPlanById(id)
+      setSaveMessage('Schedule deleted successfully.')
+      await loadPastSchedules()
+    } catch (error) {
+      setSaveError(error?.message || 'Failed to delete schedule')
+    } finally {
+      setDeletingPlanId('')
+    }
+  }
+
+  const handleClosePastSchedules = () => {
+    setShowPastSchedules(false)
+    setPastScheduleSearch('')
   }
 
   const handleTypeSelect = (type) => {
@@ -606,45 +685,167 @@ function SmartSchedule() {
       </div>
 
       {showPastSchedules && (
-        <div style={{
-          background: '#ffffff',
-          border: '1.5px solid #e8ecf4',
-          borderRadius: 18,
-          padding: '1rem',
-          marginBottom: '1rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        }}>
-          <h3 style={{ margin: '0 0 0.75rem', fontSize: 16, color: '#1a1a2e' }}>Past Schedules</h3>
-
-          {pastLoading && <div style={{ fontSize: 13, color: '#6b7280' }}>Loading...</div>}
-
-          {!pastLoading && pastSchedules.length === 0 && (
-            <div style={{ fontSize: 13, color: '#6b7280' }}>No schedules saved yet.</div>
-          )}
-
-          {!pastLoading && pastSchedules.length > 0 && (
-            <div style={{ display: 'grid', gap: '0.6rem' }}>
-              {pastSchedules.map((plan) => (
-                <div
-                  key={plan._id}
-                  style={{
-                    border: '1px solid #e8ecf4',
-                    borderRadius: 12,
-                    padding: '0.7rem 0.8rem',
-                    background: '#fafafa',
-                  }}
-                >
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{plan.title}</div>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4, fontSize: 12, color: '#6b7280' }}>
-                    <span>Type: {plan.scopeType}</span>
-                    <span>Modules: {Array.isArray(plan.modules) ? plan.modules.length : 0}</span>
-                    <span>Created: {new Date(plan.createdAt).toLocaleString()}</span>
-                    <span>Target: {plan.targetDate ? new Date(plan.targetDate).toLocaleDateString() : '-'}</span>
-                  </div>
-                </div>
-              ))}
+        <div
+          onClick={handleClosePastSchedules}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            background: 'rgba(0,0,0,0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 860,
+              maxHeight: '88vh',
+              overflow: 'hidden',
+              background: '#ffffff',
+              borderRadius: 18,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div style={{ padding: '1rem 1.15rem', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, color: '#111827' }}>Past Schedules</h3>
+                <div style={{ marginTop: 3, fontSize: 12, color: '#6b7280' }}>Search, open, or delete saved schedules</div>
+              </div>
+              <button
+                type="button"
+                onClick={handleClosePastSchedules}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  border: '1px solid #e5e7eb',
+                  background: '#fff',
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                  fontSize: 18,
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
             </div>
-          )}
+
+            <div style={{ padding: '1rem 1.15rem 0.75rem' }}>
+              <input
+                value={pastScheduleSearch}
+                onChange={(event) => setPastScheduleSearch(event.target.value)}
+                placeholder="Search by title, type, subject, or goal..."
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 12,
+                  padding: '11px 14px',
+                  fontSize: 14,
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            <div style={{ padding: '0 1.15rem 1.15rem', overflowY: 'auto' }}>
+              {pastLoading && <div style={{ fontSize: 13, color: '#6b7280', padding: '0.5rem 0' }}>Loading...</div>}
+
+              {!pastLoading && pastSchedules.length === 0 && (
+                <div style={{ fontSize: 13, color: '#6b7280', padding: '0.5rem 0' }}>No schedules saved yet.</div>
+              )}
+
+              {!pastLoading && pastSchedules.length > 0 && filteredPastSchedules.length === 0 && (
+                <div style={{ fontSize: 13, color: '#6b7280', padding: '0.5rem 0' }}>No schedules match your search.</div>
+              )}
+
+              {!pastLoading && filteredPastSchedules.length > 0 && (
+                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                  {filteredPastSchedules.map((plan) => (
+                    <div
+                      key={plan._id}
+                      onClick={() => handleOpenPastSchedule(plan._id)}
+                      style={{
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 14,
+                        padding: '0.85rem 0.95rem',
+                        background: '#fafafa',
+                        cursor: openingPlanId === plan._id ? 'wait' : 'pointer',
+                        transition: 'border-color 0.15s ease, transform 0.15s ease',
+                      }}
+                      onMouseEnter={(event) => {
+                        if (openingPlanId === plan._id || deletingPlanId === plan._id) return
+                        event.currentTarget.style.borderColor = '#cbd5e1'
+                        event.currentTarget.style.transform = 'translateY(-1px)'
+                      }}
+                      onMouseLeave={(event) => {
+                        event.currentTarget.style.borderColor = '#e5e7eb'
+                        event.currentTarget.style.transform = 'translateY(0)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{plan.title}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleOpenPastSchedule(plan._id)
+                            }}
+                            disabled={openingPlanId === plan._id || deletingPlanId === plan._id}
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              border: '1px solid #d1d5db',
+                              background: '#fff',
+                              color: '#111827',
+                              borderRadius: 8,
+                              padding: '5px 9px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {openingPlanId === plan._id ? 'Opening...' : 'Open'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => handleDeletePastSchedule(plan._id, event)}
+                            disabled={deletingPlanId === plan._id || openingPlanId === plan._id}
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              border: '1px solid rgba(239,68,68,0.25)',
+                              background: 'rgba(239,68,68,0.08)',
+                              color: '#ef4444',
+                              borderRadius: 8,
+                              padding: '5px 9px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {deletingPlanId === plan._id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6, fontSize: 12, color: '#6b7280' }}>
+                        <span>Type: {plan.scopeType}</span>
+                        <span>Modules: {Array.isArray(plan.modules) ? plan.modules.length : 0}</span>
+                        <span>Created: {new Date(plan.createdAt).toLocaleString()}</span>
+                        <span>Target: {plan.targetDate ? new Date(plan.targetDate).toLocaleDateString() : '-'}</span>
+                      </div>
+                      <div style={{ marginTop: 6, fontSize: 11, color: '#9ca3af' }}>
+                        Click card or Open to view full details
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

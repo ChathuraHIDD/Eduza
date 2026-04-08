@@ -21,3 +21,17 @@ export async function getStudyPlans(userId) {
     headers: authHeaders(),
   })
 }
+
+export async function getStudyPlanById(id) {
+  return apiFetch(`/api/study-plans/${id}`, {
+    method: 'GET',
+    headers: authHeaders(),
+  })
+}
+
+export async function deleteStudyPlanById(id) {
+  return apiFetch(`/api/study-plans/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+}

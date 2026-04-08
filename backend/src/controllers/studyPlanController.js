@@ -111,9 +111,28 @@ const updateStudyPlan = asyncHandler(async (req, res) => {
   res.json(plan);
 });
 
+const deleteStudyPlan = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const plan = await StudyPlan.findById(id);
+
+  if (!plan) {
+    res.status(404);
+    throw new Error('Study plan not found');
+  }
+
+  if (!isPlanOwner(plan, req.user)) {
+    res.status(403);
+    throw new Error('Not authorized to delete this study plan');
+  }
+
+  await plan.deleteOne();
+  res.json({ message: 'Study plan deleted successfully' });
+});
+
 module.exports = {
   getStudyPlans,
   getStudyPlanById,
   createStudyPlan,
   updateStudyPlan,
+  deleteStudyPlan,
 };

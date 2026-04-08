@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import { drawEduzaLogo } from "../utils/pdfBranding";
 
 const QUIZ_STORAGE_KEY = "moduleQuizzes";
+const SELF_CHECK_STORAGE_KEY = "moduleSelfChecks";
 const QUIZ_ATTEMPTS_STORAGE_KEY = "quizAttempts";
 const OPTION_LABELS = ["A", "B", "C", "D"];
 const QUIZ_DURATION_SECONDS = 15 * 60;
@@ -32,9 +33,9 @@ const loadStoredQuizzes = () => {
   }
 };
 
-const loadStoredQuizAttempts = () => {
+const loadStoredSelfChecks = () => {
   try {
-    const raw = localStorage.getItem(QUIZ_ATTEMPTS_STORAGE_KEY);
+    const raw = localStorage.getItem(SELF_CHECK_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -43,15 +44,23 @@ const loadStoredQuizAttempts = () => {
   }
 };
 
+const loadStoredQuizAttempts = () => {
+  try {
+    const raw = localStorage.getItem(QUIZ_ATTEMPTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item) => ({
+      ...item,
+      assessmentType: item.assessmentType || "quiz",
+    }));
+  } catch {
+    return [];
+  }
+};
+
 function ProgressTracker() {
   const categories = [
-    {
-      id: "gpa",
-      title: "Calculate My GPA",
-      description: "Calculate your GPA using module grades and credit values.",
-      icon: "🎓",
-      accent: "orange",
-    },
     {
       id: "quiz",
       title: "Module Quiz",
@@ -62,9 +71,16 @@ function ProgressTracker() {
     {
       id: "selfcheck",
       title: "Self Check",
+      description: "Access lecturer-created self-checks and repeat them anytime.",
+      icon: "📚",
+      accent: "purple",
+    },
+    {
+      id: "measure",
+      title: "Measure",
       description: "Track your study confidence and performance using progress graphs.",
       icon: "📈",
-      accent: "purple",
+      accent: "orange",
     },
     {
       id: "streak",
@@ -90,12 +106,13 @@ function ProgressTracker() {
     { title: "Up to Y2S2", subtitle: "Old Syllabus" },
   ];
 
-  const [activeCategory, setActiveCategory] = useState("gpa");
+  const [activeCategory, setActiveCategory] = useState("quiz");
   const [selectedMode, setSelectedMode] = useState("Custom-Add your own");
   const [modules, setModules] = useState([
     { id: 1, moduleName: "", credits: 3, grade: "A" },
   ]);
   const [quizModules] = useState(loadStoredQuizzes);
+  const [selfCheckModules] = useState(loadStoredSelfChecks);
   const [selectedQuizId, setSelectedQuizId] = useState(null);
   const [quizAttemptAnswers, setQuizAttemptAnswers] = useState({});
   const [quizValidationError, setQuizValidationError] = useState("");
@@ -120,6 +137,7 @@ function ProgressTracker() {
       const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
       return {
         ...quiz,
+        type: quiz.type || "quiz",
         moduleName: quiz.moduleName || "Unnamed Module",
         moduleCode: quiz.moduleCode || "",
         questionCount: questions.length || Number(quiz.questions) || 0,
@@ -128,13 +146,31 @@ function ProgressTracker() {
     });
   }, [quizModules]);
 
+  const normalizedSelfCheckModules = useMemo(() => {
+    return selfCheckModules.map((item) => {
+      const questions = Array.isArray(item.questions) ? item.questions : [];
+      return {
+        ...item,
+        type: item.type || "selfcheck",
+        moduleName: item.moduleName || "Unnamed Module",
+        moduleCode: item.moduleCode || "",
+        questionCount: questions.length || Number(item.questions) || 0,
+        questions,
+      };
+    });
+  }, [selfCheckModules]);
+
+  const allAssessments = useMemo(() => {
+    return [...normalizedQuizModules, ...normalizedSelfCheckModules];
+  }, [normalizedQuizModules, normalizedSelfCheckModules]);
+
   const selectedQuiz = useMemo(() => {
     if (!selectedQuizId) return null;
     return (
-      normalizedQuizModules.find((quiz) => String(quiz.id) === String(selectedQuizId)) ||
+      allAssessments.find((quiz) => String(quiz.id) === String(selectedQuizId)) ||
       null
     );
-  }, [normalizedQuizModules, selectedQuizId]);
+  }, [allAssessments, selectedQuizId]);
 
   const getCorrectOptionLabel = (question) => {
     if (OPTION_LABELS.includes(question?.correctOption)) {
@@ -276,6 +312,7 @@ function ProgressTracker() {
       quizId,
       moduleCode: selectedQuiz.moduleCode || "",
       moduleName: selectedQuiz.moduleName || "Unnamed Module",
+      assessmentType: selectedQuiz.type || "quiz",
       attemptNumber,
       score100,
       correctCount,
@@ -328,6 +365,7 @@ function ProgressTracker() {
   const selfCheckQuizOptions = useMemo(() => {
     const map = new Map();
     quizAttempts.forEach((attempt) => {
+      if (!attempt) return;
       const id = String(attempt.quizId || "");
       if (!id || map.has(id)) return;
       const label = attempt.moduleCode
@@ -709,9 +747,9 @@ Suggestions:
     if (displayedSelfCheckSeries.length === 0) {
       return (
         <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
-          <div className="mb-2 text-2xl font-bold text-slate-900">Self Check Progress</div>
+          <div className="mb-2 text-2xl font-bold text-slate-900">Assessment Progress</div>
           <p className="text-sm text-slate-500">
-            No quiz attempts yet. Complete quizzes and submit them to track marks
+            No assessment attempts yet. Complete quizzes and self-checks to track marks
             progress here.
           </p>
         </div>
@@ -735,9 +773,9 @@ Suggestions:
       <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h3 className="text-2xl font-bold text-slate-900">Self Check Progress</h3>
+            <h3 className="text-2xl font-bold text-slate-900">Assessment Progress</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Quiz marks and repeat progress trend
+              Quiz and self-check marks progress trend
             </p>
           </div>
           <div className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-orange-600">
@@ -841,24 +879,24 @@ Suggestions:
   return (
     <div className="min-h-screen bg-[#f4f4f5] p-4 md:p-6">
       <div className="mx-auto max-w-7xl">
-        <div className="relative mb-8 overflow-hidden rounded-[28px] bg-gradient-to-r from-orange-500 via-orange-600 to-orange-700 px-8 py-10 shadow-[0_18px_40px_rgba(249,115,22,0.25)]">
-          <div className="absolute right-[-50px] top-[-40px] h-52 w-52 rounded-full bg-white/10"></div>
-          <div className="absolute bottom-[-60px] right-20 h-44 w-44 rounded-full bg-white/8"></div>
+        <div className="relative mb-8 overflow-hidden rounded-[24px] bg-gradient-to-r from-[#ff6a00] via-[#f25c05] to-[#d5541b] px-8 py-8 shadow-[0_18px_40px_rgba(249,115,22,0.25)]">
+          <div className="absolute right-[-40px] top-[-40px] h-52 w-52 rounded-full bg-white/10"></div>
+          <div className="absolute bottom-[-55px] right-20 h-44 w-44 rounded-full bg-white/10"></div>
 
           <div className="relative z-10">
-            <div className="mb-4 inline-flex items-center gap-3 rounded-2xl bg-white/15 px-4 py-3 text-white">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 text-lg">
+            <div className="mb-4 inline-flex items-center gap-3 rounded-[14px] bg-white/15 px-4 py-3 text-white">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 text-lg">
                 📊
               </span>
-              <span className="text-sm font-extrabold uppercase tracking-[0.14em]">
+              <span className="text-xs font-black uppercase tracking-[0.16em]">
                 Progress Tracker
               </span>
             </div>
 
-            <h1 className="mb-3 text-3xl font-extrabold text-white md:text-5xl">
+            <h1 className="mb-3 text-3xl font-extrabold text-white">
               Track Your Academic Progress
             </h1>
-            <p className="max-w-3xl text-sm leading-7 text-orange-50 md:text-base">
+            <p className="max-w-3xl text-sm leading-7 text-white/90">
               Monitor your GPA, test your module knowledge, review your weekly self-check
               growth, and stay motivated with study streak badges.
             </p>
@@ -896,312 +934,6 @@ Suggestions:
           ))}
         </div>
 
-        {activeCategory === "gpa" && (
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-            <div className="xl:col-span-2">
-              <div className="rounded-[28px] border border-orange-100 bg-white p-5 shadow-sm md:p-6">
-                <div className="mb-6 flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-100 text-2xl">
-                    🎓
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-extrabold text-slate-900">
-                      Calculate My GPA
-                    </h3>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Add your modules, credits, and grades to calculate GPA.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mb-6">
-                  <p className="mb-3 text-sm font-bold text-slate-700">Select Mode</p>
-
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                    {modeOptions.map((mode) => {
-                      const modeKey = `${mode.title}-${mode.subtitle}`;
-                      const isActive = selectedMode === modeKey;
-
-                      return (
-                        <button
-                          key={modeKey}
-                          onClick={() => {
-                            setSelectedMode(modeKey);
-                            setReportGenerated(false);
-                          }}
-                          className={`rounded-2xl border px-4 py-5 text-center transition ${
-                            isActive
-                              ? "border-purple-400 bg-purple-100 text-purple-900"
-                              : "border-purple-200 bg-white text-slate-800 hover:bg-purple-50"
-                          }`}
-                        >
-                          <div className="text-base font-extrabold">{mode.title}</div>
-                          <div className="mt-1 text-sm text-slate-500">{mode.subtitle}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {modules.map((module, index) => (
-                    <div
-                      key={module.id}
-                      className="grid grid-cols-1 gap-3 md:grid-cols-12"
-                    >
-                      <div className="md:col-span-7">
-                        <label className="mb-2 block text-sm font-semibold text-slate-700">
-                          {index === 0 ? "Module Name" : " "}
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Module name"
-                          value={module.moduleName}
-                          onChange={(e) =>
-                            handleModuleChange(module.id, "moduleName", e.target.value)
-                          }
-                          className="w-full rounded-2xl border border-orange-200 bg-orange-50/40 px-4 py-3 text-slate-900 outline-none transition focus:border-orange-400"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="mb-2 block text-sm font-semibold text-slate-700">
-                          {index === 0 ? "Credits" : " "}
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={module.credits}
-                          onChange={(e) =>
-                            handleModuleChange(module.id, "credits", e.target.value)
-                          }
-                          className="w-full rounded-2xl border border-orange-200 bg-orange-50/40 px-4 py-3 text-slate-900 outline-none transition focus:border-orange-400"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="mb-2 block text-sm font-semibold text-slate-700">
-                          {index === 0 ? "Grade" : " "}
-                        </label>
-                        <select
-                          value={module.grade}
-                          onChange={(e) =>
-                            handleModuleChange(module.id, "grade", e.target.value)
-                          }
-                          className="w-full rounded-2xl border border-orange-200 bg-orange-50/40 px-4 py-3 text-slate-900 outline-none transition focus:border-orange-400"
-                        >
-                          {gradingScale.map((item) => (
-                            <option key={item.grade} value={item.grade}>
-                              {item.grade}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="flex items-end md:col-span-1">
-                        <button
-                          onClick={() => removeModule(module.id)}
-                          className="flex h-[50px] w-full items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-xl text-red-500 transition hover:bg-red-100"
-                        >
-                          ⊖
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <button
-                    onClick={addModule}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 font-bold text-white transition hover:bg-orange-600"
-                  >
-                    <span className="text-lg">⊕</span>
-                    Add Module
-                  </button>
-
-                  <button
-                    onClick={handleGenerateReport}
-                    className="rounded-2xl bg-slate-900 px-5 py-3 font-bold text-white transition hover:bg-slate-800"
-                  >
-                    Generate Report
-                  </button>
-
-                  <button
-                    onClick={handleDownloadReport}
-                    className="rounded-2xl border border-orange-300 bg-white px-5 py-3 font-bold text-orange-600 transition hover:bg-orange-50"
-                  >
-                    Download Report
-                  </button>
-                </div>
-
-                <div className="mt-8 rounded-[24px] border border-orange-100 bg-orange-50/50 p-5">
-                  <div className="mb-5 flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-lg shadow-sm">
-                      📋
-                    </div>
-                    <h4 className="text-xl font-bold text-slate-900">Summary</h4>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 border-b border-orange-100 pb-5 md:grid-cols-2">
-                    <div>
-                      <p className="text-sm text-slate-500">Total Modules</p>
-                      <h5 className="mt-1 text-3xl font-extrabold text-slate-900">
-                        {summary.totalModules}
-                      </h5>
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-500">Total Credits</p>
-                      <h5 className="mt-1 text-3xl font-extrabold text-slate-900">
-                        {summary.totalCredits}
-                      </h5>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                    <div>
-                      <p className="text-sm text-slate-500">Current GPA</p>
-                      <h5 className="mt-1 text-lg font-semibold text-slate-900">
-                        Result based on entered modules
-                      </h5>
-                    </div>
-
-                    <div className="text-left md:text-right">
-                      <div className="text-5xl font-extrabold text-orange-600">
-                        {summary.gpa}
-                      </div>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">
-                        {getGpaLabel(summary.gpa)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {reportGenerated && (
-                  <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-                    <div className="mb-4 flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-lg shadow-sm">
-                        🧾
-                      </div>
-                      <h4 className="text-xl font-bold text-slate-900">GPA Report</h4>
-                    </div>
-
-                    <div className="space-y-4 text-sm text-slate-700">
-                      <div>
-                        <span className="font-bold">Selected Mode:</span> {selectedMode}
-                      </div>
-
-                      <div>
-                        <span className="font-bold">Performance Level:</span> {getGpaLabel(summary.gpa)}
-                      </div>
-
-                      <div>
-                        <span className="font-bold">Report:</span>
-                        <p className="mt-2 leading-7 text-slate-600">
-                          {getReportMessage(summary.gpa)}
-                        </p>
-                      </div>
-
-                      <div>
-                        <span className="font-bold">Strong Modules:</span>
-                        {getStrengthModules().length > 0 ? (
-                          <ul className="mt-2 list-disc pl-5 text-slate-600">
-                            {getStrengthModules().map((module) => (
-                              <li key={module.id}>
-                                {module.moduleName} ({module.grade})
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="mt-2 text-slate-600">No strong modules identified yet.</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <span className="font-bold">Modules Needing Improvement:</span>
-                        {getWeakModules().length > 0 ? (
-                          <ul className="mt-2 list-disc pl-5 text-slate-600">
-                            {getWeakModules().map((module) => (
-                              <li key={module.id}>
-                                {module.moduleName} ({module.grade})
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="mt-2 text-slate-600">No weak modules identified.</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <span className="font-bold">Suggestions:</span>
-                        <ul className="mt-2 list-disc pl-5 leading-7 text-slate-600">
-                          <li>Revise weak modules first.</li>
-                          <li>Use weekly study planning for better consistency.</li>
-                          <li>Practice quizzes and assessments regularly.</li>
-                          <li>Keep tracking your progress every semester.</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="xl:col-span-1">
-              <div className="rounded-[28px] border border-orange-100 bg-white p-5 shadow-sm md:p-6">
-                <div className="mb-5 flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-xl">
-                    🪜
-                  </div>
-                  <h3 className="text-2xl font-bold text-slate-900">Grading Scale</h3>
-                </div>
-
-                <div className="overflow-hidden rounded-2xl border border-orange-100">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-orange-50">
-                        <th className="px-4 py-3 text-left text-sm font-bold text-slate-700">
-                          Grade
-                        </th>
-                        <th className="px-4 py-3 text-left text-sm font-bold text-slate-700">
-                          GPA
-                        </th>
-                        <th className="px-4 py-3 text-left text-sm font-bold text-slate-700">
-                          Marks
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {gradingScale.map((item, index) => (
-                        <tr
-                          key={item.grade}
-                          className={`border-t border-orange-100 ${
-                            index % 2 === 0 ? "bg-white" : "bg-orange-50/30"
-                          }`}
-                        >
-                          <td className="px-4 py-3 font-semibold text-slate-900">
-                            {item.grade}
-                          </td>
-                          <td className="px-4 py-3 text-slate-600">
-                            {item.gpa.toFixed(1)}
-                          </td>
-                          <td className="px-4 py-3 text-slate-600">
-                            {item.marks}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="mt-5 rounded-2xl bg-orange-50 p-4">
-                  <p className="text-sm leading-7 text-slate-600">
-                    GPA = Total (Grade Point × Credits) / Total Credits
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {activeCategory === "quiz" && (
           <div className="rounded-[28px] border border-orange-100 bg-white p-5 shadow-sm md:p-6">
@@ -1439,13 +1171,68 @@ Suggestions:
         )}
 
         {activeCategory === "selfcheck" && (
+          <div className="rounded-[28px] border border-purple-100 bg-white p-5 shadow-sm md:p-6">
+            <div className="mb-6 flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-100 text-2xl">
+                📚
+              </div>
+              <div>
+                <h3 className="text-2xl font-extrabold text-slate-900">Self Check</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Access lecturer-created self-checks and repeat them anytime.
+                </p>
+              </div>
+            </div>
+
+            {normalizedSelfCheckModules.length === 0 ? (
+              <div className="rounded-[24px] border border-purple-100 bg-purple-50/60 p-6 text-sm text-purple-700">
+                No self-checks are available yet. Ask your lecturer to create one, or check back later.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {normalizedSelfCheckModules.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-[24px] border border-purple-100 bg-purple-50/40 p-5"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <h4 className="text-lg font-bold text-slate-900">
+                        {item.moduleCode
+                          ? `${item.moduleCode} - ${item.moduleName}`
+                          : item.moduleName}
+                      </h4>
+                      <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <p className="mb-4 text-sm text-slate-600">
+                      Repeatable self-check with {item.questionCount} questions.
+                    </p>
+
+                    <button
+                      onClick={() => handleStartQuiz(item.id)}
+                      className="rounded-2xl bg-purple-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-purple-600"
+                    >
+                      {String(selectedQuizId) === String(item.id)
+                        ? "Close Self Check"
+                        : "Open Self Check"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeCategory === "measure" && (
           <div className="space-y-6">
             <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h4 className="text-lg font-bold text-slate-900">Self Check Filter</h4>
+                  <h4 className="text-lg font-bold text-slate-900">Assessment Filter</h4>
                   <p className="text-sm text-slate-500">
-                    Select a quiz to see repeat attempts and marks progress.
+                    Select an assessment to see repeat attempts and marks progress.
                   </p>
                 </div>
                 <select
@@ -1497,9 +1284,9 @@ Suggestions:
             </div>
 
             <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
-              <h4 className="text-xl font-bold text-slate-900">Quiz Repeat History</h4>
+              <h4 className="text-xl font-bold text-slate-900">Assessment Repeat History</h4>
               <p className="mt-1 text-sm text-slate-500">
-                All quiz repeats are stored with marks and timestamps.
+                All assessment repeats are stored with marks and timestamps.
               </p>
 
               {selfCheckAttemptSeries.length === 0 ? (

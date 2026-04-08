@@ -139,6 +139,11 @@ function SidebarContent({ onClose }) {
       path: '/lecturer/module-quiz',
       icon: moduleQuizIcon,
     },
+    {
+      label: 'Module Self Check',
+      path: '/lecturer/module-selfcheck',
+      icon: moduleQuizIcon,
+    },
   ]
 
   const adminNavItems = [

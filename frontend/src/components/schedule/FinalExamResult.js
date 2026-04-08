@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { downloadSchedulePdf } from '../../utils/schedulePdf'
+import StudySessionTracker from '../study/StudySessionTracker'
 
 const WEAKNESS_LABELS = { 1: 'Very Strong', 2: 'Strong', 3: 'Average', 4: 'Weak', 5: 'Very Weak' }
 const PREP_LABELS     = { 1: "Haven't Started", 2: 'Just Started', 3: 'Getting There', 4: 'Well Prepared', 5: 'Fully Ready' }
@@ -12,11 +13,12 @@ function FinalExamResult({ data, onBack }) {
   const [expandedDay, setExpandedDay] = useState(0)
   const [activeSubject, setActiveSubject] = useState(null)
 
-  const handleDownloadPdf = () => {
-    downloadSchedulePdf({ planType: 'final-exam', data })
+  const handleDownloadPdf = async () => {
+    await downloadSchedulePdf({ planType: 'final-exam', data })
   }
 
   const { exams, totalDays, hoursPerDay, studyTime, targetLabel, totalHours, days } = data
+  const plannedMinutesToday = Math.max(0, Math.round((hoursPerDay || 0) * 60))
 
   const filteredDays = activeSubject
     ? days.filter((d) => d.subject === activeSubject || d.isExamDay)
@@ -44,6 +46,14 @@ function FinalExamResult({ data, onBack }) {
           <p style={{ margin: 0, fontSize: 12, color: '#555' }}>Priority-driven · personalised to your exam dates</p>
         </div>
       </div>
+
+      <StudySessionTracker
+        label="Final Exam Study Plan"
+        moduleName={exams?.[0]?.subject || 'Final Exam'}
+        sessionType="revision"
+        studyPlanId={data?.studyPlanId || null}
+        plannedMinutesToday={plannedMinutesToday}
+      />
 
       {/* Summary banner */}
       <div style={{

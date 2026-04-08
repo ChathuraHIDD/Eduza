@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { downloadSchedulePdf } from '../../utils/schedulePdf'
+import StudySessionTracker from '../study/StudySessionTracker'
 
 const INTENSITY_LABELS = { 4: 'Very High', 3: 'High', 2: 'Moderate', 1: 'Basic' }
 const INTENSITY_COLORS = { 4: '#c2410c', 3: '#ea580c', 2: '#f59e0b', 1: '#16a34a' }
@@ -56,6 +57,7 @@ function ScheduleResult({ data, onBack }) {
   const mlHours = Number(ml?.predicted_hours ?? (mlMinutes ? mlMinutes / 60 : 0))
   const mlDays = Number(ml?.predicted_days ?? (mlHours && hoursPerDay ? Math.ceil(mlHours / hoursPerDay) : 0))
   const mlDaily = hoursPerDay ? Number((mlHours / Number(hoursPerDay)).toFixed(2)) : 0
+  const plannedMinutesToday = Math.max(0, Math.round((hoursPerDay || 0) * 60))
 
   return (
     <div
@@ -100,6 +102,14 @@ function ScheduleResult({ data, onBack }) {
           </p>
         </div>
       </div>
+
+      <StudySessionTracker
+        label={subject}
+        moduleName={subject}
+        sessionType="assessment"
+        studyPlanId={data?.studyPlanId || null}
+        plannedMinutesToday={plannedMinutesToday}
+      />
 
       <div
         style={{

@@ -1,5 +1,7 @@
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import BrandLogo from "./BrandLogo";
+import { getNotifications, markNotificationRead } from "../utils/notificationApi";
 
 const pageTitles = {
   "/": "Dashboard",
@@ -18,6 +20,10 @@ const pageTitles = {
 function Topbar({ onMenuClick }) {
   const location = useLocation();
   const title = pageTitles[location.pathname] || "Dashboard";
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const popoverRef = useRef(null);
 
   // get logged user from localStorage
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -30,6 +36,57 @@ function Topbar({ onMenuClick }) {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+
+  const unreadCount = useMemo(
+    () => notifications.filter((notification) => !notification.read).length,
+    [notifications]
+  );
+
+  const loadNotifications = async () => {
+    setLoadingNotifications(true);
+    try {
+      const items = await getNotifications();
+      setNotifications(Array.isArray(items) ? items : []);
+    } catch {
+      setNotifications([]);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    const timer = window.setInterval(loadNotifications, 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target)) {
+        setNotificationOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handleOutsideClick);
+    return () => window.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const handleOpenNotification = async (notification) => {
+    if (!notification.read) {
+      try {
+        await markNotificationRead(notification._id);
+        setNotifications((prev) =>
+          prev.map((item) =>
+            String(item._id) === String(notification._id)
+              ? { ...item, read: true }
+              : item
+          )
+        );
+      } catch {
+        // Ignore read failures.
+      }
+    }
+  };
 
   return (
     <header
@@ -126,8 +183,10 @@ function Topbar({ onMenuClick }) {
       </div>
 
       {/* Notification bell */}
-      <button
-        style={{
+      <div ref={popoverRef} style={{ position: "relative" }}>
+        <button
+          onClick={() => setNotificationOpen((value) => !value)}
+          style={{
           background: "#f4f6fb",
           border: "1.5px solid #e8ecf4",
           borderRadius: "10px",
@@ -141,33 +200,120 @@ function Topbar({ onMenuClick }) {
           position: "relative",
           flexShrink: 0,
           transition: "all 0.15s ease",
-        }}
-      >
-        <svg
-          width="17"
-          height="17"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-        >
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-
-        <span
-          style={{
-            position: "absolute",
-            top: 7,
-            right: 7,
-            width: 7,
-            height: 7,
-            borderRadius: "50%",
-            background: "#f97316",
-            border: "1.5px solid #ffffff",
           }}
-        />
-      </button>
+        >
+          <svg
+            width="17"
+            height="17"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+
+          {unreadCount > 0 && (
+            <span
+              style={{
+                position: "absolute",
+                top: 7,
+                right: 7,
+                minWidth: 16,
+                height: 16,
+                borderRadius: 999,
+                background: "#f97316",
+                border: "1.5px solid #ffffff",
+                color: "#fff",
+                fontSize: 10,
+                fontWeight: 800,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0 3px",
+              }}
+            >
+              {unreadCount}
+            </span>
+          )}
+        </button>
+
+        {notificationOpen && (
+          <div
+            style={{
+              position: "absolute",
+              right: 0,
+              top: "48px",
+              width: 360,
+              maxHeight: 420,
+              overflow: "hidden",
+              background: "#fff",
+              border: "1px solid #e8ecf4",
+              borderRadius: 16,
+              boxShadow: "0 16px 40px rgba(0,0,0,0.12)",
+              zIndex: 80,
+            }}
+          >
+            <div style={{ padding: "0.9rem 1rem", borderBottom: "1px solid #eef2f7", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#1a1a2e" }}>Notifications</div>
+                <div style={{ fontSize: 11, color: "#9ca3af" }}>{loadingNotifications ? "Loading..." : `${notifications.length} item${notifications.length === 1 ? '' : 's'}`}</div>
+              </div>
+              <button
+                type="button"
+                onClick={loadNotifications}
+                style={{
+                  border: "none",
+                  background: "#f4f6fb",
+                  color: "#6b7280",
+                  borderRadius: 10,
+                  padding: "6px 10px",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                Refresh
+              </button>
+            </div>
+
+            <div style={{ maxHeight: 360, overflowY: "auto" }}>
+              {notifications.length === 0 && !loadingNotifications && (
+                <div style={{ padding: "1rem", fontSize: 13, color: "#6b7280" }}>No notifications yet.</div>
+              )}
+
+              {notifications.map((notification) => (
+                <button
+                  key={notification._id}
+                  type="button"
+                  onClick={() => {
+                    handleOpenNotification(notification)
+                    setNotificationOpen(false)
+                  }}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "0.9rem 1rem",
+                    border: "none",
+                    borderBottom: "1px solid #f1f5f9",
+                    background: notification.read ? "#fff" : "#fff7ed",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e", marginBottom: 4 }}>{notification.title}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.45 }}>{notification.message}</div>
+                    </div>
+                    {!notification.read && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f97316', flexShrink: 0, marginTop: 4 }} />}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Avatar */}
       <div

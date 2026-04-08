@@ -11,6 +11,12 @@ import OtherExamModal from '../components/schedule/OtherExamModal'
 import OtherExamResult from '../components/schedule/OtherExamResult'
 import OtherActivityModal from '../components/schedule/OtherActivityModal'
 import OtherActivityResult from '../components/schedule/OtherActivityResult'
+import { generateAssignmentSchedule } from '../utils/scheduleEngine'
+import { generateMidExamSchedule } from '../utils/midExamEngine'
+import { generateFinalExamSchedule } from '../utils/finalExamEngine'
+import { generateWholeSemesterSchedule } from '../utils/wholeSemesterEngine'
+import { generateOtherExamSchedule } from '../utils/otherExamEngine'
+import { generateOtherActivitySchedule } from '../utils/otherActivityEngine'
 import {
   createStudyPlan,
   deleteStudyPlanById,
@@ -145,6 +151,243 @@ function toModuleDifficulty(level) {
     if (level <= 2) return 'easy'
   }
   return 'medium'
+}
+
+function difficultyToWeakness(level) {
+  if (level === 'hard') return 4
+  if (level === 'easy') return 2
+  return 3
+}
+
+function difficultyToPrep(level) {
+  if (level === 'hard') return 2
+  if (level === 'easy') return 4
+  return 3
+}
+
+function difficultyToSemesterLevel(level) {
+  if (typeof level === 'number' && Number.isFinite(level)) return level
+  if (level === 'hard') return 4
+  if (level === 'easy') return 2
+  return 3
+}
+
+function parseGradeLikeValue(value) {
+  const text = String(value || '').trim()
+  if (/^(A\+|A|B\+|B|C\+|C|D|F)$/i.test(text)) return text.toUpperCase()
+  return ''
+}
+
+function parseNumericLikeValue(value, fallback) {
+  const parsed = Number(String(value || '').replace('%', ''))
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function getPlanScheduleType(plan) {
+  if (plan?.uiScheduleType) return plan.uiScheduleType
+
+  const title = String(plan?.title || '').toLowerCase()
+  const scopeType = String(plan?.scopeType || '').toLowerCase()
+
+  if (scopeType === 'assignment') return 'assignment'
+  if (title.includes('mid exam') || title.includes('mid-exam')) return 'mid-exam'
+  if (title.includes('final exam') || title.includes('final-exam')) return 'final-exam'
+  if (title.includes('other exam') || title.includes('other-exam')) return 'other-exam'
+  if (title.includes('whole semester') || title.includes('semester')) return 'whole-semester'
+  if (title.includes('activity') || title.includes('goal')) return 'other-activity'
+  return scopeType === 'semester' ? 'whole-semester' : 'other-exam'
+}
+
+function getPlanStudyTime(plan) {
+  const preferred = plan?.preferences?.preferredFocusBlocks?.[0]
+  if (preferred === 'morning' || preferred === 'night') return preferred
+  if (plan?.uiScheduleData?.studyTime === 'morning' || plan?.uiScheduleData?.studyTime === 'night') {
+    return plan.uiScheduleData.studyTime
+  }
+  return 'morning'
+}
+
+function getPlanHoursPerDay(plan) {
+  const hours = Number(plan?.availability?.defaultDailyHours)
+  if (Number.isFinite(hours) && hours > 0) return hours
+
+  const totalDays = Number(plan?.summary?.totalDays) || 1
+  const totalHours = Number(plan?.summary?.totalStudyHours) || 3
+  return Number((totalHours / totalDays).toFixed(2)) || 3
+}
+
+function getPlanHoursPerWeek(plan) {
+  const totalHours = Number(plan?.summary?.totalStudyHours)
+  const totalDays = Number(plan?.summary?.totalDays) || 1
+  const totalWeeks = Math.max(1, Math.ceil(totalDays / 7))
+  if (Number.isFinite(totalHours) && totalHours > 0) {
+    return Math.max(1, Math.round(totalHours / totalWeeks))
+  }
+
+  return Math.max(1, Math.round(getPlanHoursPerDay(plan) * 3))
+}
+
+function getPlanPerformanceType(plan) {
+  return parseGradeLikeValue(plan?.targetGrade) ? 'grade' : 'mark'
+}
+
+function getPlanGrade(plan) {
+  const target = parseGradeLikeValue(plan?.targetGrade)
+  return target || 'B'
+}
+
+function getPlanMark(plan) {
+  return parseNumericLikeValue(plan?.targetGrade, 70)
+}
+
+function getPlanPrimaryModule(plan) {
+  return Array.isArray(plan?.modules) && plan.modules.length > 0 ? plan.modules[0] : null
+}
+
+function getPlanFallbackTitle(plan) {
+  return String(plan?.title || 'Saved Schedule').replace(/\s*plan\s*$/i, '').trim() || 'Saved Schedule'
+}
+
+function getPlanExams(plan) {
+  const modules = Array.isArray(plan?.modules) ? plan.modules : []
+  const fallbackName = getPlanFallbackTitle(plan)
+  const source = modules.length > 0 ? modules : [{ name: fallbackName, dueDate: plan?.targetDate, difficulty: 'medium' }]
+
+  return source.map((module, index) => ({
+    id: module?._id || module?.id || `${index}`,
+    subject: module?.name || fallbackName,
+    date: module?.dueDate || plan?.targetDate || new Date(),
+    weakness: difficultyToWeakness(module?.difficulty),
+    prep: difficultyToPrep(module?.difficulty),
+    notes: module?.notes || '',
+  }))
+}
+
+function getPlanModulesForSemester(plan) {
+  const modules = Array.isArray(plan?.modules) ? plan.modules : []
+  const fallbackName = getPlanFallbackTitle(plan)
+  return (modules.length > 0 ? modules : [{ name: fallbackName, dueDate: plan?.targetDate, difficulty: 'medium' }]).map((module, index) => ({
+    id: module?._id || module?.id || `${index}`,
+    name: module?.name || fallbackName,
+    examDate: module?.dueDate || plan?.targetDate || new Date(),
+    difficulty: difficultyToSemesterLevel(module?.difficulty),
+  }))
+}
+
+function buildScheduleFromPlan(plan) {
+  if (!plan) return null
+
+  if (plan.uiScheduleType && plan.uiScheduleData) {
+    return { type: plan.uiScheduleType, data: plan.uiScheduleData }
+  }
+
+  const type = getPlanScheduleType(plan)
+  const hoursPerDay = getPlanHoursPerDay(plan)
+  const studyTime = getPlanStudyTime(plan)
+  const performanceType = getPlanPerformanceType(plan)
+  const grade = getPlanGrade(plan)
+  const mark = getPlanMark(plan)
+  const primaryModule = getPlanPrimaryModule(plan)
+  const targetDate = plan?.targetDate || primaryModule?.dueDate || new Date()
+  const startDate = plan?.startDate || new Date()
+
+  switch (type) {
+    case 'assignment':
+      return {
+        type,
+        data: generateAssignmentSchedule({
+          subject: primaryModule?.name || getPlanFallbackTitle(plan),
+          dueDate: targetDate,
+          hoursPerDay,
+          studyTime,
+          performanceType,
+          grade,
+          mark,
+        }),
+      }
+
+    case 'mid-exam':
+      return {
+        type,
+        data: generateMidExamSchedule({
+          exams: getPlanExams(plan),
+          hoursPerDay,
+          studyTime,
+          performanceType,
+          grade,
+          mark,
+        }),
+      }
+
+    case 'final-exam':
+      return {
+        type,
+        data: generateFinalExamSchedule({
+          exams: getPlanExams(plan),
+          hoursPerDay,
+          studyTime,
+          performanceType,
+          grade,
+          mark,
+        }),
+      }
+
+    case 'whole-semester':
+      return {
+        type,
+        data: generateWholeSemesterSchedule({
+          semesterLabel: getPlanFallbackTitle(plan),
+          semesterStart: startDate,
+          semesterEnd: targetDate,
+          modules: getPlanModulesForSemester(plan),
+          hoursPerDay,
+          studyDays: [0, 1, 2, 3, 4],
+          studyTime,
+          performanceType,
+          grade,
+          mark,
+        }),
+      }
+
+    case 'other-activity':
+      return {
+        type,
+        data: generateOtherActivitySchedule({
+          goalId: 'custom',
+          goalName: getPlanFallbackTitle(plan),
+          goalCategoryName: 'Saved Goal',
+          targetDate,
+          currentStatus: 0,
+          hoursPerWeek: getPlanHoursPerWeek(plan),
+          weeklyCommitmentDays: [1, 3, 5],
+          milestones: (plan?.summary?.moduleBreakdown || plan?.modules || [])
+            .map((entry) => entry.moduleName || entry.name)
+            .filter(Boolean)
+            .slice(0, 6),
+          isSavingsGoal: false,
+          targetAmount: null,
+          currentSavedAmount: 0,
+          currency: '$',
+          studyTime,
+        }),
+      }
+
+    case 'other-exam':
+    default:
+      return {
+        type: 'other-exam',
+        data: generateOtherExamSchedule({
+          examTypeName: getPlanFallbackTitle(plan),
+          exams: getPlanExams(plan),
+          hoursPerDay,
+          studyTime,
+          currentProgress: 0,
+          performanceType,
+          grade,
+          mark,
+        }),
+      }
+  }
 }
 
 function buildStudyPlanPayload(type, scheduleData, userId) {
@@ -351,8 +594,11 @@ function SmartSchedule() {
 
     try {
       const payload = buildStudyPlanPayload(type, scheduleData, userId)
-      await createStudyPlan(payload)
+      const savedPlan = await createStudyPlan(payload)
       setSaveMessage('Schedule saved to database.')
+      if (savedPlan?._id) {
+        setGeneratedSchedule((prev) => (prev ? { ...prev, studyPlanId: savedPlan._id } : prev))
+      }
       if (showPastSchedules) {
         await loadPastSchedules()
       }
@@ -383,13 +629,14 @@ function SmartSchedule() {
 
     try {
       const plan = await getStudyPlanById(id)
-      if (!plan?.uiScheduleType || !plan?.uiScheduleData) {
-        setSaveError('This is an older schedule and cannot be reopened in full detail.')
+      const rebuilt = buildScheduleFromPlan(plan)
+      if (!rebuilt?.type || !rebuilt?.data) {
+        setSaveError('This schedule could not be reopened.')
         return
       }
 
-      setScheduleType(plan.uiScheduleType)
-      setGeneratedSchedule(plan.uiScheduleData)
+      setScheduleType(rebuilt.type)
+      setGeneratedSchedule({ ...rebuilt.data, studyPlanId: plan._id })
       setShowPastSchedules(false)
       setPastScheduleSearch('')
     } catch (error) {
@@ -498,6 +745,7 @@ function SmartSchedule() {
       }))
       scheduleToPersist = {
         ...scheduleData,
+        studyPlanId: scheduleData?.studyPlanId || null,
         ml: {
           predicted_minutes,
           predicted_hours,

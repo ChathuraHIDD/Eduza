@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import StudySessionTracker from '../study/StudySessionTracker'
 
 const WEAKNESS_LABELS = { 1: 'Very Strong', 2: 'Strong', 3: 'Average', 4: 'Weak', 5: 'Very Weak' }
 const PREP_LABELS     = { 1: "Haven't Started", 2: 'Just Started', 3: 'Getting There', 4: 'Well Prepared', 5: 'Fully Ready' }
@@ -33,6 +34,7 @@ function OtherExamResult({ data, onBack }) {
   const [activeSubject, setActiveSubject] = useState(null)
 
   const { examTypeName, exams, totalDays, hoursPerDay, studyTime, targetLabel, totalHours, days } = data
+  const plannedMinutesToday = Math.max(0, Math.round((hoursPerDay || 0) * 60))
 
   const filteredDays = activeSubject
     ? days.filter((d) => d.subject === activeSubject || d.isExamDay)
@@ -63,6 +65,14 @@ function OtherExamResult({ data, onBack }) {
           {examTypeName}
         </div>
       </div>
+
+      <StudySessionTracker
+        label={examTypeName || 'Other Exam'}
+        moduleName={exams?.[0]?.subject || examTypeName || 'Other Exam'}
+        sessionType="assessment"
+        studyPlanId={data?.studyPlanId || null}
+        plannedMinutesToday={plannedMinutesToday}
+      />
 
       {/* Summary banner */}
       <div style={{

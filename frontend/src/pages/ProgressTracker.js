@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import { drawEduzaLogo } from "../utils/pdfBranding";
 
 const QUIZ_STORAGE_KEY = "moduleQuizzes";
+const SELF_CHECK_STORAGE_KEY = "moduleSelfChecks";
 const QUIZ_ATTEMPTS_STORAGE_KEY = "quizAttempts";
 const OPTION_LABELS = ["A", "B", "C", "D"];
 const QUIZ_DURATION_SECONDS = 15 * 60;
@@ -32,12 +33,27 @@ const loadStoredQuizzes = () => {
   }
 };
 
+const loadStoredSelfChecks = () => {
+  try {
+    const raw = localStorage.getItem(SELF_CHECK_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 const loadStoredQuizAttempts = () => {
   try {
     const raw = localStorage.getItem(QUIZ_ATTEMPTS_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item) => ({
+      ...item,
+      assessmentType: item.assessmentType || "quiz",
+    }));
   } catch {
     return [];
   }
@@ -55,9 +71,16 @@ function ProgressTracker() {
     {
       id: "selfcheck",
       title: "Self Check",
+      description: "Access lecturer-created self-checks and repeat them anytime.",
+      icon: "📚",
+      accent: "purple",
+    },
+    {
+      id: "measure",
+      title: "Measure",
       description: "Track your study confidence and performance using progress graphs.",
       icon: "📈",
-      accent: "purple",
+      accent: "orange",
     },
     {
       id: "streak",
@@ -89,6 +112,7 @@ function ProgressTracker() {
     { id: 1, moduleName: "", credits: 3, grade: "A" },
   ]);
   const [quizModules] = useState(loadStoredQuizzes);
+  const [selfCheckModules] = useState(loadStoredSelfChecks);
   const [selectedQuizId, setSelectedQuizId] = useState(null);
   const [quizAttemptAnswers, setQuizAttemptAnswers] = useState({});
   const [quizValidationError, setQuizValidationError] = useState("");
@@ -113,6 +137,7 @@ function ProgressTracker() {
       const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
       return {
         ...quiz,
+        type: quiz.type || "quiz",
         moduleName: quiz.moduleName || "Unnamed Module",
         moduleCode: quiz.moduleCode || "",
         questionCount: questions.length || Number(quiz.questions) || 0,
@@ -121,13 +146,31 @@ function ProgressTracker() {
     });
   }, [quizModules]);
 
+  const normalizedSelfCheckModules = useMemo(() => {
+    return selfCheckModules.map((item) => {
+      const questions = Array.isArray(item.questions) ? item.questions : [];
+      return {
+        ...item,
+        type: item.type || "selfcheck",
+        moduleName: item.moduleName || "Unnamed Module",
+        moduleCode: item.moduleCode || "",
+        questionCount: questions.length || Number(item.questions) || 0,
+        questions,
+      };
+    });
+  }, [selfCheckModules]);
+
+  const allAssessments = useMemo(() => {
+    return [...normalizedQuizModules, ...normalizedSelfCheckModules];
+  }, [normalizedQuizModules, normalizedSelfCheckModules]);
+
   const selectedQuiz = useMemo(() => {
     if (!selectedQuizId) return null;
     return (
-      normalizedQuizModules.find((quiz) => String(quiz.id) === String(selectedQuizId)) ||
+      allAssessments.find((quiz) => String(quiz.id) === String(selectedQuizId)) ||
       null
     );
-  }, [normalizedQuizModules, selectedQuizId]);
+  }, [allAssessments, selectedQuizId]);
 
   const getCorrectOptionLabel = (question) => {
     if (OPTION_LABELS.includes(question?.correctOption)) {
@@ -269,6 +312,7 @@ function ProgressTracker() {
       quizId,
       moduleCode: selectedQuiz.moduleCode || "",
       moduleName: selectedQuiz.moduleName || "Unnamed Module",
+      assessmentType: selectedQuiz.type || "quiz",
       attemptNumber,
       score100,
       correctCount,
@@ -321,6 +365,7 @@ function ProgressTracker() {
   const selfCheckQuizOptions = useMemo(() => {
     const map = new Map();
     quizAttempts.forEach((attempt) => {
+      if (!attempt) return;
       const id = String(attempt.quizId || "");
       if (!id || map.has(id)) return;
       const label = attempt.moduleCode
@@ -702,9 +747,9 @@ Suggestions:
     if (displayedSelfCheckSeries.length === 0) {
       return (
         <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
-          <div className="mb-2 text-2xl font-bold text-slate-900">Self Check Progress</div>
+          <div className="mb-2 text-2xl font-bold text-slate-900">Assessment Progress</div>
           <p className="text-sm text-slate-500">
-            No quiz attempts yet. Complete quizzes and submit them to track marks
+            No assessment attempts yet. Complete quizzes and self-checks to track marks
             progress here.
           </p>
         </div>
@@ -728,9 +773,9 @@ Suggestions:
       <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h3 className="text-2xl font-bold text-slate-900">Self Check Progress</h3>
+            <h3 className="text-2xl font-bold text-slate-900">Assessment Progress</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Quiz marks and repeat progress trend
+              Quiz and self-check marks progress trend
             </p>
           </div>
           <div className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-orange-600">
@@ -1126,13 +1171,68 @@ Suggestions:
         )}
 
         {activeCategory === "selfcheck" && (
+          <div className="rounded-[28px] border border-purple-100 bg-white p-5 shadow-sm md:p-6">
+            <div className="mb-6 flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-100 text-2xl">
+                📚
+              </div>
+              <div>
+                <h3 className="text-2xl font-extrabold text-slate-900">Self Check</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Access lecturer-created self-checks and repeat them anytime.
+                </p>
+              </div>
+            </div>
+
+            {normalizedSelfCheckModules.length === 0 ? (
+              <div className="rounded-[24px] border border-purple-100 bg-purple-50/60 p-6 text-sm text-purple-700">
+                No self-checks are available yet. Ask your lecturer to create one, or check back later.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {normalizedSelfCheckModules.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-[24px] border border-purple-100 bg-purple-50/40 p-5"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <h4 className="text-lg font-bold text-slate-900">
+                        {item.moduleCode
+                          ? `${item.moduleCode} - ${item.moduleName}`
+                          : item.moduleName}
+                      </h4>
+                      <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <p className="mb-4 text-sm text-slate-600">
+                      Repeatable self-check with {item.questionCount} questions.
+                    </p>
+
+                    <button
+                      onClick={() => handleStartQuiz(item.id)}
+                      className="rounded-2xl bg-purple-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-purple-600"
+                    >
+                      {String(selectedQuizId) === String(item.id)
+                        ? "Close Self Check"
+                        : "Open Self Check"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeCategory === "measure" && (
           <div className="space-y-6">
             <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h4 className="text-lg font-bold text-slate-900">Self Check Filter</h4>
+                  <h4 className="text-lg font-bold text-slate-900">Assessment Filter</h4>
                   <p className="text-sm text-slate-500">
-                    Select a quiz to see repeat attempts and marks progress.
+                    Select an assessment to see repeat attempts and marks progress.
                   </p>
                 </div>
                 <select
@@ -1184,9 +1284,9 @@ Suggestions:
             </div>
 
             <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
-              <h4 className="text-xl font-bold text-slate-900">Quiz Repeat History</h4>
+              <h4 className="text-xl font-bold text-slate-900">Assessment Repeat History</h4>
               <p className="mt-1 text-sm text-slate-500">
-                All quiz repeats are stored with marks and timestamps.
+                All assessment repeats are stored with marks and timestamps.
               </p>
 
               {selfCheckAttemptSeries.length === 0 ? (

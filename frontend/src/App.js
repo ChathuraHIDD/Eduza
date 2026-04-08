@@ -36,6 +36,7 @@ import SoftwareDetails from './pages/saumya/SoftwareDetails'
 import UploadSoftware from './pages/saumya/UploadSoftware'
 
 import LecturerModuleQuiz from './pages/LecturerModuleQuiz'
+import LecturerModuleSelfCheck from './pages/LecturerModuleSelfCheck'
 
 function App() {
   return (
@@ -86,6 +87,15 @@ function App() {
             element={
               <ProtectedRoute roles={['lecturer', 'admin']}>
                 <LecturerModuleQuiz />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="lecturer/module-selfcheck"
+            element={
+              <ProtectedRoute roles={['lecturer', 'admin']}>
+                <LecturerModuleSelfCheck />
               </ProtectedRoute>
             }
           />

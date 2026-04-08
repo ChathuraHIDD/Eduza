@@ -2,20 +2,17 @@ import React, { useEffect, useMemo, useState } from "react";
 import { fetchModules } from "../utils/moduleApi";
 
 const SELF_CHECK_STORAGE_KEY = "moduleSelfChecks";
-const QUESTION_COUNT = 10;
-const OPTION_LABELS = ["A", "B", "C", "D"];
+const OUTCOME_COUNT = 5; // Number of learning outcomes per self-check
 
-const createEmptyQuestion = (index) => ({
+const createEmptyOutcome = (index) => ({
   id: index + 1,
   text: "",
-  options: ["", "", "", ""],
-  correctOption: "",
 });
 
 const createInitialForm = () => ({
   moduleId: "",
   status: "Not Started",
-  questions: Array.from({ length: QUESTION_COUNT }, (_, index) => createEmptyQuestion(index)),
+  learningOutcomes: Array.from({ length: OUTCOME_COUNT }, (_, index) => createEmptyOutcome(index)),
 });
 
 const loadStoredSelfChecks = () => {
@@ -115,46 +112,16 @@ function LecturerModuleSelfCheck() {
     }));
   };
 
-  const handleQuestionTextChange = (index, value) => {
+  const handleOutcomeTextChange = (index, value) => {
     setForm((prev) => {
-      const nextQuestions = [...prev.questions];
-      nextQuestions[index] = {
-        ...nextQuestions[index],
+      const nextOutcomes = [...prev.learningOutcomes];
+      nextOutcomes[index] = {
+        ...nextOutcomes[index],
         text: value,
       };
       return {
         ...prev,
-        questions: nextQuestions,
-      };
-    });
-  };
-
-  const handleOptionChange = (questionIndex, optionIndex, value) => {
-    setForm((prev) => {
-      const nextQuestions = [...prev.questions];
-      const nextOptions = [...nextQuestions[questionIndex].options];
-      nextOptions[optionIndex] = value;
-      nextQuestions[questionIndex] = {
-        ...nextQuestions[questionIndex],
-        options: nextOptions,
-      };
-      return {
-        ...prev,
-        questions: nextQuestions,
-      };
-    });
-  };
-
-  const handleCorrectOptionChange = (index, value) => {
-    setForm((prev) => {
-      const nextQuestions = [...prev.questions];
-      nextQuestions[index] = {
-        ...nextQuestions[index],
-        correctOption: value,
-      };
-      return {
-        ...prev,
-        questions: nextQuestions,
+        learningOutcomes: nextOutcomes,
       };
     });
   };
@@ -164,22 +131,14 @@ function LecturerModuleSelfCheck() {
       return "Please select a module from the database.";
     }
 
-    if (form.questions.length !== QUESTION_COUNT) {
-      return `Self check must include exactly ${QUESTION_COUNT} questions.`;
+    if (form.learningOutcomes.length !== OUTCOME_COUNT) {
+      return `Self check must include exactly ${OUTCOME_COUNT} learning outcomes.`;
     }
 
-    for (let index = 0; index < form.questions.length; index += 1) {
-      const question = form.questions[index];
-      if (!question.text.trim()) {
-        return `Question ${index + 1} text is required.`;
-      }
-      for (let optionIndex = 0; optionIndex < question.options.length; optionIndex += 1) {
-        if (!question.options[optionIndex].trim()) {
-          return `Question ${index + 1} option ${OPTION_LABELS[optionIndex]} is required.`;
-        }
-      }
-      if (!OPTION_LABELS.includes(question.correctOption)) {
-        return `Please select the correct answer for question ${index + 1}.`;
+    for (let index = 0; index < form.learningOutcomes.length; index += 1) {
+      const outcome = form.learningOutcomes[index];
+      if (!outcome.text.trim()) {
+        return `Learning outcome ${index + 1} text is required.`;
       }
     }
 
@@ -202,12 +161,9 @@ function LecturerModuleSelfCheck() {
       return;
     }
 
-    const questions = form.questions.map((question) => ({
-      id: question.id,
-      text: question.text.trim(),
-      options: question.options.map((option) => option.trim()),
-      correctOption: question.correctOption,
-      correctOptionIndex: OPTION_LABELS.indexOf(question.correctOption),
+    const learningOutcomes = form.learningOutcomes.map((outcome) => ({
+      id: outcome.id,
+      text: outcome.text.trim(),
     }));
 
     const newSelfCheck = {
@@ -216,8 +172,7 @@ function LecturerModuleSelfCheck() {
       moduleName: selectedModule.name,
       moduleCode: selectedModule.code,
       status: form.status,
-      questionCount: QUESTION_COUNT,
-      questions,
+      learningOutcomes,
       createdAt: new Date().toISOString(),
       type: "selfcheck",
     };
@@ -346,7 +301,7 @@ function LecturerModuleSelfCheck() {
               zIndex: 1,
             }}
           >
-            Create self-check sets that students can repeat anytime. Each self-check contains 10 questions and appears in the Progress Tracker for instant performance tracking.
+            Create self-check sets that students can repeat anytime. Each self-check contains 5 learning outcomes that students will self-assess with confidence ratings, skill checklists, and reflections.
           </p>
         </div>
 
@@ -386,7 +341,7 @@ function LecturerModuleSelfCheck() {
                   color: "#64748b",
                 }}
               >
-                Choose a module, set the status, and build a 10-question self-check with four answer options per question.
+                Choose a module, set the status, and define learning outcomes that students will self-assess.
               </p>
             </div>
 
@@ -506,9 +461,9 @@ function LecturerModuleSelfCheck() {
             ) : null}
 
             <div style={{ maxHeight: "68vh", overflowY: "auto", paddingRight: "2px" }}>
-              {form.questions.map((question, index) => (
+              {form.learningOutcomes.map((outcome, index) => (
                 <div
-                  key={`question-${question.id}`}
+                  key={`outcome-${outcome.id}`}
                   style={{
                     marginBottom: "22px",
                     padding: "18px 20px",
@@ -527,13 +482,13 @@ function LecturerModuleSelfCheck() {
                         color: "#1e293b",
                       }}
                     >
-                      Question {index + 1}
+                      Learning Outcome {index + 1}
                     </label>
                     <textarea
-                      value={question.text}
-                      onChange={(event) => handleQuestionTextChange(index, event.target.value)}
-                      rows={2}
-                      placeholder="Enter question text"
+                      value={outcome.text}
+                      onChange={(event) => handleOutcomeTextChange(index, event.target.value)}
+                      rows={3}
+                      placeholder="Enter learning outcome text (e.g., 'Understand the concept of normalization in databases')"
                       style={{
                         width: "100%",
                         borderRadius: "16px",
@@ -545,72 +500,6 @@ function LecturerModuleSelfCheck() {
                         background: "#fff",
                       }}
                     />
-                  </div>
-
-                  <div style={{ display: "grid", gap: "12px", gridTemplateColumns: "1fr 1fr" }}>
-                    {question.options.map((option, optionIndex) => (
-                      <div key={`option-${optionIndex}`}>
-                        <label
-                          style={{
-                            display: "block",
-                            marginBottom: "8px",
-                            fontSize: "14px",
-                            fontWeight: "700",
-                            color: "#334155",
-                          }}
-                        >
-                          Option {OPTION_LABELS[optionIndex]}
-                        </label>
-                        <input
-                          value={option}
-                          onChange={(event) => handleOptionChange(index, optionIndex, event.target.value)}
-                          placeholder={`Enter option ${OPTION_LABELS[optionIndex]}`}
-                          style={{
-                            width: "100%",
-                            borderRadius: "14px",
-                            border: "1px solid #c4b5fd",
-                            padding: "12px 14px",
-                            fontSize: "14px",
-                            outline: "none",
-                            background: "#fff",
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ marginTop: "14px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        marginBottom: "8px",
-                        fontSize: "14px",
-                        fontWeight: "700",
-                        color: "#334155",
-                      }}
-                    >
-                      Correct Answer
-                    </label>
-                    <select
-                      value={question.correctOption}
-                      onChange={(event) => handleCorrectOptionChange(index, event.target.value)}
-                      style={{
-                        width: "100%",
-                        borderRadius: "16px",
-                        border: "1px solid #c4b5fd",
-                        padding: "14px 16px",
-                        fontSize: "14px",
-                        outline: "none",
-                        background: "#fff",
-                      }}
-                    >
-                      <option value="">Select correct answer</option>
-                      {OPTION_LABELS.map((label) => (
-                        <option key={label} value={label}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </div>
               ))}

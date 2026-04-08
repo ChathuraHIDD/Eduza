@@ -52,9 +52,36 @@ const studySessionSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["running", "completed"],
+      enum: ["running", "paused", "completed"],
       default: "running",
       index: true,
+    },
+
+    pausedAt: {
+      type: Date,
+      default: null,
+    },
+
+    totalPausedMinutes: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    plannedMinutesToday: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    scheduleLabel: {
+      type: String,
+      default: "",
+    },
+
+    scheduleType: {
+      type: String,
+      default: "learn",
     },
 
     notes: {

@@ -4,15 +4,52 @@ const {
   generateStudyPlanSchedule,
 } = require('../services/studyPlanScheduler');
 
+const getOwnerCandidates = (user) => {
+  const values = [String(user._id)];
+  if (user.email) values.push(String(user.email).toLowerCase());
+  return values;
+};
+
+const buildOwnerFilter = (user) => ({
+  user: { $in: getOwnerCandidates(user) },
+});
+
+const isPlanOwner = (plan, user) => {
+  const ownerValue = String(plan.user || '').toLowerCase();
+  return getOwnerCandidates(user).map((v) => String(v).toLowerCase()).includes(ownerValue);
+};
+
 const getStudyPlans = asyncHandler(async (req, res) => {
-  const plans = await StudyPlan.find();
+  const plans = await StudyPlan.find(buildOwnerFilter(req.user)).sort({ createdAt: -1 });
   res.json(plans);
 });
 
+const getStudyPlanById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const plan = await StudyPlan.findById(id);
+
+  if (!plan) {
+    res.status(404);
+    throw new Error('Study plan not found');
+  }
+
+  if (!isPlanOwner(plan, req.user)) {
+    res.status(403);
+    throw new Error('Not authorized to view this study plan');
+  }
+
+  res.json(plan);
+});
+
 const createStudyPlan = asyncHandler(async (req, res) => {
-  const { sessions, summary, modules } = generateStudyPlanSchedule(req.body);
-  const planPayload = {
+  const safePayload = {
     ...req.body,
+    user: String(req.user._id),
+  };
+
+  const { sessions, summary, modules } = generateStudyPlanSchedule(safePayload);
+  const planPayload = {
+    ...safePayload,
     modules,
     sessions,
     summary,
@@ -41,6 +78,11 @@ const updateStudyPlan = asyncHandler(async (req, res) => {
     throw new Error('Study plan not found');
   }
 
+  if (!isPlanOwner(plan, req.user)) {
+    res.status(403);
+    throw new Error('Not authorized to update this study plan');
+  }
+
   const shouldRegenerate =
     req.body.regenerate ||
     fieldsTriggeringRegeneration.some((field) => field in req.body);
@@ -48,6 +90,7 @@ const updateStudyPlan = asyncHandler(async (req, res) => {
   const merged = {
     ...plan.toObject(),
     ...req.body,
+    user: String(plan.user),
   };
 
   if (shouldRegenerate) {
@@ -70,6 +113,7 @@ const updateStudyPlan = asyncHandler(async (req, res) => {
 
 module.exports = {
   getStudyPlans,
+  getStudyPlanById,
   createStudyPlan,
   updateStudyPlan,
 };

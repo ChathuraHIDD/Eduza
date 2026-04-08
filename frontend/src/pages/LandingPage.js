@@ -1,794 +1,884 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import BrandLogo from '../components/BrandLogo'
 
-const styles = `
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+const services = [
+  {
+    title: 'Course Tracking',
+    text: 'Track your enrolled courses and keep your academic journey organized.',
+    icon: '📚',
+    color: '#facc15',
+  },
+  {
+    title: 'Smart Planning',
+    text: 'Manage class schedules, deadlines, and study routines with ease.',
+    icon: '🟢',
+    color: '#22c55e',
+  },
+  {
+    title: 'Progress View',
+    text: 'See your course performance and completion progress clearly.',
+    icon: '🟣',
+    color: '#8b5cf6',
+  },
+  {
+    title: 'More Tools',
+    text: 'Access helpful academic features from one elegant dashboard.',
+    icon: '🟠',
+    color: '#f97316',
+  },
+]
 
-  @keyframes slideInLeft {
-    from {
-      opacity: 0;
-      transform: translateX(-50px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
+const processSteps = [
+  'Log in to your dashboard',
+  'Check classes and assignments',
+  'Track your study progress',
+  'Improve performance step by step',
+]
 
-  @keyframes slideInRight {
-    from {
-      opacity: 0;
-      transform: translateX(50px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
+const courseCards = [
+  {
+    id: 1,
+    title: 'Advanced Web Development',
+    lecturer: 'Dr. Sarah Chen',
+    progress: 72,
+    color: '#f97316',
+  },
+  {
+    id: 2,
+    title: 'Data Structures & Algorithms',
+    lecturer: 'Prof. Mark Williams',
+    progress: 45,
+    color: '#3b82f6',
+  },
+  {
+    id: 3,
+    title: 'UI/UX Design Principles',
+    lecturer: 'Ms. Anya Patel',
+    progress: 91,
+    color: '#22c55e',
+  },
+]
 
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-20px);
-    }
-  }
+const testimonials = [
+  {
+    name: 'Ayesha N',
+    role: 'Student',
+    text: 'This platform makes it so easy to stay on top of classes and deadlines every week.',
+  },
+  {
+    name: 'Hasith J',
+    role: 'Student',
+    text: 'Clean design, simple dashboard, and really helpful for managing my academic work.',
+  },
+  {
+    name: 'Yasir H',
+    role: 'Lecturer',
+    text: 'The interface feels modern and organized. It gives students a much better experience.',
+  },
+]
 
-  @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-    }
-  }
-
-  @keyframes bounce {
-    0%, 100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-  }
-
-  @keyframes gradient {
-    0% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-    100% {
-      background-position: 0% 50%;
-    }
-  }
-
-  .fade-in-up {
-    animation: fadeInUp 0.8s ease-out forwards;
-  }
-
-  .slide-in-left {
-    animation: slideInLeft 0.8s ease-out forwards;
-  }
-
-  .slide-in-right {
-    animation: slideInRight 0.8s ease-out forwards;
-  }
-
-  .float {
-    animation: float 3s ease-in-out infinite;
-  }
-
-  .pulse {
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  .bounce {
-    animation: bounce 2s ease-in-out infinite;
-  }
-
-  .feature-card:hover {
-    transform: translateY(-10px) !important;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.2) !important;
-  }
-
-  .stat-number {
-    font-size: 2.5rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #ff6a00, #f25c05);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-`
-
-function LandingPage() {
-  const [animateElements, setAnimateElements] = useState({})
-  const [visibleElements, setVisibleElements] = useState({})
-
-  useEffect(() => {
-    const style = document.createElement('style')
-    style.innerHTML = styles
-    document.head.appendChild(style)
-
-    setAnimateElements({
-      hero: true,
-      features: true,
-      stats: true,
-    })
-
-    // Intersection Observer for scroll animations
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const elementId = entry.target.getAttribute('data-animate-id')
-          setVisibleElements((prev) => ({
-            ...prev,
-            [elementId]: true,
-          }))
-          // Stop observing once animated
-          observer.unobserve(entry.target)
-        }
-      })
-    }, {
-      threshold: 0.1,
-      rootMargin: '0px 0px -100px 0px',
-    })
-
-    // Observe all elements with data-animate-id
-    setTimeout(() => {
-      document.querySelectorAll('[data-animate-id]').forEach((el) => {
-        observer.observe(el)
-      })
-    }, 100)
-
-    return () => {
-      document.head.removeChild(style)
-      observer.disconnect()
-    }
-  }, [])
-
-  const features = [
-    {
-      icon: '📅',
-      title: 'Smart AI Schedule',
-      description: 'Intelligent scheduling powered by AI that adapts to your learning pace and workload',
-      color: '#ff6a00',
-    },
-    {
-      icon: '🧠',
-      title: 'Stress Hub & Wellness',
-      description: 'Comprehensive mental health support with games, relaxation sessions, and stress tracking',
-      color: '#ff8c00',
-    },
-    {
-      icon: '📊',
-      title: 'Academic Analytics',
-      description: 'Real-time progress tracking, performance insights, and personalized learning recommendations',
-      color: '#ff7a00',
-    },
-    {
-      icon: '👥',
-      title: 'Collaborative Learning',
-      description: 'Study groups, Kuppi sessions, and peer-to-peer learning with classmates',
-      color: '#ff6600',
-    },
-    {
-      icon: '📚',
-      title: 'Resource Library',
-      description: 'Curated educational materials, software hub, and AI-powered note generation',
-      color: '#ff5500',
-    },
-    {
-      icon: '🎯',
-      title: 'Goal Tracking',
-      description: 'Set, monitor, and achieve your academic goals with milestone tracking',
-      color: '#ff4500',
-    },
-  ]
-
-  const stats = [
-    { number: '10K+', label: 'Active Students' },
-    { number: '500+', label: 'Courses' },
-    { number: '95%', label: 'Success Rate' },
-    { number: '24/7', label: 'Support' },
-  ]
-
-  const testimonials = [
-    {
-      name: 'Aisha Kumar',
-      role: 'Computer Science Student',
-      text: 'Eduza transformed my study habits. The AI schedule has been a game-changer!',
-      image: '👩‍🎓',
-    },
-    {
-      name: 'Rajesh Silva',
-      role: 'Engineering Major',
-      text: 'The stress management features helped me through tough semesters.',
-      image: '👨‍🎓',
-    },
-    {
-      name: 'Emma Thompson',
-      role: 'Business Student',
-      text: 'Best investment in my academic journey. Highly recommended!',
-      image: '👩‍🏫',
-    },
-  ]
-
-  const heroImages = [
-    '/images/stress-games/featured-underwater.jpg',
-    '/images/stress-games/desert-sunrise.jpg',
-    '/images/stress-games/firefly-forest.jpg',
-  ]
-
-  const campusGallery = [
-    '/images/stress-green/learn-new.jpg',
-    '/images/stress-green/set-goal.jpg',
-    '/images/stress-green/create-something.jpg',
-    '/images/stress-green/future-self.jpg',
-  ]
-
+function Navbar() {
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)', overflow: 'hidden' }}>
-      {/* Navigation */}
-      <nav style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '1.5rem 2rem',
-        background: 'rgba(0,0,0,0.1)',
-        backdropFilter: 'blur(10px)',
-        position: 'relative',
-        zIndex: 100,
-      }}>
-        <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          🎓 <span>Eduza</span>
-        </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <Link to="/login" style={{
-            padding: '0.75rem 1.5rem',
-            background: 'rgba(255,255,255,0.2)',
-            color: 'white',
-            border: '2px solid rgba(255,255,255,0.5)',
-            borderRadius: '8px',
-            textDecoration: 'none',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
-            backdropFilter: 'blur(5px)',
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.background = 'rgba(255,255,255,0.3)'
-            e.target.style.borderColor = 'white'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = 'rgba(255,255,255,0.2)'
-            e.target.style.borderColor = 'rgba(255,255,255,0.5)'
-          }}>
-            Sign In
-          </Link>
-          <Link to="/register" style={{
-            padding: '0.75rem 1.5rem',
-            background: 'white',
-            color: '#ff6a00',
-            border: 'none',
-            borderRadius: '8px',
-            textDecoration: 'none',
-            fontWeight: '700',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-3px)'
-            e.target.style.boxShadow = '0 6px 20px rgba(0,0,0,0.3)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'translateY(0)'
-            e.target.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)'
-          }}>
-            Get Started
-          </Link>
-        </div>
-      </nav>
-
-      {/* Animated Background Elements */}
-      <div style={{
-        position: 'fixed',
+    <header
+      style={{
+        width: '100%',
+        background: '#ffffff',
+        position: 'sticky',
         top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: 'none',
-        overflow: 'hidden',
-        zIndex: 0,
-      }}>
-        <div style={{
-          position: 'absolute',
-          width: '300px',
-          height: '300px',
-          background: 'rgba(255,255,255,0.1)',
-          borderRadius: '50%',
-          top: '-100px',
-          right: '-100px',
-          animation: 'float 4s ease-in-out infinite',
-        }} />
-        <div style={{
-          position: 'absolute',
-          width: '200px',
-          height: '200px',
-          background: 'rgba(255,255,255,0.08)',
-          borderRadius: '50%',
-          bottom: '100px',
-          left: '-50px',
-          animation: 'float 5s ease-in-out infinite',
-          animationDelay: '1s',
-        }} />
+        zIndex: 100,
+        borderBottom: '1px solid #f2ebe5',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 1440,
+          margin: '0 auto',
+          padding: '0 2.5rem',
+          minHeight: 92,
+          display: 'grid',
+          gridTemplateColumns: 'auto 1fr auto',
+          alignItems: 'center',
+          columnGap: '2rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', minWidth: 220, height: 72 }}>
+          <BrandLogo
+            width={208}
+            height={72}
+            rounded={14}
+            scale={1.05}
+            bg='transparent'
+            padding={0}
+            imageStyle={{ objectFit: 'contain' }}
+          />
+        </div>
+
+        <nav
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '2.1rem',
+            color: '#374151',
+            fontSize: 14,
+            fontWeight: 600,
+            lineHeight: 1,
+            height: 46,
+          }}
+        >
+          <span style={{ color: '#f97316', fontSize: 16 }}>Home</span>
+          <span style={{ fontSize: 16 }}>About us</span>
+          <span style={{ fontSize: 16 }}>Services</span>
+          <span style={{ fontSize: 16 }}>Contact us</span>
+          <span style={{ fontSize: 16 }}>Blog</span>
+        </nav>
+
+        <Link
+          to="/login"
+          style={{
+            textDecoration: 'none',
+            background: '#f97316',
+            color: '#fff',
+            padding: '0 22px',
+            borderRadius: 10,
+            fontSize: 15,
+            fontWeight: 700,
+            boxShadow: '0 8px 18px rgba(249,115,22,0.22)',
+            height: 46,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1,
+          }}
+        >
+          Sign Up
+        </Link>
+      </div>
+    </header>
+  )
+}
+
+function ServiceCard({ item }) {
+  return (
+    <div
+      style={{
+        background: '#ffffff',
+        border: '1px solid #f0ebe7',
+        borderRadius: 16,
+        padding: '1rem',
+        boxShadow: '0 8px 24px rgba(15,23,42,0.05)',
+        minHeight: 150,
+      }}
+    >
+      <div
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 12,
+          background: item.color,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 18,
+          marginBottom: 12,
+        }}
+      >
+        {item.icon}
       </div>
 
-      {/* Hero Section */}
-      <section style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '4rem 2rem 3rem',
-        textAlign: 'center',
-        color: 'white',
-        minHeight: 'calc(100vh - 80px)',
-        position: 'relative',
-        zIndex: 10,
-      }}>
-        <div className="fade-in-up" style={{ animation: 'fadeInUp 0.8s ease-out' }}>
-          <h1 style={{
-            fontSize: 'clamp(2rem, 8vw, 4rem)',
-            fontWeight: 'bold',
-            marginBottom: '1rem',
-            lineHeight: '1.2',
-            textShadow: '0 2px 10px rgba(0,0,0,0.2)',
-          }}>
-            Transform Your <br />
-            <span style={{ background: 'linear-gradient(120deg, #fff, #ffe6cc)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Academic Journey
-            </span>
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#1f2937', marginBottom: 6 }}>
+        {item.title}
+      </div>
+
+      <div style={{ fontSize: 12, lineHeight: 1.7, color: '#6b7280' }}>{item.text}</div>
+    </div>
+  )
+}
+
+function CourseCard({ course }) {
+  return (
+    <div
+      style={{
+        background: '#ffffff',
+        border: '1px solid #eee8e3',
+        borderRadius: 16,
+        padding: '1rem',
+        boxShadow: '0 8px 20px rgba(15,23,42,0.05)',
+      }}
+    >
+      <div
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 12,
+          background: `${course.color}15`,
+          border: `1px solid ${course.color}25`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 12,
+        }}
+      >
+        <svg width="18" height="18" fill="none" stroke={course.color} strokeWidth="1.8" viewBox="0 0 24 24">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+      </div>
+
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#1f2937', marginBottom: 4 }}>
+        {course.title}
+      </div>
+      <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 14 }}>{course.lecturer}</div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
+        <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>Progress</span>
+        <span style={{ fontSize: 12, color: course.color, fontWeight: 700 }}>{course.progress}%</span>
+      </div>
+
+      <div style={{ height: 8, background: '#f3f4f6', borderRadius: 999, overflow: 'hidden' }}>
+        <div
+          style={{
+            width: `${course.progress}%`,
+            height: '100%',
+            background: course.color,
+            borderRadius: 999,
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
+function TestimonialCard({ item }) {
+  return (
+    <div
+      style={{
+        background: '#ffffff',
+        border: '1px solid #f0ebe7',
+        borderRadius: 16,
+        padding: '1rem',
+        boxShadow: '0 8px 20px rgba(15,23,42,0.04)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            background: '#ffedd5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 16,
+          }}
+        >
+          👤
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>{item.name}</div>
+          <div style={{ fontSize: 11, color: '#9ca3af' }}>{item.role}</div>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 12, lineHeight: 1.7, color: '#6b7280' }}>{item.text}</div>
+
+      <div style={{ marginTop: 10, color: '#f59e0b', fontSize: 13 }}>★★★★★</div>
+    </div>
+  )
+}
+
+function Home() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const firstName = user?.name ? user.name.split(' ')[0] : 'User'
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        minHeight: '100vh',
+        background: '#ffffff',
+        overflowX: 'hidden',
+      }}
+    >
+      <style>
+        {`
+          * {
+            box-sizing: border-box;
+          }
+
+          @media (max-width: 1100px) {
+            .home-hero,
+            .home-process,
+            .home-agency {
+              grid-template-columns: 1fr !important;
+            }
+
+            .home-testimonials {
+              grid-template-columns: 1fr 1fr !important;
+            }
+          }
+
+          @media (max-width: 820px) {
+            .home-services,
+            .home-courses,
+            .home-testimonials,
+            .home-footer-grid {
+              grid-template-columns: 1fr !important;
+            }
+
+            .home-section {
+              padding-left: 1.2rem !important;
+              padding-right: 1.2rem !important;
+            }
+
+            .home-hero-people {
+              minHeight: 260px !important;
+            }
+
+            .hero-person-left,
+            .hero-person-right {
+              font-size: 90px !important;
+            }
+
+            .hero-seat-left,
+            .hero-seat-right {
+              width: 130px !important;
+              height: 70px !important;
+            }
+          }
+        `}
+      </style>
+
+      <Navbar />
+
+      <section
+        className="home-section home-hero"
+        style={{
+          width: '100%',
+          maxWidth: 1440,
+          margin: '0 auto',
+          padding: '4rem 2.5rem 3rem',
+          display: 'grid',
+          gridTemplateColumns: '1.05fr 1fr',
+          gap: '2rem',
+          alignItems: 'center',
+        }}
+      >
+        <div style={{ position: 'relative' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              marginBottom: 18,
+              opacity: 0.85,
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f4c7a1' }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#e8d6c8' }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f0c39f' }} />
+          </div>
+
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 'clamp(2.6rem, 5vw, 5.4rem)',
+              lineHeight: 1.05,
+              fontWeight: 800,
+              color: '#1f2937',
+              maxWidth: 700,
+              letterSpacing: '-2px',
+            }}
+          >
+            We create
+            <span style={{ color: '#f97316' }}> solutions </span>
+            for your academic success
           </h1>
+
+          <p
+            style={{
+              margin: '18px 0 0',
+              fontSize: 16,
+              lineHeight: 1.9,
+              color: '#6b7280',
+              maxWidth: 520,
+            }}
+          >
+            Welcome back, {firstName}. Our learning platform helps you manage classes, schedules,
+            assignments, and course progress in one elegant place.
+          </p>
+
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 28 }}>
+            <Link
+              to="/smart-schedule"
+              style={{
+                textDecoration: 'none',
+                background: '#f97316',
+                color: '#fff',
+                padding: '14px 24px',
+                borderRadius: 12,
+                fontSize: 15,
+                fontWeight: 700,
+                boxShadow: '0 10px 22px rgba(249,115,22,0.24)',
+              }}
+            >
+              Get Started
+            </Link>
+
+            <Link
+              to="/profile"
+              style={{
+                textDecoration: 'none',
+                color: '#4b5563',
+                fontSize: 14,
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '14px 8px',
+              }}
+            >
+              <span
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  background: '#fff7ed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ▾
+              </span>
+              Explore more
+            </Link>
+          </div>
         </div>
 
-        <div className="fade-in-up" style={{ animation: 'fadeInUp 0.8s ease-out 0.2s forwards', opacity: 0 }}>
-          <p style={{
-            fontSize: 'clamp(1rem, 3vw, 1.3rem)',
-            marginBottom: '1.5rem',
-            maxWidth: '600px',
-            opacity: 0.95,
-            lineHeight: '1.8',
-            textShadow: '0 1px 5px rgba(0,0,0,0.1)',
-          }}>
-            All-in-one platform for smart learning, stress management, and academic excellence
+        <div
+          className="home-hero-people"
+          style={{
+            minHeight: 380,
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            className="hero-seat-left"
+            style={{
+              position: 'absolute',
+              left: 60,
+              bottom: 75,
+              width: 185,
+              height: 95,
+              borderRadius: '90px 90px 36px 36px',
+              background: '#d9a162',
+            }}
+          />
+          <div
+            className="hero-seat-right"
+            style={{
+              position: 'absolute',
+              right: 60,
+              bottom: 95,
+              width: 195,
+              height: 105,
+              borderRadius: '90px 90px 36px 36px',
+              background: '#eba05b',
+            }}
+          />
+          <div
+            className="hero-person-left"
+            style={{
+              position: 'absolute',
+              left: 90,
+              top: 55,
+              fontSize: 130,
+            }}
+          >
+            🧑‍💻
+          </div>
+          <div
+            className="hero-person-right"
+            style={{
+              position: 'absolute',
+              right: 75,
+              top: 35,
+              fontSize: 135,
+            }}
+          >
+            👩‍💻
+          </div>
+        </div>
+      </section>
+
+      <section
+        className="home-section"
+        style={{
+          width: '100%',
+          maxWidth: 1440,
+          margin: '0 auto',
+          padding: '1rem 2.5rem 4rem',
+        }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: '1.7rem' }}>
+          <h2 style={{ margin: 0, fontSize: 44, fontWeight: 800, color: '#1f2937', letterSpacing: '-1px' }}>
+            We Provide The Best Services
+          </h2>
+          <p style={{ margin: '10px 0 0', fontSize: 14, color: '#9ca3af' }}>
+            Let us unlock the full potential of your student experience
           </p>
         </div>
 
-        <div className="fade-in-up" style={{ 
-          display: 'flex', 
-          gap: '1rem', 
-          justifyContent: 'center',
-          flexWrap: 'wrap',
-          animation: 'fadeInUp 0.8s ease-out 0.4s forwards',
-          opacity: 0,
-        }}>
-          <Link to="/register" style={{
-            padding: '1rem 2.5rem',
-            background: 'white',
-            color: '#ff6a00',
-            border: 'none',
-            borderRadius: '10px',
-            textDecoration: 'none',
-            fontWeight: '700',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            boxShadow: '0 8px 25px rgba(0,0,0,0.2)',
-            transition: 'all 0.3s ease',
+        <div
+          className="home-services"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+            gap: '1rem',
           }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-3px)'
-            e.target.style.boxShadow = '0 12px 35px rgba(0,0,0,0.3)'
+        >
+          {services.map((item) => (
+            <ServiceCard key={item.title} item={item} />
+          ))}
+        </div>
+      </section>
+
+      <section
+        className="home-section home-process"
+        style={{
+          width: '100%',
+          background: '#fff3ec',
+          padding: '4rem 2.5rem',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '2rem',
+          alignItems: 'center',
+        }}
+      >
+        <div
+          style={{
+            minHeight: 320,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 180,
           }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'translateY(0)'
-            e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.2)'
-          }}>
-            Start Learning Today
-          </Link>
-          <Link to="/login" style={{
-            padding: '1rem 2.5rem',
-            background: 'rgba(255,255,255,0.25)',
-            color: 'white',
-            border: '2px solid rgba(255,255,255,0.5)',
-            borderRadius: '10px',
-            textDecoration: 'none',
-            fontWeight: '700',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
-            backdropFilter: 'blur(10px)',
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.background = 'rgba(255,255,255,0.35)'
-            e.target.style.borderColor = 'white'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = 'rgba(255,255,255,0.25)'
-            e.target.style.borderColor = 'rgba(255,255,255,0.5)'
-          }}>
-            Sign In
+        >
+          🧑‍🎓
+        </div>
+
+        <div>
+          <h2 style={{ margin: 0, fontSize: 48, fontWeight: 800, color: '#1f2937', lineHeight: 1.1, letterSpacing: '-1px' }}>
+            Simple <span style={{ color: '#f97316' }}>Solutions!</span>
+          </h2>
+
+          <p
+            style={{
+              margin: '16px 0 0',
+              fontSize: 16,
+              lineHeight: 1.9,
+              color: '#6b7280',
+              maxWidth: 520,
+            }}
+          >
+            We understand that no two students are alike. That’s why we make your learning
+            process simpler, faster, and easier to manage.
+          </p>
+
+          <div style={{ display: 'grid', gap: 14, marginTop: 26 }}>
+            {processSteps.map((step, index) => (
+              <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: '50%',
+                    background: '#f97316',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}
+                >
+                  {index + 1}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#374151' }}>{step}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 28 }}>
+            <Link
+              to="/smart-schedule"
+              style={{
+                textDecoration: 'none',
+                background: '#f97316',
+                color: '#fff',
+                padding: '12px 20px',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 700,
+              }}
+            >
+              Get Started
+            </Link>
+
+            <Link
+              to="/profile"
+              style={{
+                textDecoration: 'none',
+                background: '#fff',
+                color: '#6b7280',
+                padding: '12px 20px',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 700,
+                border: '1px solid #eadcd1',
+              }}
+            >
+              Read more
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section
+        className="home-section home-agency"
+        style={{
+          width: '100%',
+          maxWidth: 1440,
+          margin: '0 auto',
+          padding: '4rem 2.5rem',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '2rem',
+          alignItems: 'center',
+        }}
+      >
+        <div>
+          <h2 style={{ margin: 0, fontSize: 48, fontWeight: 800, color: '#1f2937', lineHeight: 1.1, letterSpacing: '-1px' }}>
+            Our <span style={{ color: '#f97316' }}>Agency</span>
+          </h2>
+
+          <p
+            style={{
+              margin: '16px 0 0',
+              fontSize: 16,
+              lineHeight: 1.9,
+              color: '#6b7280',
+              maxWidth: 520,
+            }}
+          >
+            We believe in the power of data and smart organization. Our platform-driven approach
+            helps students make better academic decisions and optimize their daily workflow.
+          </p>
+
+          <Link
+            to="/smart-schedule"
+            style={{
+              display: 'inline-block',
+              marginTop: 20,
+              textDecoration: 'none',
+              background: '#f97316',
+              color: '#fff',
+              padding: '12px 18px',
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: 700,
+            }}
+          >
+            Read more
           </Link>
         </div>
 
         <div
-          data-animate-id="hero-images"
           style={{
-            marginTop: '2.5rem',
-            width: 'min(100%, 980px)',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-            gap: '1rem',
-            opacity: visibleElements['hero-images'] ? 1 : 0,
-            transform: visibleElements['hero-images'] ? 'translateY(0)' : 'translateY(24px)',
-            transition: 'opacity 0.7s ease, transform 0.7s ease',
+            minHeight: 330,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 180,
           }}
         >
-          {heroImages.map((src, idx) => (
-            <div
-              key={src}
-              style={{
-                borderRadius: '14px',
-                overflow: 'hidden',
-                border: '1px solid rgba(255,255,255,0.35)',
-                boxShadow: '0 12px 28px rgba(0,0,0,0.24)',
-                animation: idx % 2 === 0 ? 'float 4s ease-in-out infinite' : 'float 5s ease-in-out infinite',
-              }}
-            >
-              <img
-                src={src}
-                alt="Eduza learning atmosphere"
-                style={{ width: '100%', height: '180px', objectFit: 'cover', display: 'block' }}
-              />
-            </div>
+          👨‍💼
+        </div>
+      </section>
+
+      <section
+        className="home-section"
+        style={{
+          width: '100%',
+          maxWidth: 1440,
+          margin: '0 auto',
+          padding: '0 2.5rem 4rem',
+        }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ margin: 0, fontSize: 44, fontWeight: 800, color: '#1f2937', letterSpacing: '-1px' }}>
+            What Clients Say!
+          </h2>
+          <p style={{ margin: '10px 0 0', fontSize: 14, color: '#9ca3af' }}>
+            See how our digital learning agency helped students achieve more
+          </p>
+        </div>
+
+        <div
+          className="home-testimonials"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: '1rem',
+          }}
+        >
+          {testimonials.map((item) => (
+            <TestimonialCard key={item.name} item={item} />
           ))}
         </div>
-
-        {/* Scroll indicator */}
-        <div style={{
-          position: 'absolute',
-          bottom: '2rem',
-          animation: 'bounce 2s ease-in-out infinite',
-          opacity: 0.7,
-        }}>
-          <div style={{ fontSize: '1.5rem' }}>⬇</div>
-        </div>
       </section>
 
-      {/* Learning Gallery */}
-      <section style={{
-        padding: '4rem 2rem 5rem',
-        background: '#fff8f3',
-        position: 'relative',
-        zIndex: 10,
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <div
-            data-animate-id="gallery-title"
+      <section
+        className="home-section"
+        style={{
+          width: '100%',
+          maxWidth: 1440,
+          margin: '0 auto',
+          padding: '0 2.5rem 3rem',
+        }}
+      >
+        <div
+          style={{
+            background: '#f97316',
+            borderRadius: 16,
+            padding: '1.2rem 1.4rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ color: '#fff', fontSize: 28, fontWeight: 700 }}>Ready to get started?</div>
+
+          <Link
+            to="/contact"
             style={{
-              textAlign: 'center',
-              marginBottom: '2rem',
-              opacity: visibleElements['gallery-title'] ? 1 : 0,
-              transform: visibleElements['gallery-title'] ? 'translateY(0)' : 'translateY(24px)',
-              transition: 'opacity 0.7s ease, transform 0.7s ease',
+              textDecoration: 'none',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.75)',
+              padding: '11px 18px',
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: 700,
             }}
           >
-            <h2 style={{ fontSize: '2.2rem', color: '#1f2937', marginBottom: '0.5rem' }}>Campus Learning Moments</h2>
-            <p style={{ color: '#6b7280', fontSize: '1rem' }}>A vibrant student experience built for growth, focus, and collaboration.</p>
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '1rem',
-          }}>
-            {campusGallery.map((src, idx) => (
-              <div
-                key={src}
-                data-animate-id={`gallery-${idx}`}
-                style={{
-                  borderRadius: '14px',
-                  overflow: 'hidden',
-                  background: '#fff',
-                  border: '1px solid #f3ded2',
-                  boxShadow: '0 8px 22px rgba(60, 20, 0, 0.08)',
-                  opacity: visibleElements[`gallery-${idx}`] ? 1 : 0,
-                  transform: visibleElements[`gallery-${idx}`] ? 'translateY(0)' : 'translateY(24px)',
-                  transition: `opacity 0.65s ease ${idx * 0.08}s, transform 0.65s ease ${idx * 0.08}s`,
-                }}
-              >
-                <img
-                  src={src}
-                  alt="Student learning activity"
-                  style={{ width: '100%', height: '210px', objectFit: 'cover', display: 'block' }}
-                />
-              </div>
-            ))}
-          </div>
+            Contact Us
+          </Link>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section style={{
-        padding: '5rem 2rem',
-        background: 'white',
-        position: 'relative',
-        zIndex: 10,
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <h2 style={{
-              fontSize: '2.5rem',
-              fontWeight: 'bold',
-              marginBottom: '0.5rem',
-              color: '#1f2937',
-            }}>
-              Powerful Features for Modern Learners
-            </h2>
-            <p style={{
-              color: '#6b7280',
-              fontSize: '1.1rem',
-              maxWidth: '600px',
-              margin: '0 auto',
-            }}>
-              Everything you need to excel academically and maintain mental wellness
-            </p>
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '2rem',
-            marginBottom: '4rem',
-          }}>
-            {features.map((feature, idx) => (
-              <div key={idx} 
-                data-animate-id={`feature-${idx}`}
-                className="feature-card"
-                style={{
-                  padding: '2rem',
-                  background: '#f9fafb',
-                  borderRadius: '16px',
-                  border: '1px solid #e5e7eb',
-                  transition: 'all 0.3s ease',
-                  cursor: 'pointer',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  animation: visibleElements[`feature-${idx}`] ? `fadeInUp 0.8s ease-out ${idx * 0.1}s forwards` : 'none',
-                  opacity: visibleElements[`feature-${idx}`] ? 1 : 0,
-                  transform: visibleElements[`feature-${idx}`] ? 'translateY(0)' : 'translateY(30px)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = feature.color
-                }}>
-                <div style={{
-                  fontSize: '3rem',
-                  marginBottom: '1rem',
-                  display: 'inline-block',
-                  animation: 'bounce 2s ease-in-out infinite',
-                }}>
-                  {feature.icon}
-                </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem', color: '#1f2937' }}>
-                  {feature.title}
-                </h3>
-                <p style={{ color: '#6b7280', lineHeight: '1.6' }}>
-                  {feature.description}
-                </p>
-                <div style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: '3px',
-                  background: feature.color,
-                  transform: 'scaleX(0)',
-                  transformOrigin: 'left',
-                  transition: 'transform 0.3s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'scaleX(1)'
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'scaleX(0)'
-                }} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section style={{
-        padding: '4rem 2rem',
-        background: 'linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)',
-        color: 'white',
-        position: 'relative',
-        zIndex: 10,
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '2rem',
-            textAlign: 'center',
-          }}>
-            {stats.map((stat, idx) => (
-              <div key={idx} 
-                data-animate-id={`stat-${idx}`}
-                style={{
-                  animation: visibleElements[`stat-${idx}`] ? `fadeInUp 0.8s ease-out ${idx * 0.1}s forwards` : 'none',
-                  opacity: visibleElements[`stat-${idx}`] ? 1 : 0,
-                  transform: visibleElements[`stat-${idx}`] ? 'translateY(0)' : 'translateY(30px)',
-                }}>
-                <div className="stat-number">{stat.number}</div>
-                <p style={{ fontSize: '1.1rem', marginTop: '0.5rem', opacity: 0.9 }}>{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section style={{
-        padding: '5rem 2rem',
-        background: 'white',
-        position: 'relative',
-        zIndex: 10,
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{
-            fontSize: '2.5rem',
-            fontWeight: 'bold',
-            textAlign: 'center',
-            marginBottom: '3rem',
-            color: '#1f2937',
-          }}>
-            What Students Say
-          </h2>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '2rem',
-          }}>
-            {testimonials.map((testimonial, idx) => (
-              <div key={idx} 
-                data-animate-id={`testimonial-${idx}`}
-                style={{
-                  padding: '2rem',
-                  background: '#f9fafb',
-                  borderRadius: '16px',
-                  border: '2px solid #e5e7eb',
-                  transition: 'all 0.3s ease',
-                  animation: visibleElements[`testimonial-${idx}`] ? `fadeInUp 0.8s ease-out ${idx * 0.1}s forwards` : 'none',
-                  opacity: visibleElements[`testimonial-${idx}`] ? 1 : 0,
-                  transform: visibleElements[`testimonial-${idx}`] ? 'translateY(0)' : 'translateY(30px)',
-                }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#ff6a00'
-                e.currentTarget.style.boxShadow = '0 10px 30px rgba(255, 106, 0, 0.1)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#e5e7eb'
-                e.currentTarget.style.boxShadow = 'none'
-              }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{testimonial.image}</div>
-                <p style={{ fontSize: '1rem', color: '#374151', marginBottom: '1.5rem', fontStyle: 'italic', lineHeight: '1.8' }}>
-                  "{testimonial.text}"
-                </p>
-                <div>
-                  <p style={{ fontWeight: '700', color: '#1f2937', marginBottom: '0.25rem' }}>{testimonial.name}</p>
-                  <p style={{ fontSize: '0.9rem', color: '#6b7280' }}>{testimonial.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section style={{
-        padding: '4rem 2rem',
-        background: 'linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)',
-        textAlign: 'center',
-        color: 'white',
-        position: 'relative',
-        zIndex: 10,
-      }}>
-        <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-          Ready to Excel in Your Studies?
-        </h2>
-        <p style={{ fontSize: '1.1rem', marginBottom: '2rem', opacity: 0.9 }}>
-          Join thousands of students using Eduza to achieve their academic goals
-        </p>
-        <Link to="/register" style={{
-          padding: '1rem 2.5rem',
-          background: 'white',
-          color: '#d5541b',
-          border: 'none',
-          borderRadius: '10px',
-          textDecoration: 'none',
-          fontWeight: '700',
-          fontSize: '1rem',
-          cursor: 'pointer',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-          transition: 'all 0.3s ease',
-          display: 'inline-block',
+      <footer
+        style={{
+          width: '100%',
+          background: '#faeee7',
+          padding: '2.5rem 2.5rem 4rem',
+          position: 'relative',
+          overflow: 'hidden',
         }}
-        onMouseEnter={(e) => {
-          e.target.style.transform = 'translateY(-3px)'
-          e.target.style.boxShadow = '0 6px 25px rgba(0,0,0,0.3)'
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.transform = 'translateY(0)'
-          e.target.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)'
-        }}>
-          Start Your Journey
-        </Link>
-      </section>
+      >
+        <div
+          className="home-footer-grid"
+          style={{
+            width: '100%',
+            maxWidth: 1440,
+            margin: '0 auto',
+            display: 'grid',
+            gridTemplateColumns: '1.2fr 1fr 1fr 1fr',
+            gap: '1.5rem',
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <BrandLogo
+                width={176}
+                height={60}
+                rounded={12}
+                scale={1.02}
+                bg='transparent'
+                padding={0}
+                imageStyle={{ objectFit: 'contain' }}
+              />
+            </div>
 
-      {/* Footer */}
-      <footer style={{
-        padding: '3rem 2rem',
-        background: 'rgba(0,0,0,0.2)',
-        color: 'white',
-        textAlign: 'center',
-        fontSize: '0.9rem',
-        borderTop: '1px solid rgba(255,255,255,0.1)',
-        position: 'relative',
-        zIndex: 10,
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-            <a href="#" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', transition: 'color 0.3s' }}
-              onMouseEnter={(e) => e.target.style.color = 'white'}
-              onMouseLeave={(e) => e.target.style.color = 'rgba(255,255,255,0.8)'}>
-              About Us
-            </a>
-            <a href="#" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', transition: 'color 0.3s' }}
-              onMouseEnter={(e) => e.target.style.color = 'white'}
-              onMouseLeave={(e) => e.target.style.color = 'rgba(255,255,255,0.8)'}>
-              Contact
-            </a>
-            <a href="#" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', transition: 'color 0.3s' }}
-              onMouseEnter={(e) => e.target.style.color = 'white'}
-              onMouseLeave={(e) => e.target.style.color = 'rgba(255,255,255,0.8)'}>
-              Privacy Policy
-            </a>
-            <a href="#" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', transition: 'color 0.3s' }}
-              onMouseEnter={(e) => e.target.style.color = 'white'}
-              onMouseLeave={(e) => e.target.style.color = 'rgba(255,255,255,0.8)'}>
-              Terms of Service
-            </a>
+            <div style={{ display: 'flex', gap: 10, fontSize: 18 }}>
+              <span>📘</span>
+              <span>📸</span>
+              <span>🐦</span>
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#374151', marginBottom: 10 }}>Company</div>
+            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 2 }}>About</div>
+            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 2 }}>Contact</div>
+            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 2 }}>Career</div>
+            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 2 }}>Team</div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#374151', marginBottom: 10 }}>Designs</div>
+            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 2 }}>Design criteria</div>
+            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 2 }}>Student projects</div>
+            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 2 }}>Academic visuals</div>
+            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 2 }}>Drawing</div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#374151', marginBottom: 10 }}>Resources</div>
+            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 2 }}>Become a designer</div>
+            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 2 }}>Blog</div>
+            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 2 }}>Design without borders</div>
+            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 2 }}>Advocates</div>
           </div>
         </div>
-        <p style={{ opacity: 0.8 }}>&copy; 2026 Eduza. Empowering Students Everywhere. All rights reserved.</p>
+
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 1440,
+            margin: '24px auto 0',
+            textAlign: 'center',
+            fontSize: 12,
+            color: '#9ca3af',
+            position: 'relative',
+            zIndex: 2,
+          }}
+        >
+          All rights reserved 2027
+        </div>
+
+        <div
+          style={{
+            position: 'absolute',
+            left: -30,
+            right: -30,
+            bottom: -38,
+            height: 86,
+            background: '#f97316',
+            borderTopLeftRadius: '55% 100%',
+            borderTopRightRadius: '45% 100%',
+          }}
+        />
       </footer>
     </div>
   )
 }
 
-export default LandingPage
+export default Home

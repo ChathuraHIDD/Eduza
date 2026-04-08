@@ -1,13 +1,26 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { jsPDF } from "jspdf";
 import { useNavigate } from "react-router-dom";
 import { getSoftwareListRequest } from "../../utils/api";
+import { drawEduzaLogo } from "../../utils/pdfBranding";
 
 function SoftwareHub() {
   const navigate = useNavigate();
   const [openMenuIndex, setOpenMenuIndex] = useState(null);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   const menuRef = useRef(null);
+
+  const user = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  })();
+
+  const isStudent = user?.role === "student";
 
   useEffect(() => {
     const fetchSoftware = async () => {
@@ -47,9 +60,109 @@ function SoftwareHub() {
     return 0;
   };
 
-  const totalGB = files
+  const filteredFiles = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+    if (!keyword) return files;
+
+    return files.filter((file) => {
+      return [
+        file.title,
+        file.softwareName,
+        file.type,
+        file.size,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(keyword);
+    });
+  }, [files, searchTerm]);
+
+  const totalGB = filteredFiles
     .reduce((sum, file) => sum + parseSizeToGB(file.size), 0)
     .toFixed(2);
+
+  const handleDownloadSoftwareListPdf = async () => {
+    const rows = filteredFiles;
+    if (rows.length === 0) {
+      window.alert("No software records available to export.");
+      return;
+    }
+
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    const border = 24;
+    const contentX = 44;
+    const contentWidth = pageWidth - contentX * 2;
+    let y = 132;
+
+    const drawHeader = async () => {
+      doc.setDrawColor(194, 65, 12);
+      doc.setLineWidth(1.6);
+      doc.rect(border, border, pageWidth - border * 2, pageHeight - border * 2);
+
+      doc.setFillColor(194, 65, 12);
+      doc.rect(border + 8, border + 8, pageWidth - (border + 8) * 2, 64, "F");
+
+      doc.setTextColor(255, 255, 255);
+      const hasLogo = await drawEduzaLogo(doc, border + 16, border + 16, 66, 44);
+      if (!hasLogo) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(24);
+        doc.text("EDUZA", border + 18, border + 48);
+      }
+
+      doc.setFontSize(12);
+      doc.text("Software Hub List", pageWidth - border - 18, border + 48, {
+        align: "right",
+      });
+
+      doc.setTextColor(30, 41, 59);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, contentX, 114);
+      doc.text(`Items: ${rows.length} | Total: ${totalGB} GB`, contentX, 128);
+      y = 156;
+    };
+
+    const ensureSpace = async (needed) => {
+      if (y + needed <= pageHeight - 48) return;
+      doc.addPage();
+      await drawHeader();
+    };
+
+    await drawHeader();
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const file = rows[index];
+      const title = file.title || "Untitled";
+      const softwareName = file.softwareName || "N/A";
+      const type = file.type || "N/A";
+      const size = file.size || "N/A";
+
+      const titleLines = doc.splitTextToSize(`${index + 1}. ${title}`, contentWidth);
+      const detailLine = `Name: ${softwareName} | Type: ${type.toUpperCase()} | Size: ${size}`;
+      const detailLines = doc.splitTextToSize(detailLine, contentWidth - 8);
+      const blockHeight = titleLines.length * 14 + detailLines.length * 13 + 14;
+
+      await ensureSpace(blockHeight);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(124, 45, 18);
+      doc.text(titleLines, contentX, y);
+      y += titleLines.length * 14;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(51, 65, 85);
+      doc.text(detailLines, contentX + 6, y + 2);
+      y += detailLines.length * 13 + 10;
+    }
+
+    doc.save("eduza-software-list.pdf");
+  };
 
   const handleDownload = (file) => {
     setOpenMenuIndex(null);
@@ -67,6 +180,11 @@ function SoftwareHub() {
   };
 
   const handleAddNew = () => {
+    if (isStudent) {
+      window.alert("students cannot add software");
+      return;
+    }
+
     navigate("/upload-software");
   };
 
@@ -436,42 +554,78 @@ function SoftwareHub() {
           <div style={{ color: "#64748b", fontSize: "13px" }}>
             Total: {totalGB} GB
           </div>
+
+          <input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search software"
+            style={{
+              marginTop: "10px",
+              border: "1px solid #fed7aa",
+              borderRadius: 10,
+              padding: "8px 10px",
+              minWidth: 220,
+              background: "#fff",
+              color: "#334155",
+              fontSize: 13,
+              outline: "none",
+            }}
+          />
         </div>
 
-        <button
-          onClick={handleAddNew}
-          style={{
-            border: "none",
-            borderRadius: 999,
-            background: "linear-gradient(135deg, #f97316, #ea580c)",
-            color: "#fff",
-            fontSize: "13px",
-            fontWeight: 700,
-            padding: "10px 16px",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            boxShadow: "0 8px 24px rgba(249,115,22,0.18)",
-          }}
-        >
-          <span
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            onClick={handleDownloadSoftwareListPdf}
             style={{
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              background: "rgba(255,255,255,0.18)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 12,
-              fontWeight: 800,
+              border: "none",
+              borderRadius: 999,
+              background: "linear-gradient(135deg, #9a3412, #c2410c)",
+              color: "#fff",
+              fontSize: "13px",
+              fontWeight: 700,
+              padding: "10px 16px",
+              cursor: "pointer",
+              boxShadow: "0 8px 24px rgba(194,65,12,0.2)",
             }}
           >
-            +
-          </span>
-          Add New
-        </button>
+            Download List PDF
+          </button>
+
+          <button
+            onClick={handleAddNew}
+            style={{
+              border: "none",
+              borderRadius: 999,
+              background: "linear-gradient(135deg, #f97316, #ea580c)",
+              color: "#fff",
+              fontSize: "13px",
+              fontWeight: 700,
+              padding: "10px 16px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              boxShadow: "0 8px 24px rgba(249,115,22,0.18)",
+            }}
+          >
+            <span
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: "rgba(255,255,255,0.18)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 12,
+                fontWeight: 800,
+              }}
+            >
+              +
+            </span>
+            Add New
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -484,7 +638,7 @@ function SoftwareHub() {
             gap: "18px",
           }}
         >
-          {files.map((file, i) => (
+          {filteredFiles.map((file, i) => (
             <div
               key={file._id}
               onClick={() => handleOpenSoftware(file)}
@@ -621,6 +775,22 @@ function SoftwareHub() {
               </div>
             </div>
           ))}
+
+          {filteredFiles.length === 0 && (
+            <div
+              style={{
+                gridColumn: "1 / -1",
+                background: "#fff",
+                border: "1px solid #e6e8ee",
+                borderRadius: "14px",
+                padding: "16px",
+                color: "#64748b",
+                fontSize: "13px",
+              }}
+            >
+              No software found for this search.
+            </div>
+          )}
         </div>
       )}
     </div>

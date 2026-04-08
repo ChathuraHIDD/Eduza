@@ -38,6 +38,15 @@ const RAINDROPS = Array.from({ length: 42 }, (_, i) => ({
   size: 6 + (i % 4) * 3,
 }))
 
+const UNDERWATER_PEARLS = [
+  { id: 'p1', x: 20, y: 35 },
+  { id: 'p2', x: 32, y: 58 },
+  { id: 'p3', x: 46, y: 30 },
+  { id: 'p4', x: 60, y: 52 },
+  { id: 'p5', x: 74, y: 36 },
+  { id: 'p6', x: 84, y: 60 },
+]
+
 const randomBetween = (min, max) => min + Math.random() * (max - min)
 
 const randomFirefly = (id) => ({
@@ -53,6 +62,8 @@ function StressHubOrangeGamePage() {
   const [sceneSeconds, setSceneSeconds] = useState(0)
   const [animTick, setAnimTick] = useState(0)
   const [driftPosition, setDriftPosition] = useState({ x: 50, y: 68 })
+  const [underwaterStarted, setUnderwaterStarted] = useState(false)
+  const [underwaterCollected, setUnderwaterCollected] = useState([])
   const [lanternWord, setLanternWord] = useState('calm')
   const [lanterns, setLanterns] = useState([])
   const [releasedCount, setReleasedCount] = useState(0)
@@ -125,6 +136,13 @@ function StressHubOrangeGamePage() {
   }, [game, gameSlug])
 
   useEffect(() => {
+    if (gameSlug !== 'underwater-drift') return
+    setUnderwaterStarted(false)
+    setUnderwaterCollected([])
+    setDriftPosition({ x: 50, y: 68 })
+  }, [gameSlug])
+
+  useEffect(() => {
     if (!game) return undefined
     const timer = setInterval(() => setAnimTick((prev) => prev + 1), 120)
     return () => clearInterval(timer)
@@ -190,6 +208,39 @@ function StressHubOrangeGamePage() {
     setter({
       x: Math.min(92, Math.max(8, x)),
       y: Math.min(90, Math.max(8, y)),
+    })
+  }
+
+  const handleUnderwaterMove = (event) => {
+    if (!underwaterStarted) return
+
+    const rect = event.currentTarget.getBoundingClientRect()
+    const clientX = event.touches ? event.touches[0].clientX : event.clientX
+    const clientY = event.touches ? event.touches[0].clientY : event.clientY
+
+    const x = ((clientX - rect.left) / rect.width) * 100
+    const y = ((clientY - rect.top) / rect.height) * 100
+
+    const next = {
+      x: Math.min(92, Math.max(8, x)),
+      y: Math.min(90, Math.max(8, y)),
+    }
+
+    setDriftPosition(next)
+    setUnderwaterCollected((prev) => {
+      const collectedSet = new Set(prev)
+      let changed = false
+
+      UNDERWATER_PEARLS.forEach((pearl) => {
+        if (collectedSet.has(pearl.id)) return
+        const distance = Math.hypot(next.x - pearl.x, next.y - pearl.y)
+        if (distance <= 8) {
+          collectedSet.add(pearl.id)
+          changed = true
+        }
+      })
+
+      return changed ? Array.from(collectedSet) : prev
     })
   }
 
@@ -335,8 +386,8 @@ function StressHubOrangeGamePage() {
       >
         {gameSlug === 'underwater-drift' && (
           <div
-            onMouseMove={(event) => movePointer(event, setDriftPosition)}
-            onTouchMove={(event) => movePointer(event, setDriftPosition)}
+            onMouseMove={handleUnderwaterMove}
+            onTouchMove={handleUnderwaterMove}
             style={{
               position: 'relative',
               height: '72vh',
@@ -363,6 +414,31 @@ function StressHubOrangeGamePage() {
             ))}
             <div style={{ position: 'absolute', left: '18%', top: '48%', width: 150, height: 26, borderRadius: 99, background: 'rgba(148,163,184,0.2)', filter: 'blur(1px)' }} />
             <div style={{ position: 'absolute', left: '68%', top: '42%', width: 120, height: 20, borderRadius: 99, background: 'rgba(148,163,184,0.18)' }} />
+
+            {UNDERWATER_PEARLS.map((pearl) => (
+              <div
+                key={pearl.id}
+                style={{
+                  position: 'absolute',
+                  left: `${pearl.x}%`,
+                  top: `${pearl.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  width: 14,
+                  height: 14,
+                  borderRadius: '50%',
+                  background: underwaterCollected.includes(pearl.id)
+                    ? 'rgba(251,191,36,0.14)'
+                    : 'radial-gradient(circle at 32% 28%, #f8fafc, #7dd3fc)',
+                  boxShadow: underwaterCollected.includes(pearl.id)
+                    ? 'none'
+                    : '0 0 14px rgba(125,211,252,0.7)',
+                  border: underwaterCollected.includes(pearl.id)
+                    ? '1px solid rgba(251,191,36,0.2)'
+                    : '1px solid rgba(255,255,255,0.7)',
+                }}
+              />
+            ))}
+
             <div
               style={{
                 position: 'absolute',
@@ -376,9 +452,85 @@ function StressHubOrangeGamePage() {
                 boxShadow: '0 0 24px rgba(251,146,60,0.45)',
               }}
             />
-            <div style={{ position: 'absolute', left: 12, bottom: 12, color: '#e0f2fe', fontSize: 12 }}>
-              Move gently with mouse/touch to drift
+
+            <div style={{ position: 'absolute', left: 12, bottom: 12, color: '#e0f2fe', fontSize: 12, lineHeight: 1.6 }}>
+              Pearls collected: {underwaterCollected.length}/{UNDERWATER_PEARLS.length}
+              <br />
+              {underwaterStarted
+                ? 'Move gently with mouse/touch to drift and collect pearls.'
+                : 'Press Start Game to begin.'}
             </div>
+
+            {!underwaterStarted && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(180deg, rgba(2,6,23,0.68), rgba(2,6,23,0.78))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '1rem',
+                }}
+              >
+                <div
+                  style={{
+                    width: 'min(94%, 560px)',
+                    borderRadius: 16,
+                    background: 'linear-gradient(140deg, #fff7ed 0%, #ffedd5 100%)',
+                    border: '1px solid #fdba74',
+                    boxShadow: '0 20px 36px rgba(15,23,42,0.28)',
+                    padding: '1rem 1.1rem',
+                  }}
+                >
+                  <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#9a3412', fontWeight: 800 }}>
+                    Underwater Drift
+                  </div>
+                  <h3 style={{ margin: '0.4rem 0 0.5rem', fontSize: 28, color: '#7c2d12' }}>How To Play</h3>
+                  <ul style={{ margin: 0, paddingLeft: '1.1rem', color: '#7c2d12', lineHeight: 1.7, fontSize: 14 }}>
+                    <li>Move your glowing orb with mouse or touch.</li>
+                    <li>Collect all floating pearls to finish your drift run.</li>
+                    <li>Use slow movements to stay calm and focused.</li>
+                  </ul>
+                  <button
+                    onClick={() => setUnderwaterStarted(true)}
+                    style={{
+                      marginTop: '0.85rem',
+                      border: 'none',
+                      borderRadius: 999,
+                      background: 'linear-gradient(145deg, #fb923c, #ea580c)',
+                      color: '#fff',
+                      fontWeight: 800,
+                      fontSize: 14,
+                      padding: '0.58rem 0.95rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Start Game
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {underwaterStarted && underwaterCollected.length === UNDERWATER_PEARLS.length && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 16,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  borderRadius: 999,
+                  background: 'rgba(251,191,36,0.92)',
+                  color: '#7c2d12',
+                  fontWeight: 900,
+                  fontSize: 13,
+                  padding: '0.4rem 0.8rem',
+                  boxShadow: '0 10px 18px rgba(15,23,42,0.24)',
+                }}
+              >
+                Great job! All pearls collected.
+              </div>
+            )}
           </div>
         )}
 

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import { jsPDF } from 'jspdf'
 import { acknowledgeStressAlert, getStressAdminSummary, getStressAlerts } from '../utils/stressHubApi'
+import { drawEduzaLogo } from '../utils/pdfBranding'
 
 const cardStyle = {
   background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
@@ -138,6 +140,91 @@ function AdminStressManagement() {
     } catch (err) {
       alert('Failed to acknowledge stress alert: ' + err.message)
     }
+  }
+
+  const handleDownloadSubmissionPdf = async (row) => {
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+
+    const borderMargin = 24
+    const contentX = 48
+    const contentWidth = pageWidth - contentX * 2
+    let cursorY = 132
+
+    const drawPageFrame = async () => {
+      doc.setDrawColor(194, 65, 12)
+      doc.setLineWidth(1.6)
+      doc.rect(borderMargin, borderMargin, pageWidth - borderMargin * 2, pageHeight - borderMargin * 2)
+
+      doc.setFillColor(194, 65, 12)
+      doc.rect(borderMargin + 8, borderMargin + 8, pageWidth - (borderMargin + 8) * 2, 64, 'F')
+
+      doc.setTextColor(255, 255, 255)
+      const hasLogo = await drawEduzaLogo(doc, borderMargin + 16, borderMargin + 16, 66, 44)
+      if (!hasLogo) {
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(24)
+        doc.text('EDUZA', borderMargin + 18, borderMargin + 48)
+      }
+
+      doc.setFontSize(12)
+      doc.text('Student Stress Report', pageWidth - borderMargin - 20, borderMargin + 48, { align: 'right' })
+
+      doc.setTextColor(17, 24, 39)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text(`Generated: ${new Date().toLocaleString()}`, contentX, 116)
+    }
+
+    const ensureSpace = async (neededHeight) => {
+      if (cursorY + neededHeight <= pageHeight - 48) return
+      doc.addPage()
+      await drawPageFrame()
+      cursorY = 132
+    }
+
+    const writeField = async (label, value) => {
+      const safeText = value || 'N/A'
+      const lines = doc.splitTextToSize(String(safeText), contentWidth - 140)
+      const rowHeight = Math.max(18, lines.length * 14)
+      await ensureSpace(rowHeight + 8)
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.setTextColor(124, 45, 18)
+      doc.text(`${label}:`, contentX, cursorY)
+
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(31, 41, 55)
+      doc.text(lines, contentX + 140, cursorY)
+
+      cursorY += rowHeight + 8
+    }
+
+    await drawPageFrame()
+
+    const selectedColors = Array.isArray(row.selectedColors)
+      ? row.selectedColors.join(', ')
+      : 'N/A'
+
+    await writeField('Student Name', row.studentName || 'Unknown Student')
+    await writeField('Student Email', row.studentEmail || 'No email')
+    await writeField('Stress Level', String(row.stressLevel || 'N/A').toUpperCase())
+    await writeField('Stress Score', row.stressScore != null ? String(row.stressScore) : 'N/A')
+    await writeField('Selected Colors', selectedColors || 'N/A')
+    await writeField('Submitted At', row.submittedAt ? new Date(row.submittedAt).toLocaleString() : 'N/A')
+
+    if (row.notes) {
+      await writeField('Notes', row.notes)
+    }
+
+    const slug = String(row.studentName || 'student')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+
+    doc.save(`eduza-stress-report-${slug || 'student'}.pdf`)
   }
 
   return (
@@ -579,11 +666,28 @@ function AdminStressManagement() {
                         <div style={{ color: '#111827', fontSize: 13, fontWeight: 700 }}>{row.studentName}</div>
                         <div style={{ color: '#6b7280', fontSize: 12 }}>{row.studentEmail || 'No email'}</div>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
+                      <div style={{ textAlign: 'right', display: 'grid', justifyItems: 'end', gap: 4 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: row.stressLevel === 'HIGH' ? '#dc2626' : row.stressLevel === 'MEDIUM' ? '#b45309' : '#166534' }}>
                           {row.stressLevel}
                         </div>
                         <div style={{ fontSize: 12, color: '#475569' }}>Score: {row.stressScore}</div>
+                        <button
+                          onClick={() => handleDownloadSubmissionPdf(row)}
+                          style={{
+                            marginTop: 2,
+                            border: 'none',
+                            borderRadius: 8,
+                            background: 'linear-gradient(140deg, #f97316, #c2410c)',
+                            color: '#fff',
+                            fontWeight: 800,
+                            fontSize: 11,
+                            padding: '0.35rem 0.6rem',
+                            cursor: 'pointer',
+                            boxShadow: '0 8px 14px rgba(194,65,12,0.26)',
+                          }}
+                        >
+                          Download PDF
+                        </button>
                       </div>
                     </div>
                     <div style={{ marginTop: 6, color: '#6b7280', fontSize: 11 }}>

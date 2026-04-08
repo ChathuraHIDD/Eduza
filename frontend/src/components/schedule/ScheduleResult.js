@@ -1,10 +1,15 @@
 import { useState } from 'react'
+import { downloadSchedulePdf } from '../../utils/schedulePdf'
 
 const INTENSITY_LABELS = { 4: 'Very High', 3: 'High', 2: 'Moderate', 1: 'Basic' }
 const INTENSITY_COLORS = { 4: '#ef4444', 3: '#f97316', 2: '#eab308', 1: '#22c55e' }
 
 function ScheduleResult({ data, onBack }) {
   const [expandedDay, setExpandedDay] = useState(0)
+
+  const handleDownloadPdf = async () => {
+    await downloadSchedulePdf({ planType: 'assignment', data })
+  }
 
   const {
     subject, dueDate, totalDays, hoursPerDay,
@@ -400,6 +405,21 @@ function ScheduleResult({ data, onBack }) {
             Follow this plan consistently to reach your target of {targetLabel}
           </div>
         </div>
+        <button
+          onClick={handleDownloadPdf}
+          style={{
+            background: '#fff',
+            border: '1px solid rgba(249,115,22,0.35)',
+            borderRadius: 10,
+            color: '#c2410c',
+            padding: '10px 18px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Download PDF
+        </button>
         <button
           onClick={onBack}
           style={{

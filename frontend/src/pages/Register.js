@@ -52,7 +52,7 @@ export default function Register() {
       } else if (data.user.role === "coordinator") {
         navigate("/coordinator");
       } else {
-        navigate("/");
+        navigate("/dashboard");
       }
     } catch (err) {
       setError(err.message || "Registration failed");

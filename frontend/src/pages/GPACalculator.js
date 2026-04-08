@@ -182,7 +182,7 @@ function GPACalculator() {
   return (
     <div style={{ padding: 24, maxWidth: 1040, margin: '0 auto' }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 32, margin: 0, color: '#111827' }}>GPA Calculator</h1>
+        <h1 style={{ fontSize: 32, margin: 0, color: '#111827' }}>Calculate GPA</h1>
         <p style={{ marginTop: 10, color: '#4b5563' }}>
           Add your modules, credits, and grades to calculate your GPA and generate a GPA report.
         </p>

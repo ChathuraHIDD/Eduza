@@ -841,24 +841,24 @@ Suggestions:
   return (
     <div className="min-h-screen bg-[#f4f4f5] p-4 md:p-6">
       <div className="mx-auto max-w-7xl">
-        <div className="relative mb-8 overflow-hidden rounded-[28px] bg-gradient-to-r from-orange-500 via-orange-600 to-orange-700 px-8 py-10 shadow-[0_18px_40px_rgba(249,115,22,0.25)]">
-          <div className="absolute right-[-50px] top-[-40px] h-52 w-52 rounded-full bg-white/10"></div>
-          <div className="absolute bottom-[-60px] right-20 h-44 w-44 rounded-full bg-white/8"></div>
+        <div className="relative mb-8 overflow-hidden rounded-[24px] bg-gradient-to-r from-[#ff6a00] via-[#f25c05] to-[#d5541b] px-8 py-8 shadow-[0_18px_40px_rgba(249,115,22,0.25)]">
+          <div className="absolute right-[-40px] top-[-40px] h-52 w-52 rounded-full bg-white/10"></div>
+          <div className="absolute bottom-[-55px] right-20 h-44 w-44 rounded-full bg-white/10"></div>
 
           <div className="relative z-10">
-            <div className="mb-4 inline-flex items-center gap-3 rounded-2xl bg-white/15 px-4 py-3 text-white">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 text-lg">
+            <div className="mb-4 inline-flex items-center gap-3 rounded-[14px] bg-white/15 px-4 py-3 text-white">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 text-lg">
                 📊
               </span>
-              <span className="text-sm font-extrabold uppercase tracking-[0.14em]">
+              <span className="text-xs font-black uppercase tracking-[0.16em]">
                 Progress Tracker
               </span>
             </div>
 
-            <h1 className="mb-3 text-3xl font-extrabold text-white md:text-5xl">
+            <h1 className="mb-3 text-3xl font-extrabold text-white">
               Track Your Academic Progress
             </h1>
-            <p className="max-w-3xl text-sm leading-7 text-orange-50 md:text-base">
+            <p className="max-w-3xl text-sm leading-7 text-white/90">
               Monitor your GPA, test your module knowledge, review your weekly self-check
               growth, and stay motivated with study streak badges.
             </p>

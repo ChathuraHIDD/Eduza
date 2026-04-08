@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import StudySessionTracker from '../study/StudySessionTracker'
 
 const ACCENT      = '#22c55e'
 const ACCENT_DARK = '#16a34a'
@@ -52,6 +53,7 @@ function WholeSemesterResult({ data, onBack }) {
     : weeks
 
   const studyDayLabels = studyDays.map((d) => DAY_NAMES[d]).join(', ')
+  const plannedMinutesToday = Math.max(0, Math.round((hoursPerDay || 0) * 60))
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
@@ -71,6 +73,14 @@ function WholeSemesterResult({ data, onBack }) {
           </p>
         </div>
       </div>
+
+      <StudySessionTracker
+        label={semesterLabel}
+        moduleName={modules?.[0]?.name || semesterLabel}
+        sessionType="learn"
+        studyPlanId={data?.studyPlanId || null}
+        plannedMinutesToday={plannedMinutesToday}
+      />
 
       {/* ── Summary banner ── */}
       <div style={{ background: 'linear-gradient(135deg, #0d1a0f 0%, #0f1a12 100%)', border: '1px solid #1a2e1d', borderRadius: 18, padding: '1.5rem 2rem', marginBottom: '1.25rem', position: 'relative', overflow: 'hidden' }}>

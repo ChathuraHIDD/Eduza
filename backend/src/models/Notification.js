@@ -8,6 +8,7 @@ const notificationSchema = new mongoose.Schema(
     message: { type: String, required: true },
     scheduledFor: { type: Date, required: false },
     status: { type: String, enum: ["PENDING", "SENT", "FAILED"], default: "PENDING" },
+    read: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

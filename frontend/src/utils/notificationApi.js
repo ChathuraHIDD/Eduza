@@ -27,3 +27,17 @@ export async function markNotificationRead(id) {
     headers: authHeaders(),
   })
 }
+
+export async function deleteNotification(id) {
+  return apiFetch(`/api/notifications/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+}
+
+export async function clearAllNotifications() {
+  return apiFetch('/api/notifications', {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+}

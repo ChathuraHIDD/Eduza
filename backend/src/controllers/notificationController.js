@@ -51,8 +51,33 @@ const markNotificationRead = asyncHandler(async (req, res) => {
   res.json(notification);
 });
 
+const deleteNotification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const notification = await Notification.findById(id);
+
+  if (!notification) {
+    res.status(404);
+    throw new Error('Notification not found');
+  }
+
+  if (!isNotificationOwner(notification, req.user)) {
+    res.status(403);
+    throw new Error('Not authorized to delete this notification');
+  }
+
+  await notification.deleteOne();
+  res.json({ message: 'Notification deleted' });
+});
+
+const clearAllNotifications = asyncHandler(async (req, res) => {
+  const result = await Notification.deleteMany({ studentId: req.user._id });
+  res.json({ message: 'Notifications cleared', deletedCount: result.deletedCount || 0 });
+});
+
 module.exports = {
   getNotifications,
   createNotification,
   markNotificationRead,
+  deleteNotification,
+  clearAllNotifications,
 };

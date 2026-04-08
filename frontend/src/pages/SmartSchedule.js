@@ -11,6 +11,18 @@ import OtherExamModal from '../components/schedule/OtherExamModal'
 import OtherExamResult from '../components/schedule/OtherExamResult'
 import OtherActivityModal from '../components/schedule/OtherActivityModal'
 import OtherActivityResult from '../components/schedule/OtherActivityResult'
+import { generateAssignmentSchedule } from '../utils/scheduleEngine'
+import { generateMidExamSchedule } from '../utils/midExamEngine'
+import { generateFinalExamSchedule } from '../utils/finalExamEngine'
+import { generateWholeSemesterSchedule } from '../utils/wholeSemesterEngine'
+import { generateOtherExamSchedule } from '../utils/otherExamEngine'
+import { generateOtherActivitySchedule } from '../utils/otherActivityEngine'
+import {
+  createStudyPlan,
+  deleteStudyPlanById,
+  getStudyPlanById,
+  getStudyPlans,
+} from '../utils/studyPlanApi'
 
 const SCHEDULE_ACCENT = '#f97316'
 
@@ -121,6 +133,370 @@ function deriveDifficultyFromTarget(targetPercent) {
   return 1
 }
 
+function getCurrentUserId() {
+  const raw = localStorage.getItem('user')
+  if (!raw) return ''
+
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed?.id || parsed?._id || parsed?.email || ''
+  } catch {
+    return ''
+  }
+}
+
+function toModuleDifficulty(level) {
+  if (typeof level === 'number') {
+    if (level >= 4) return 'hard'
+    if (level <= 2) return 'easy'
+  }
+  return 'medium'
+}
+
+function difficultyToWeakness(level) {
+  if (level === 'hard') return 4
+  if (level === 'easy') return 2
+  return 3
+}
+
+function difficultyToPrep(level) {
+  if (level === 'hard') return 2
+  if (level === 'easy') return 4
+  return 3
+}
+
+function difficultyToSemesterLevel(level) {
+  if (typeof level === 'number' && Number.isFinite(level)) return level
+  if (level === 'hard') return 4
+  if (level === 'easy') return 2
+  return 3
+}
+
+function parseGradeLikeValue(value) {
+  const text = String(value || '').trim()
+  if (/^(A\+|A|B\+|B|C\+|C|D|F)$/i.test(text)) return text.toUpperCase()
+  return ''
+}
+
+function parseNumericLikeValue(value, fallback) {
+  const parsed = Number(String(value || '').replace('%', ''))
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function getPlanScheduleType(plan) {
+  if (plan?.uiScheduleType) return plan.uiScheduleType
+
+  const title = String(plan?.title || '').toLowerCase()
+  const scopeType = String(plan?.scopeType || '').toLowerCase()
+
+  if (scopeType === 'assignment') return 'assignment'
+  if (title.includes('mid exam') || title.includes('mid-exam')) return 'mid-exam'
+  if (title.includes('final exam') || title.includes('final-exam')) return 'final-exam'
+  if (title.includes('other exam') || title.includes('other-exam')) return 'other-exam'
+  if (title.includes('whole semester') || title.includes('semester')) return 'whole-semester'
+  if (title.includes('activity') || title.includes('goal')) return 'other-activity'
+  return scopeType === 'semester' ? 'whole-semester' : 'other-exam'
+}
+
+function getPlanStudyTime(plan) {
+  const preferred = plan?.preferences?.preferredFocusBlocks?.[0]
+  if (preferred === 'morning' || preferred === 'night') return preferred
+  if (plan?.uiScheduleData?.studyTime === 'morning' || plan?.uiScheduleData?.studyTime === 'night') {
+    return plan.uiScheduleData.studyTime
+  }
+  return 'morning'
+}
+
+function getPlanHoursPerDay(plan) {
+  const hours = Number(plan?.availability?.defaultDailyHours)
+  if (Number.isFinite(hours) && hours > 0) return hours
+
+  const totalDays = Number(plan?.summary?.totalDays) || 1
+  const totalHours = Number(plan?.summary?.totalStudyHours) || 3
+  return Number((totalHours / totalDays).toFixed(2)) || 3
+}
+
+function getPlanHoursPerWeek(plan) {
+  const totalHours = Number(plan?.summary?.totalStudyHours)
+  const totalDays = Number(plan?.summary?.totalDays) || 1
+  const totalWeeks = Math.max(1, Math.ceil(totalDays / 7))
+  if (Number.isFinite(totalHours) && totalHours > 0) {
+    return Math.max(1, Math.round(totalHours / totalWeeks))
+  }
+
+  return Math.max(1, Math.round(getPlanHoursPerDay(plan) * 3))
+}
+
+function getPlanPerformanceType(plan) {
+  return parseGradeLikeValue(plan?.targetGrade) ? 'grade' : 'mark'
+}
+
+function getPlanGrade(plan) {
+  const target = parseGradeLikeValue(plan?.targetGrade)
+  return target || 'B'
+}
+
+function getPlanMark(plan) {
+  return parseNumericLikeValue(plan?.targetGrade, 70)
+}
+
+function getPlanPrimaryModule(plan) {
+  return Array.isArray(plan?.modules) && plan.modules.length > 0 ? plan.modules[0] : null
+}
+
+function getPlanFallbackTitle(plan) {
+  return String(plan?.title || 'Saved Schedule').replace(/\s*plan\s*$/i, '').trim() || 'Saved Schedule'
+}
+
+function getPlanExams(plan) {
+  const modules = Array.isArray(plan?.modules) ? plan.modules : []
+  const fallbackName = getPlanFallbackTitle(plan)
+  const source = modules.length > 0 ? modules : [{ name: fallbackName, dueDate: plan?.targetDate, difficulty: 'medium' }]
+
+  return source.map((module, index) => ({
+    id: module?._id || module?.id || `${index}`,
+    subject: module?.name || fallbackName,
+    date: module?.dueDate || plan?.targetDate || new Date(),
+    weakness: difficultyToWeakness(module?.difficulty),
+    prep: difficultyToPrep(module?.difficulty),
+    notes: module?.notes || '',
+  }))
+}
+
+function getPlanModulesForSemester(plan) {
+  const modules = Array.isArray(plan?.modules) ? plan.modules : []
+  const fallbackName = getPlanFallbackTitle(plan)
+  return (modules.length > 0 ? modules : [{ name: fallbackName, dueDate: plan?.targetDate, difficulty: 'medium' }]).map((module, index) => ({
+    id: module?._id || module?.id || `${index}`,
+    name: module?.name || fallbackName,
+    examDate: module?.dueDate || plan?.targetDate || new Date(),
+    difficulty: difficultyToSemesterLevel(module?.difficulty),
+  }))
+}
+
+function buildScheduleFromPlan(plan) {
+  if (!plan) return null
+
+  if (plan.uiScheduleType && plan.uiScheduleData) {
+    return { type: plan.uiScheduleType, data: plan.uiScheduleData }
+  }
+
+  const type = getPlanScheduleType(plan)
+  const hoursPerDay = getPlanHoursPerDay(plan)
+  const studyTime = getPlanStudyTime(plan)
+  const performanceType = getPlanPerformanceType(plan)
+  const grade = getPlanGrade(plan)
+  const mark = getPlanMark(plan)
+  const primaryModule = getPlanPrimaryModule(plan)
+  const targetDate = plan?.targetDate || primaryModule?.dueDate || new Date()
+  const startDate = plan?.startDate || new Date()
+
+  switch (type) {
+    case 'assignment':
+      return {
+        type,
+        data: generateAssignmentSchedule({
+          subject: primaryModule?.name || getPlanFallbackTitle(plan),
+          dueDate: targetDate,
+          hoursPerDay,
+          studyTime,
+          performanceType,
+          grade,
+          mark,
+        }),
+      }
+
+    case 'mid-exam':
+      return {
+        type,
+        data: generateMidExamSchedule({
+          exams: getPlanExams(plan),
+          hoursPerDay,
+          studyTime,
+          performanceType,
+          grade,
+          mark,
+        }),
+      }
+
+    case 'final-exam':
+      return {
+        type,
+        data: generateFinalExamSchedule({
+          exams: getPlanExams(plan),
+          hoursPerDay,
+          studyTime,
+          performanceType,
+          grade,
+          mark,
+        }),
+      }
+
+    case 'whole-semester':
+      return {
+        type,
+        data: generateWholeSemesterSchedule({
+          semesterLabel: getPlanFallbackTitle(plan),
+          semesterStart: startDate,
+          semesterEnd: targetDate,
+          modules: getPlanModulesForSemester(plan),
+          hoursPerDay,
+          studyDays: [0, 1, 2, 3, 4],
+          studyTime,
+          performanceType,
+          grade,
+          mark,
+        }),
+      }
+
+    case 'other-activity':
+      return {
+        type,
+        data: generateOtherActivitySchedule({
+          goalId: 'custom',
+          goalName: getPlanFallbackTitle(plan),
+          goalCategoryName: 'Saved Goal',
+          targetDate,
+          currentStatus: 0,
+          hoursPerWeek: getPlanHoursPerWeek(plan),
+          weeklyCommitmentDays: [1, 3, 5],
+          milestones: (plan?.summary?.moduleBreakdown || plan?.modules || [])
+            .map((entry) => entry.moduleName || entry.name)
+            .filter(Boolean)
+            .slice(0, 6),
+          isSavingsGoal: false,
+          targetAmount: null,
+          currentSavedAmount: 0,
+          currency: '$',
+          studyTime,
+        }),
+      }
+
+    case 'other-exam':
+    default:
+      return {
+        type: 'other-exam',
+        data: generateOtherExamSchedule({
+          examTypeName: getPlanFallbackTitle(plan),
+          exams: getPlanExams(plan),
+          hoursPerDay,
+          studyTime,
+          currentProgress: 0,
+          performanceType,
+          grade,
+          mark,
+        }),
+      }
+  }
+}
+
+function buildStudyPlanPayload(type, scheduleData, userId) {
+  const now = new Date()
+  const scopeType =
+    type === 'assignment' ? 'assignment' :
+    (type === 'whole-semester' || type === 'other-activity') ? 'semester' :
+    'exam'
+
+  const title =
+    type === 'assignment' ? `${scheduleData?.subject || 'Assignment'} Plan` :
+    type === 'mid-exam' ? 'Mid Exam Plan' :
+    type === 'final-exam' ? 'Final Exam Plan' :
+    type === 'whole-semester' ? `${scheduleData?.semesterLabel || 'Whole Semester'} Plan` :
+    type === 'other-exam' ? `${scheduleData?.examTypeName || 'Other Exam'} Plan` :
+    `${scheduleData?.goalName || 'Other Activity'} Plan`
+
+  const modules =
+    type === 'assignment'
+      ? [
+          {
+            name: scheduleData?.subject || 'Assignment',
+            type: 'assignment',
+            dueDate: scheduleData?.dueDate || now,
+            estimatedHours: scheduleData?.totalHours || scheduleData?.hoursPerDay || 1,
+            difficulty: 'medium',
+            priority: 4,
+          },
+        ]
+      : type === 'whole-semester'
+      ? (scheduleData?.modules || []).map((module) => ({
+          name: module?.name || 'Module',
+          type: 'semester',
+          dueDate: module?.examDate || scheduleData?.semesterEnd || now,
+          estimatedHours: module?.totalHours || scheduleData?.hoursPerDay || 2,
+          difficulty: toModuleDifficulty(module?.difficulty),
+          priority: 3,
+        }))
+      : type === 'other-activity'
+      ? [
+          {
+            name: scheduleData?.goalName || 'Activity Goal',
+            type: 'semester',
+            dueDate: scheduleData?.targetDate || now,
+            estimatedHours: scheduleData?.totalHours || scheduleData?.hoursPerWeek || 2,
+            difficulty: 'medium',
+            priority: 3,
+          },
+        ]
+      : (scheduleData?.exams || []).map((exam) => ({
+          name: exam?.subject || 'Exam',
+          type: 'exam',
+          dueDate: exam?.date || now,
+          estimatedHours: scheduleData?.hoursPerDay || 2,
+          difficulty: toModuleDifficulty(exam?.weakness),
+          priority: 4,
+        }))
+
+  const startDate =
+    scheduleData?.semesterStart ||
+    scheduleData?.weeks?.[0]?.weekStart ||
+    scheduleData?.days?.[0]?.date ||
+    now
+
+  const targetDate =
+    scheduleData?.targetDate ||
+    scheduleData?.semesterEnd ||
+    scheduleData?.dueDate ||
+    scheduleData?.days?.[scheduleData?.days?.length - 1]?.date ||
+    now
+
+  return {
+    user: userId,
+    title,
+    scopeType,
+    uiScheduleType: type,
+    uiScheduleData: scheduleData,
+    targetGrade: scheduleData?.targetLabel || undefined,
+    startDate,
+    targetDate,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    availability: {
+      defaultDailyHours:
+        scheduleData?.hoursPerDay ||
+        (scheduleData?.hoursPerWeek ? Number((scheduleData.hoursPerWeek / 7).toFixed(2)) : 3),
+      weekendDailyHours: scheduleData?.hoursPerDay || 4,
+      blackoutDates: [],
+      dailyOverrides: [],
+    },
+    preferences: {
+      sessionLengthMinutes: 60,
+      maxDailySessions: 4,
+      fatigueSensitivity: 'medium',
+      includeBufferDays: 1,
+      preferredFocusBlocks: scheduleData?.studyTime ? [scheduleData.studyTime] : [],
+    },
+    modules: modules.length > 0 ? modules : [
+      {
+        name: title,
+        type: scopeType,
+        dueDate: targetDate,
+        estimatedHours: 2,
+        difficulty: 'medium',
+        priority: 3,
+      },
+    ],
+  }
+}
+
 async function predictTaskDuration({ current_progress, target_progress, past_study_pace, difficulty, daily_hours }) {
   const baseUrl = (
     import.meta?.env?.VITE_API_BASE_URL ||
@@ -152,6 +528,7 @@ async function predictTaskDuration({ current_progress, target_progress, past_stu
 }
 
 function SmartSchedule() {
+  const userId = getCurrentUserId()
   const [modalOpen, setModalOpen] = useState(false)
   const [midExamModalOpen, setMidExamModalOpen] = useState(false)
   const [finalExamModalOpen, setFinalExamModalOpen] = useState(false)
@@ -164,6 +541,135 @@ function SmartSchedule() {
   // optional UI state (won't break anything)
   const [mlLoading, setMlLoading] = useState(false)
   const [mlError, setMlError] = useState('')
+  const [saveLoading, setSaveLoading] = useState(false)
+  const [saveMessage, setSaveMessage] = useState('')
+  const [saveError, setSaveError] = useState('')
+  const [pastLoading, setPastLoading] = useState(false)
+  const [pastSchedules, setPastSchedules] = useState([])
+  const [showPastSchedules, setShowPastSchedules] = useState(false)
+  const [pastScheduleSearch, setPastScheduleSearch] = useState('')
+  const [openingPlanId, setOpeningPlanId] = useState('')
+  const [deletingPlanId, setDeletingPlanId] = useState('')
+
+  const filteredPastSchedules = pastSchedules.filter((plan) => {
+    const query = pastScheduleSearch.trim().toLowerCase()
+    if (!query) return true
+
+    return [
+      plan.title,
+      plan.scopeType,
+      plan.targetGrade,
+      plan.uiScheduleType,
+      plan.uiScheduleData?.subject,
+      plan.uiScheduleData?.examTypeName,
+      plan.uiScheduleData?.goalName,
+      plan.uiScheduleData?.semesterLabel,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query))
+  })
+
+  const loadPastSchedules = async () => {
+    setPastLoading(true)
+    try {
+      const plans = await getStudyPlans(userId)
+      setPastSchedules(Array.isArray(plans) ? plans : [])
+    } catch (error) {
+      setSaveError(error?.message || 'Failed to load past schedules')
+    } finally {
+      setPastLoading(false)
+    }
+  }
+
+  const persistSchedule = async (type, scheduleData) => {
+    if (!userId) {
+      setSaveError('Please login first. Could not save this schedule.')
+      setSaveMessage('')
+      return
+    }
+
+    setSaveLoading(true)
+    setSaveError('')
+    setSaveMessage('')
+
+    try {
+      const payload = buildStudyPlanPayload(type, scheduleData, userId)
+      const savedPlan = await createStudyPlan(payload)
+      setSaveMessage('Schedule saved to database.')
+      if (savedPlan?._id) {
+        setGeneratedSchedule((prev) => (prev ? { ...prev, studyPlanId: savedPlan._id } : prev))
+      }
+      if (showPastSchedules) {
+        await loadPastSchedules()
+      }
+    } catch (error) {
+      setSaveError(error?.message || 'Failed to save schedule')
+    } finally {
+      setSaveLoading(false)
+    }
+  }
+
+  const handlePastSchedulesToggle = async () => {
+    const next = !showPastSchedules
+    setShowPastSchedules(next)
+    if (next) setPastScheduleSearch('')
+
+    if (!next) return
+    if (!userId) {
+      setSaveError('Please login to view your past schedules.')
+      return
+    }
+
+    await loadPastSchedules()
+  }
+
+  const handleOpenPastSchedule = async (id) => {
+    setOpeningPlanId(id)
+    setSaveError('')
+
+    try {
+      const plan = await getStudyPlanById(id)
+      const rebuilt = buildScheduleFromPlan(plan)
+      if (!rebuilt?.type || !rebuilt?.data) {
+        setSaveError('This schedule could not be reopened.')
+        return
+      }
+
+      setScheduleType(rebuilt.type)
+      setGeneratedSchedule({ ...rebuilt.data, studyPlanId: plan._id })
+      setShowPastSchedules(false)
+      setPastScheduleSearch('')
+    } catch (error) {
+      setSaveError(error?.message || 'Failed to open schedule details')
+    } finally {
+      setOpeningPlanId('')
+    }
+  }
+
+  const handleDeletePastSchedule = async (id, event) => {
+    event.stopPropagation()
+
+    const isConfirmed = window.confirm('Are you sure you want to delete this schedule?')
+    if (!isConfirmed) return
+
+    setDeletingPlanId(id)
+    setSaveError('')
+
+    try {
+      await deleteStudyPlanById(id)
+      setSaveMessage('Schedule deleted successfully.')
+      await loadPastSchedules()
+    } catch (error) {
+      setSaveError(error?.message || 'Failed to delete schedule')
+    } finally {
+      setDeletingPlanId('')
+    }
+  }
+
+  const handleClosePastSchedules = () => {
+    setShowPastSchedules(false)
+    setPastScheduleSearch('')
+  }
 
   const handleTypeSelect = (type) => {
     if (!type.available) return
@@ -182,6 +688,7 @@ function SmartSchedule() {
     setScheduleType('assignment')
     setMlError('')
     setGeneratedSchedule(scheduleData)
+    let scheduleToPersist = scheduleData
 
     // --- derive ML inputs from modal form (scheduleData usually contains these) ---
     // NOTE: scheduleEngine output should include subject, hoursPerDay, targetLabel etc.
@@ -236,42 +743,59 @@ function SmartSchedule() {
           inputs: { current_progress, target_progress, past_study_pace, difficulty, daily_hours },
         },
       }))
+      scheduleToPersist = {
+        ...scheduleData,
+        studyPlanId: scheduleData?.studyPlanId || null,
+        ml: {
+          predicted_minutes,
+          predicted_hours,
+          predicted_days,
+          inputs: { current_progress, target_progress, past_study_pace, difficulty, daily_hours },
+        },
+      }
     } catch (e) {
       setMlError(e?.message || 'ML prediction failed')
       // keep schedule usable even if ML fails
     } finally {
       setMlLoading(false)
     }
+
+    await persistSchedule('assignment', scheduleToPersist)
   }
 
-  const handleMidExamGenerate = (scheduleData) => {
+  const handleMidExamGenerate = async (scheduleData) => {
     setMidExamModalOpen(false)
     setScheduleType('mid-exam')
     setGeneratedSchedule(scheduleData)
+    await persistSchedule('mid-exam', scheduleData)
   }
 
-  const handleFinalExamGenerate = (scheduleData) => {
+  const handleFinalExamGenerate = async (scheduleData) => {
     setFinalExamModalOpen(false)
     setScheduleType('final-exam')
     setGeneratedSchedule(scheduleData)
+    await persistSchedule('final-exam', scheduleData)
   }
 
-  const handleWholeSemesterGenerate = (scheduleData) => {
+  const handleWholeSemesterGenerate = async (scheduleData) => {
     setWholeSemesterModalOpen(false)
     setScheduleType('whole-semester')
     setGeneratedSchedule(scheduleData)
+    await persistSchedule('whole-semester', scheduleData)
   }
 
-  const handleOtherExamGenerate = (scheduleData) => {
+  const handleOtherExamGenerate = async (scheduleData) => {
     setOtherExamModalOpen(false)
     setScheduleType('other-exam')
     setGeneratedSchedule(scheduleData)
+    await persistSchedule('other-exam', scheduleData)
   }
 
-  const handleOtherActivityGenerate = (scheduleData) => {
+  const handleOtherActivityGenerate = async (scheduleData) => {
     setOtherActivityModalOpen(false)
     setScheduleType('other-activity')
     setGeneratedSchedule(scheduleData)
+    await persistSchedule('other-activity', scheduleData)
   }
 
   const handleReset = () => {
@@ -385,7 +909,193 @@ function SmartSchedule() {
         <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
           Select a schedule type below. Our AI will generate a personalised, day-by-day study plan tailored to your goals.
         </p>
+        <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <button
+            onClick={handlePastSchedulesToggle}
+            style={{
+              border: '1px solid rgba(255,255,255,0.35)',
+              background: 'rgba(255,255,255,0.16)',
+              color: '#fff',
+              borderRadius: 10,
+              padding: '8px 14px',
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            {showPastSchedules ? 'Hide Past Schedules' : 'View Past Schedules'}
+          </button>
+
+          {saveLoading && <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>Saving schedule...</span>}
+          {!saveLoading && saveMessage && <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>{saveMessage}</span>}
+          {!saveLoading && saveError && <span style={{ fontSize: 12, color: '#fee2e2' }}>{saveError}</span>}
+        </div>
       </div>
+
+      {showPastSchedules && (
+        <div
+          onClick={handleClosePastSchedules}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            background: 'rgba(0,0,0,0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 860,
+              maxHeight: '88vh',
+              overflow: 'hidden',
+              background: '#ffffff',
+              borderRadius: 18,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div style={{ padding: '1rem 1.15rem', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, color: '#111827' }}>Past Schedules</h3>
+                <div style={{ marginTop: 3, fontSize: 12, color: '#6b7280' }}>Search, open, or delete saved schedules</div>
+              </div>
+              <button
+                type="button"
+                onClick={handleClosePastSchedules}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  border: '1px solid #e5e7eb',
+                  background: '#fff',
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                  fontSize: 18,
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ padding: '1rem 1.15rem 0.75rem' }}>
+              <input
+                value={pastScheduleSearch}
+                onChange={(event) => setPastScheduleSearch(event.target.value)}
+                placeholder="Search by title, type, subject, or goal..."
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 12,
+                  padding: '11px 14px',
+                  fontSize: 14,
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            <div style={{ padding: '0 1.15rem 1.15rem', overflowY: 'auto' }}>
+              {pastLoading && <div style={{ fontSize: 13, color: '#6b7280', padding: '0.5rem 0' }}>Loading...</div>}
+
+              {!pastLoading && pastSchedules.length === 0 && (
+                <div style={{ fontSize: 13, color: '#6b7280', padding: '0.5rem 0' }}>No schedules saved yet.</div>
+              )}
+
+              {!pastLoading && pastSchedules.length > 0 && filteredPastSchedules.length === 0 && (
+                <div style={{ fontSize: 13, color: '#6b7280', padding: '0.5rem 0' }}>No schedules match your search.</div>
+              )}
+
+              {!pastLoading && filteredPastSchedules.length > 0 && (
+                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                  {filteredPastSchedules.map((plan) => (
+                    <div
+                      key={plan._id}
+                      onClick={() => handleOpenPastSchedule(plan._id)}
+                      style={{
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 14,
+                        padding: '0.85rem 0.95rem',
+                        background: '#fafafa',
+                        cursor: openingPlanId === plan._id ? 'wait' : 'pointer',
+                        transition: 'border-color 0.15s ease, transform 0.15s ease',
+                      }}
+                      onMouseEnter={(event) => {
+                        if (openingPlanId === plan._id || deletingPlanId === plan._id) return
+                        event.currentTarget.style.borderColor = '#cbd5e1'
+                        event.currentTarget.style.transform = 'translateY(-1px)'
+                      }}
+                      onMouseLeave={(event) => {
+                        event.currentTarget.style.borderColor = '#e5e7eb'
+                        event.currentTarget.style.transform = 'translateY(0)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{plan.title}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleOpenPastSchedule(plan._id)
+                            }}
+                            disabled={openingPlanId === plan._id || deletingPlanId === plan._id}
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              border: '1px solid #d1d5db',
+                              background: '#fff',
+                              color: '#111827',
+                              borderRadius: 8,
+                              padding: '5px 9px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {openingPlanId === plan._id ? 'Opening...' : 'Open'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => handleDeletePastSchedule(plan._id, event)}
+                            disabled={deletingPlanId === plan._id || openingPlanId === plan._id}
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              border: '1px solid rgba(239,68,68,0.25)',
+                              background: 'rgba(239,68,68,0.08)',
+                              color: '#ef4444',
+                              borderRadius: 8,
+                              padding: '5px 9px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {deletingPlanId === plan._id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6, fontSize: 12, color: '#6b7280' }}>
+                        <span>Type: {plan.scopeType}</span>
+                        <span>Modules: {Array.isArray(plan.modules) ? plan.modules.length : 0}</span>
+                        <span>Created: {new Date(plan.createdAt).toLocaleString()}</span>
+                        <span>Target: {plan.targetDate ? new Date(plan.targetDate).toLocaleDateString() : '-'}</span>
+                      </div>
+                      <div style={{ marginTop: 6, fontSize: 11, color: '#9ca3af' }}>
+                        Click card or Open to view full details
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Schedule type grid */}
       <div style={{

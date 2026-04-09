@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { generateMidExamSchedule } from '../../utils/midExamEngine'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
+import Papa from 'papaparse'
 
 const GRADES = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D', 'F']
 const gradeColors = {
@@ -36,6 +37,15 @@ function normalizeHeader(value) {
     .replace(/\s+/g, ' ')
 }
 
+function excelSerialToDate(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return ''
+  const base = Date.UTC(1899, 11, 30)
+  const millis = Math.round(value * 24 * 60 * 60 * 1000)
+  const dt = new Date(base + millis)
+  if (Number.isNaN(dt.getTime())) return ''
+  return dt.toISOString().split('T')[0]
+}
+
 function toInputDate(value) {
   if (!value && value !== 0) return ''
 
@@ -44,11 +54,7 @@ function toInputDate(value) {
   }
 
   if (typeof value === 'number') {
-    const parsed = XLSX.SSF.parse_date_code(value)
-    if (parsed && parsed.y && parsed.m && parsed.d) {
-      const dt = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d))
-      return dt.toISOString().split('T')[0]
-    }
+    return excelSerialToDate(value)
   }
 
   const text = String(value).trim()
@@ -80,12 +86,7 @@ function toInputDate(value) {
   return ''
 }
 
-function parseExamRowsFromWorkbook(workbook) {
-  const firstSheetName = workbook.SheetNames?.[0]
-  if (!firstSheetName) return []
-
-  const sheet = workbook.Sheets[firstSheetName]
-  const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false })
+function parseExamRowsFromMatrix(matrix) {
   if (!matrix.length) return []
 
   const subjectCandidates = [
@@ -156,6 +157,18 @@ function parseExamRowsFromWorkbook(workbook) {
   }
 
   return parsed
+}
+
+function parseExamRowsFromWorkbook(workbook) {
+  const worksheet = workbook.worksheets?.[0]
+  if (!worksheet) return []
+
+  const matrix = []
+  worksheet.eachRow({ includeEmpty: false }, (row) => {
+    matrix.push(row.values.slice(1))
+  })
+
+  return parseExamRowsFromMatrix(matrix)
 }
 
 let nextId = 1
@@ -267,16 +280,28 @@ function MidExamModal({ onClose, onGenerate }) {
     setUploadInfo('')
     setUploadError('')
 
-    const allowed = /\.(xlsx|xls|csv)$/i.test(file.name)
+    const allowed = /\.(xlsx|csv)$/i.test(file.name)
     if (!allowed) {
-      setUploadError('Please upload an Excel or CSV file (.xlsx, .xls, .csv).')
+      setUploadError('Please upload an Excel or CSV file (.xlsx, .csv).')
       return
     }
 
     try {
-      const buffer = await file.arrayBuffer()
-      const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
-      const imported = parseExamRowsFromWorkbook(workbook)
+      let imported = []
+      if (/\.csv$/i.test(file.name)) {
+        const text = await file.text()
+        const csv = Papa.parse(text, { skipEmptyLines: true })
+        if (csv.errors?.length) {
+          setUploadError('Failed to parse CSV. Please check file format and try again.')
+          return
+        }
+        imported = parseExamRowsFromMatrix(csv.data || [])
+      } else {
+        const buffer = await file.arrayBuffer()
+        const workbook = new ExcelJS.Workbook()
+        await workbook.xlsx.load(buffer)
+        imported = parseExamRowsFromWorkbook(workbook)
+      }
 
       if (!imported.length) {
         setUploadError('Could not detect module and date columns. Use columns like Module/Subject and Date/Exam Date.')
@@ -446,7 +471,7 @@ function MidExamModal({ onClose, onGenerate }) {
             {timetableMode === 'upload' && (
               <div>
                 <input
-                  ref={fileRef} type="file" accept=".xlsx,.xls,.csv"
+                  ref={fileRef} type="file" accept=".xlsx,.csv"
                   style={{ display: 'none' }}
                   onChange={(e) => { void handleFile(e.target.files[0]) }}
                 />

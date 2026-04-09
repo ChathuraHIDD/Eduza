@@ -65,7 +65,6 @@ ${keyPoints.join('\n')}
 
   return (
     <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px" }}>
-      {/* Header Section */}
       <div
         style={{
           background: "linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)",

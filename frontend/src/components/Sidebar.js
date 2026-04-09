@@ -77,7 +77,7 @@ function SidebarContent({ onClose }) {
       ? '/coordinator'
       : user?.role === 'coordinator'
       ? '/coordinator'
-      : '/'
+      : '/dashboard'
 
   const studentNavItems = [
     {
@@ -137,6 +137,11 @@ function SidebarContent({ onClose }) {
     {
       label: 'Module Quiz Manager',
       path: '/lecturer/module-quiz',
+      icon: moduleQuizIcon,
+    },
+    {
+      label: 'Module Self Check',
+      path: '/lecturer/module-selfcheck',
       icon: moduleQuizIcon,
     },
   ]
@@ -250,8 +255,25 @@ function SidebarContent({ onClose }) {
           justifyContent: 'space-between',
         }}
       >
-        <NavLink to={homePath} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <BrandLogo width={128} height={44} rounded={12} scale={1.08} />
+        <NavLink to={homePath} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <BrandLogo
+            width={60}
+            height={60}
+            rounded={18}
+            scale={1}
+            showWordmark={false}
+            bg="#ffffff"
+            padding={10}
+            imageStyle={{ borderRadius: 16 }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: '#111827', letterSpacing: '-0.4px' }}>
+              EDUZA
+            </span>
+            <span style={{ fontSize: 12, color: '#6b7280' }}>
+              Student Dashboard
+            </span>
+          </div>
         </NavLink>
 
         <button

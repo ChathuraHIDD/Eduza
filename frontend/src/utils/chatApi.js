@@ -45,3 +45,38 @@ export const createGroupWithMembers = async (payload) => {
         body: JSON.stringify(payload),
     });
 };
+
+export const renameGroupRequest = async (groupId, payload) => {
+    const token = getAuthToken();
+  
+    return apiFetch(`/api/chat/groups/${groupId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  };
+  
+  export const addGroupMembersRequest = async (groupId, memberIds) => {
+    const token = getAuthToken();
+  
+    return apiFetch(`/api/chat/groups/${groupId}/members`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ memberIds }),
+    });
+  };
+  
+  export const removeGroupMemberRequest = async (groupId, userId) => {
+    const token = getAuthToken();
+  
+    return apiFetch(`/api/chat/groups/${groupId}/members/${userId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  };

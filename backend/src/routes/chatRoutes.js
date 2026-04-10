@@ -5,13 +5,15 @@ const {
   getMyGroups,
   getGroupMessages,
   sendGroupMessage,
-  createGroup
+  createGroup,
+  createGroupWithMembers,
 } = require("../controllers/chatController");
 
 const { protect } = require("../middleware/authMiddleware");
 
 router.get("/groups", protect, getMyGroups);
 router.post("/groups", protect, createGroup);
+router.post("/groups/create-with-members", protect, createGroupWithMembers);
 router.get("/groups/:groupId/messages", protect, getGroupMessages);
 router.post("/groups/:groupId/messages", protect, sendGroupMessage);
 

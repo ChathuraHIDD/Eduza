@@ -1,95 +1,101 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import EmojiPicker from "emoji-picker-react";
 import "./GroupChat.css";
+import {
+  getMyGroups,
+  getGroupMessages,
+  sendGroupMessage,
+} from "../../utils/chatApi";
 
 function GroupChat() {
   const storedUser = JSON.parse(localStorage.getItem("user")) || {};
 
   const currentUser = {
-    id: storedUser._id || storedUser.id || 1,
+    id: storedUser._id || storedUser.id || "",
     name: storedUser.name || storedUser.fullName || storedUser.username || "Saumya",
-    avatar:
-      (storedUser.name || storedUser.fullName || storedUser.username || "S")
-        .charAt(0)
-        .toUpperCase(),
-    status: "available",
+    avatar: (storedUser.name || storedUser.fullName || storedUser.username || "S")
+      .charAt(0)
+      .toUpperCase(),
+    status: "online",
   };
 
-  const chats = [
-    {
-      id: 1,
-      name: "Real estate deals",
-      lastMessage: "Hmm...",
-      time: "11:15",
-      unread: 2,
-      avatar: "R",
-    },
-    {
-      id: 2,
-      name: "Kate Johnson",
-      lastMessage: "I will send the document...",
-      time: "11:35",
-      unread: 0,
-      avatar: "K",
-    },
-  ];
-
-  const members = [
-    { id: 1, name: currentUser.name, role: "Admin", status: "online", avatar: currentUser.avatar },
-    { id: 2, name: "Kate Johnson", role: "Member", status: "online", avatar: "K" },
-    { id: 3, name: "Eva Scott", role: "Member", status: "away", avatar: "E" },
-    { id: 4, name: "Robert", role: "Member", status: "offline", avatar: "R" },
-  ];
-
-  const initialMessages = [
-    {
-      id: 1,
-      senderId: 2,
-      senderName: "Kate Johnson",
-      text: "Hi everyone, let’s start the real estate discussion 😊",
-      time: "11:24 AM",
-      type: "text",
-    },
-    {
-      id: 2,
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      text: "He creates an atmosphere of mystery 😉",
-      time: "11:26 AM",
-      type: "text",
-    },
-  ];
-
-  const [selectedChat, setSelectedChat] = useState(chats[0]);
-  const [messages, setMessages] = useState(initialMessages);
+  const [groups, setGroups] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [members, setMembers] = useState([]);
   const [messageInput, setMessageInput] = useState("");
   const [activeTab, setActiveTab] = useState("messages");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   const fileInputRef = useRef(null);
 
   const typingText = useMemo(() => {
-    return "Robert is typing...";
+    return "";
   }, []);
 
-  const handleSendMessage = () => {
-    if (!messageInput.trim()) return;
+  useEffect(() => {
+    loadGroups();
+  }, []);
 
-    const newMessage = {
-      id: Date.now(),
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      text: messageInput,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      type: "text",
-    };
+  useEffect(() => {
+    if (selectedChat?._id) {
+      loadMessages(selectedChat._id);
+      setMembers(selectedChat.members || []);
+    }
+  }, [selectedChat]);
 
-    setMessages((prev) => [...prev, newMessage]);
-    setMessageInput("");
-    setShowEmojiPicker(false);
+  const loadGroups = async () => {
+    try {
+      setLoadingGroups(true);
+      const data = await getMyGroups();
+
+      const groupList = Array.isArray(data) ? data : data.groups || [];
+      setGroups(groupList);
+
+      if (groupList.length > 0) {
+        setSelectedChat(groupList[0]);
+      }
+    } catch (error) {
+      console.error("Failed to load groups:", error);
+      setGroups([]);
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  const loadMessages = async (groupId) => {
+    try {
+      setLoadingMessages(true);
+      const data = await getGroupMessages(groupId);
+      const messageList = Array.isArray(data) ? data : data.messages || [];
+      setMessages(messageList);
+    } catch (error) {
+      console.error("Failed to load messages:", error);
+      setMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !selectedChat?._id) return;
+
+    try {
+      const payload = {
+        text: messageInput,
+        type: "text",
+      };
+
+      const newMessage = await sendGroupMessage(selectedChat._id, payload);
+
+      setMessages((prev) => [...prev, newMessage]);
+      setMessageInput("");
+      setShowEmojiPicker(false);
+    } catch (error) {
+      console.error("Failed to send message:", error);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -107,28 +113,27 @@ function GroupChat() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file || !selectedChat?._id) return;
 
     const isImage = file.type.startsWith("image/");
     const fileUrl = URL.createObjectURL(file);
 
-    const newFileMessage = {
-      id: Date.now(),
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+    const previewMessage = {
+      _id: Date.now().toString(),
+      sender: {
+        _id: currentUser.id,
+        name: currentUser.name,
+      },
+      createdAt: new Date().toISOString(),
       type: isImage ? "image" : "file",
       fileName: file.name,
       fileSize: `${(file.size / 1024).toFixed(1)} KB`,
       fileUrl,
     };
 
-    setMessages((prev) => [...prev, newFileMessage]);
+    setMessages((prev) => [...prev, previewMessage]);
 
     e.target.value = "";
   };
@@ -137,10 +142,14 @@ function GroupChat() {
     if (msg.type === "image") {
       return (
         <div className={`message-bubble ${isOwn ? "own" : "other"} file-bubble`}>
-          <img src={msg.fileUrl} alt={msg.fileName} className="chat-image-preview" />
+          <img
+            src={msg.fileUrl}
+            alt={msg.fileName || "image"}
+            className="chat-image-preview"
+          />
           <div className="file-details">
-            <strong>{msg.fileName}</strong>
-            <span>{msg.fileSize}</span>
+            <strong>{msg.fileName || "Image"}</strong>
+            <span>{msg.fileSize || ""}</span>
           </div>
         </div>
       );
@@ -155,8 +164,8 @@ function GroupChat() {
         >
           <div className="file-icon">📎</div>
           <div className="file-details">
-            <strong>{msg.fileName}</strong>
-            <span>{msg.fileSize}</span>
+            <strong>{msg.fileName || "File"}</strong>
+            <span>{msg.fileSize || ""}</span>
           </div>
         </a>
       );
@@ -200,38 +209,43 @@ function GroupChat() {
           </div>
 
           <div className="chat-search-box">
-            <input type="text" placeholder="Search" />
+            <input type="text" placeholder="Search groups" />
           </div>
 
-          <div className="chat-list-title">Last chats</div>
+          <div className="chat-list-title">My groups</div>
 
           <div className="chat-list">
-            {chats.map((chat) => (
-              <div
-                key={chat.id}
-                className={`chat-list-item ${selectedChat.id === chat.id ? "active" : ""}`}
-                onClick={() => setSelectedChat(chat)}
-              >
-                <div className="chat-avatar">{chat.avatar}</div>
-
-                <div className="chat-item-content">
-                  <div className="chat-item-top">
-                    <h4>{chat.name}</h4>
-                    <span>{chat.time}</span>
+            {loadingGroups ? (
+              <p>Loading groups...</p>
+            ) : groups.length === 0 ? (
+              <p>No groups found.</p>
+            ) : (
+              groups.map((chat) => (
+                <div
+                  key={chat._id}
+                  className={`chat-list-item ${selectedChat?._id === chat._id ? "active" : ""}`}
+                  onClick={() => setSelectedChat(chat)}
+                >
+                  <div className="chat-avatar">
+                    {(chat.name || "G").charAt(0).toUpperCase()}
                   </div>
-                  <p>{chat.lastMessage}</p>
-                </div>
 
-                {chat.unread > 0 && <div className="chat-unread">{chat.unread}</div>}
-              </div>
-            ))}
+                  <div className="chat-item-content">
+                    <div className="chat-item-top">
+                      <h4>{chat.name}</h4>
+                    </div>
+                    <p>{chat.lastMessage || "No messages yet"}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </aside>
 
         <section className="chat-center">
           <div className="chat-center-top">
             <div>
-              <h2>{selectedChat.name}</h2>
+              <h2>{selectedChat?.name || "Select a group"}</h2>
               <p>{members.length} participants</p>
             </div>
 
@@ -252,39 +266,60 @@ function GroupChat() {
           </div>
 
           <div className="chat-messages-area">
-            {messages.map((msg) => {
-              const isOwn = msg.senderId === currentUser.id;
+            {loadingMessages ? (
+              <p>Loading messages...</p>
+            ) : messages.length === 0 ? (
+              <p>No messages yet.</p>
+            ) : (
+              messages.map((msg) => {
+                const isOwn =
+                  msg.sender?._id === currentUser.id || msg.senderId === currentUser.id;
 
-              return (
-                <div
-                  key={msg.id}
-                  className={`message-row ${isOwn ? "own-message" : "other-message"}`}
-                >
-                  {!isOwn && (
-                    <div className="message-avatar">{msg.senderName.charAt(0)}</div>
-                  )}
-
-                  <div className="message-bubble-wrap">
+                return (
+                  <div
+                    key={msg._id || msg.id}
+                    className={`message-row ${isOwn ? "own-message" : "other-message"}`}
+                  >
                     {!isOwn && (
-                      <div className="message-meta">
-                        <span className="sender-name">{msg.senderName}</span>
-                        <span className="message-time">{msg.time}</span>
+                      <div className="message-avatar">
+                        {(msg.sender?.name || msg.senderName || "U").charAt(0)}
                       </div>
                     )}
 
-                    {renderMessageContent(msg, isOwn)}
+                    <div className="message-bubble-wrap">
+                      {!isOwn && (
+                        <div className="message-meta">
+                          <span className="sender-name">
+                            {msg.sender?.name || msg.senderName || "User"}
+                          </span>
+                          <span className="message-time">
+                            {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                      )}
 
-                    {isOwn && (
-                      <div className="message-meta own-meta">
-                        <span className="message-time">{msg.time}</span>
-                      </div>
-                    )}
+                      {renderMessageContent(msg, isOwn)}
+
+                      {isOwn && (
+                        <div className="message-meta own-meta">
+                          <span className="message-time">
+                            {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
 
-            <div className="typing-text">{typingText}</div>
+            {typingText && <div className="typing-text">{typingText}</div>}
           </div>
 
           <div className="chat-input-wrapper">
@@ -335,17 +370,19 @@ function GroupChat() {
           </div>
 
           <div className="members-list">
-            {members.map((member) => (
-              <div key={member.id} className="member-item">
+            {members.map((member, index) => (
+              <div key={member._id || index} className="member-item">
                 <div className="member-left">
-                  <div className="member-avatar">{member.avatar}</div>
+                  <div className="member-avatar">
+                    {(member.name || "U").charAt(0).toUpperCase()}
+                  </div>
                   <div>
-                    <h4>{member.name}</h4>
-                    <span>{member.role}</span>
+                    <h4>{member.name || "Unknown User"}</h4>
+                    <span>{member.role || "Member"}</span>
                   </div>
                 </div>
 
-                <div className={`status-dot ${member.status}`}></div>
+                <div className={`status-dot ${member.status || "offline"}`}></div>
               </div>
             ))}
           </div>

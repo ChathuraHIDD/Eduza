@@ -15,6 +15,7 @@ const moduleRoutes = require("./routes/moduleRoutes");
 const kuppiSessionRoutes = require("./routes/kuppiSessionRoutes");
 const profileRequestRoutes = require("./routes/profileRequestRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const chatUserRoutes = require("./routes/chatUserRoutes");
 
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
@@ -49,6 +50,7 @@ app.use("/api/modules", moduleRoutes);
 app.use("/api/kuppi-sessions", kuppiSessionRoutes);
 app.use("/api/profile-requests", profileRequestRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/chat-users", chatUserRoutes);
 
 //Login and Registration
 app.use("/api/auth", authRoutes); // login/register

@@ -6,6 +6,10 @@ import {
   getGroupMessages,
   sendGroupMessage,
 } from "../../utils/chatApi";
+import {
+  searchChatUsers,
+  createOrOpenDirectChat,
+} from "../../utils/chatUserApi";
 import socket from "../../utils/socket";
 
 function GroupChat() {
@@ -40,8 +44,13 @@ function GroupChat() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [typingUser, setTypingUser] = useState("");
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchedUsers, setSearchedUsers] = useState([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
   const messageEndRef = useRef(null);
 
   useEffect(() => {
@@ -70,6 +79,14 @@ function GroupChat() {
         if (exists) return prev;
         return [...prev, message];
       });
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group._id === selectedChat._id
+            ? { ...group, lastMessage: message.text || "New message" }
+            : group
+        )
+      );
     };
 
     const handleUserTyping = (data) => {
@@ -164,7 +181,8 @@ function GroupChat() {
 
       setMessages((prev) => {
         const exists = prev.some(
-          (item) => (item._id || item.id) === (savedMessage._id || savedMessage.id)
+          (item) =>
+            (item._id || item.id) === (savedMessage._id || savedMessage.id)
         );
         if (exists) return prev;
         return [...prev, savedMessage];
@@ -261,6 +279,52 @@ function GroupChat() {
     e.target.value = "";
   };
 
+  const handleUserSearch = async (value) => {
+    setSearchTerm(value);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (!value.trim()) {
+      setSearchedUsers([]);
+      setSearchingUsers(false);
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        setSearchingUsers(true);
+        const users = await searchChatUsers(value.trim());
+        setSearchedUsers(Array.isArray(users) ? users : []);
+      } catch (error) {
+        console.error("Failed to search users:", error);
+        setSearchedUsers([]);
+      } finally {
+        setSearchingUsers(false);
+      }
+    }, 400);
+  };
+
+  const handleStartDirectChat = async (user) => {
+    try {
+      const chat = await createOrOpenDirectChat(user._id);
+
+      setGroups((prev) => {
+        const exists = prev.some((group) => group._id === chat._id);
+        if (exists) return prev;
+        return [chat, ...prev];
+      });
+
+      setSelectedChat(chat);
+      setMembers(chat.members || []);
+      setSearchTerm("");
+      setSearchedUsers([]);
+    } catch (error) {
+      console.error("Failed to start direct chat:", error);
+    }
+  };
+
   const renderMessageContent = (msg, isOwn) => {
     if (msg.type === "image") {
       return (
@@ -303,6 +367,34 @@ function GroupChat() {
     );
   };
 
+  const isDirectChat = (chat) => {
+    return chat?.members && chat.members.length === 2;
+  };
+
+  const getDirectChatOtherUser = (chat) => {
+    if (!isDirectChat(chat)) return null;
+
+    return chat.members.find(
+      (member) => (member._id || member.id) !== currentUser.id
+    );
+  };
+
+  const getChatDisplayName = (chat) => {
+    if (!chat) return "Select a group";
+
+    if (isDirectChat(chat)) {
+      const otherUser = getDirectChatOtherUser(chat);
+      return otherUser?.name || chat.name || "Direct Chat";
+    }
+
+    return chat.name || "Group Chat";
+  };
+
+  const getChatDisplayAvatar = (chat) => {
+    const displayName = getChatDisplayName(chat);
+    return displayName.charAt(0).toUpperCase();
+  };
+
   return (
     <div className="groupchat-page">
       <div className="groupchat-header-card">
@@ -334,7 +426,38 @@ function GroupChat() {
           </div>
 
           <div className="chat-search-box">
-            <input type="text" placeholder="Search groups" />
+            <input
+              type="text"
+              placeholder="Search student by name or email"
+              value={searchTerm}
+              onChange={(e) => handleUserSearch(e.target.value)}
+            />
+
+            {searchTerm && (
+              <div className="user-search-results">
+                {searchingUsers ? (
+                  <div className="user-search-item">Searching...</div>
+                ) : searchedUsers.length === 0 ? (
+                  <div className="user-search-item">No students found</div>
+                ) : (
+                  searchedUsers.map((user) => (
+                    <div
+                      key={user._id}
+                      className="user-search-item"
+                      onClick={() => handleStartDirectChat(user)}
+                    >
+                      <div className="user-search-avatar">
+                        {(user.name || "U").charAt(0).toUpperCase()}
+                      </div>
+                      <div className="user-search-info">
+                        <strong>{user.name}</strong>
+                        <span>{user.email}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
 
           <div className="chat-list-title">My groups</div>
@@ -348,18 +471,17 @@ function GroupChat() {
               groups.map((chat) => (
                 <div
                   key={chat._id}
-                  className={`chat-list-item ${
-                    selectedChat?._id === chat._id ? "active" : ""
-                  }`}
+                  className={`chat-list-item ${selectedChat?._id === chat._id ? "active" : ""
+                    }`}
                   onClick={() => setSelectedChat(chat)}
                 >
                   <div className="chat-avatar">
-                    {(chat.name || "G").charAt(0).toUpperCase()}
+                    {getChatDisplayAvatar(chat)}
                   </div>
 
                   <div className="chat-item-content">
                     <div className="chat-item-top">
-                      <h4>{chat.name}</h4>
+                      <h4>{getChatDisplayName(chat)}</h4>
                     </div>
                     <p>{chat.lastMessage || "No messages yet"}</p>
                   </div>
@@ -372,8 +494,8 @@ function GroupChat() {
         <section className="chat-center">
           <div className="chat-center-top">
             <div>
-              <h2>{selectedChat?.name || "Select a group"}</h2>
-              <p>{members.length} participants</p>
+              <h2>{getChatDisplayName(selectedChat)}</h2>
+              <p>{isDirectChat(selectedChat) ? "Direct message" : `${members.length} participants`}</p>
             </div>
 
             <div className="top-tabs">
@@ -406,9 +528,8 @@ function GroupChat() {
                 return (
                   <div
                     key={msg._id || msg.id}
-                    className={`message-row ${
-                      isOwn ? "own-message" : "other-message"
-                    }`}
+                    className={`message-row ${isOwn ? "own-message" : "other-message"
+                      }`}
                   >
                     {!isOwn && (
                       <div className="message-avatar">

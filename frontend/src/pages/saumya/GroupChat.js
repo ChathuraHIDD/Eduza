@@ -5,6 +5,7 @@ import {
   getMyGroups,
   getGroupMessages,
   sendGroupMessage,
+  createGroupWithMembers,
 } from "../../utils/chatApi";
 import {
   searchChatUsers,
@@ -51,9 +52,17 @@ function GroupChat() {
   const [chatFilter, setChatFilter] = useState("all");
   const [showInfoPanel, setShowInfoPanel] = useState(true);
 
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [groupUserSearch, setGroupUserSearch] = useState("");
+  const [groupSearchResults, setGroupSearchResults] = useState([]);
+  const [selectedGroupUsers, setSelectedGroupUsers] = useState([]);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const searchTimeoutRef = useRef(null);
+  const groupSearchTimeoutRef = useRef(null);
   const messageEndRef = useRef(null);
 
   useEffect(() => {
@@ -363,6 +372,77 @@ function GroupChat() {
     }, 350);
   };
 
+  const handleGroupUserSearch = async (value) => {
+    setGroupUserSearch(value);
+
+    if (groupSearchTimeoutRef.current) {
+      clearTimeout(groupSearchTimeoutRef.current);
+    }
+
+    if (!value.trim()) {
+      setGroupSearchResults([]);
+      return;
+    }
+
+    groupSearchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const users = await searchChatUsers(value.trim());
+        const filtered = (Array.isArray(users) ? users : []).filter(
+          (user) =>
+            !selectedGroupUsers.some((selected) => selected._id === user._id)
+        );
+        setGroupSearchResults(filtered);
+      } catch (error) {
+        console.error("Failed to search group users:", error);
+        setGroupSearchResults([]);
+      }
+    }, 300);
+  };
+
+  const addUserToNewGroup = (user) => {
+    setSelectedGroupUsers((prev) => [...prev, user]);
+    setGroupUserSearch("");
+    setGroupSearchResults([]);
+  };
+
+  const removeUserFromNewGroup = (userId) => {
+    setSelectedGroupUsers((prev) => prev.filter((user) => user._id !== userId));
+  };
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim()) {
+      alert("Please enter a group name");
+      return;
+    }
+
+    if (selectedGroupUsers.length === 0) {
+      alert("Please add at least one member");
+      return;
+    }
+
+    try {
+      setCreatingGroup(true);
+
+      const newGroup = await createGroupWithMembers({
+        name: groupName.trim(),
+        memberIds: selectedGroupUsers.map((user) => user._id),
+      });
+
+      setGroups((prev) => [newGroup, ...prev]);
+      setSelectedChat(newGroup);
+      setShowCreateGroupModal(false);
+      setGroupName("");
+      setGroupUserSearch("");
+      setGroupSearchResults([]);
+      setSelectedGroupUsers([]);
+    } catch (error) {
+      console.error("Failed to create group:", error);
+      alert("Failed to create group");
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
   const handleStartDirectChat = async (user) => {
     try {
       const chat = await createOrOpenDirectChat(user._id);
@@ -468,45 +548,6 @@ function GroupChat() {
     });
   };
 
-  const getDateLabel = (dateValue) => {
-    const date = new Date(dateValue);
-    const now = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(now.getDate() - 1);
-
-    if (date.toDateString() === now.toDateString()) return "Today";
-    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-
-    return date.toLocaleDateString([], {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const groupedMessages = useMemo(() => {
-    const items = [];
-    let lastLabel = "";
-
-    messages.forEach((msg) => {
-      const label = getDateLabel(msg.createdAt || Date.now());
-      if (label !== lastLabel) {
-        items.push({ type: "date", label, id: `date-${label}` });
-        lastLabel = label;
-      }
-      items.push({ type: "message", data: msg, id: msg._id || msg.id });
-    });
-
-    return items;
-  }, [messages]);
-
-  const sharedFiles = useMemo(() => {
-    return messages
-      .filter((msg) => msg.type === "image" || msg.type === "file")
-      .slice(-6)
-      .reverse();
-  }, [messages]);
-
   const renderMessageContent = (msg, isOwn) => {
     if (msg.type === "image") {
       return (
@@ -542,15 +583,6 @@ function GroupChat() {
       );
     }
 
-    if (msg.type === "voice") {
-      return (
-        <div className={`messenger-bubble ${isOwn ? "own" : "other"} voice-bubble`}>
-          <div className="voice-wave">▶︎  ▄▅▇▆▅▄  0:24</div>
-          <span className="bubble-time">{formatMessageTime(msg.createdAt)}</span>
-        </div>
-      );
-    }
-
     return (
       <div className={`messenger-bubble ${isOwn ? "own" : "other"}`}>
         <div className="bubble-text">{msg.text}</div>
@@ -574,7 +606,17 @@ function GroupChat() {
           <div className="soft-divider" />
 
           <div className="side-section">
-            <h4>Teams</h4>
+            <div className="teams-header-row">
+              <h4>Teams</h4>
+              <button
+                className="create-group-icon-btn"
+                onClick={() => setShowCreateGroupModal(true)}
+                title="Create Group"
+              >
+                ＋
+              </button>
+            </div>
+
             <div className="team-badges">
               {teamBadges.map((item, index) => (
                 <div key={index} className="team-badge">
@@ -710,26 +752,17 @@ function GroupChat() {
               <div className="messages-area-soft">
                 {loadingMessages ? (
                   <div className="empty-soft">Loading messages...</div>
-                ) : groupedMessages.length === 0 ? (
+                ) : messages.length === 0 ? (
                   <div className="empty-soft">No messages yet.</div>
                 ) : (
-                  groupedMessages.map((item) => {
-                    if (item.type === "date") {
-                      return (
-                        <div key={item.id} className="date-divider-soft">
-                          <span>{item.label}</span>
-                        </div>
-                      );
-                    }
-
-                    const msg = item.data;
+                  messages.map((msg) => {
                     const isOwn =
                       msg.sender?._id === currentUser.id ||
                       msg.senderId === currentUser.id;
 
                     return (
                       <div
-                        key={item.id}
+                        key={msg._id || msg.id}
                         className={`message-row-soft ${isOwn ? "own" : "other"}`}
                       >
                         {!isOwn && (
@@ -850,35 +883,6 @@ function GroupChat() {
               </div>
             </div>
 
-            <div className="shared-files-soft">
-              <div className="shared-files-header">
-                <h4>Shared files</h4>
-                <span>{sharedFiles.length}</span>
-              </div>
-
-              {sharedFiles.length === 0 ? (
-                <div className="shared-empty-soft">No shared media yet.</div>
-              ) : (
-                <div className="shared-grid-soft">
-                  {sharedFiles.map((file) =>
-                    file.type === "image" ? (
-                      <div key={file._id || file.id} className="shared-thumb-soft">
-                        <img src={file.fileUrl} alt={file.fileName || "image"} />
-                      </div>
-                    ) : (
-                      <div key={file._id || file.id} className="shared-doc-soft">
-                        <div className="shared-doc-icon">📄</div>
-                        <div className="shared-doc-text">
-                          <strong>{file.fileName || "File"}</strong>
-                          <span>{file.fileSize || ""}</span>
-                        </div>
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-
             <div className="members-section-soft">
               <h4>Members</h4>
 
@@ -903,6 +907,84 @@ function GroupChat() {
           </aside>
         )}
       </div>
+
+      {showCreateGroupModal && (
+        <div className="group-modal-overlay" onClick={() => setShowCreateGroupModal(false)}>
+          <div className="group-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="group-modal-header">
+              <h3>Create Group</h3>
+              <button onClick={() => setShowCreateGroupModal(false)}>✕</button>
+            </div>
+
+            <div className="group-modal-body">
+              <label>Group Name</label>
+              <input
+                type="text"
+                placeholder="Enter group name"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+              />
+
+              <label>Add Members</label>
+              <input
+                type="text"
+                placeholder="Search users by name or email"
+                value={groupUserSearch}
+                onChange={(e) => handleGroupUserSearch(e.target.value)}
+              />
+
+              {groupUserSearch && (
+                <div className="group-user-search-results">
+                  {groupSearchResults.length === 0 ? (
+                    <div className="group-user-search-item">No users found</div>
+                  ) : (
+                    groupSearchResults.map((user) => (
+                      <div
+                        key={user._id}
+                        className="group-user-search-item"
+                        onClick={() => addUserToNewGroup(user)}
+                      >
+                        <div className="group-user-avatar">
+                          {(user.name || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="group-user-info">
+                          <strong>{user.name}</strong>
+                          <span>{user.email}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              <div className="selected-group-users">
+                {selectedGroupUsers.map((user) => (
+                  <div key={user._id} className="selected-group-user-chip">
+                    <span>{user.name}</span>
+                    <button onClick={() => removeUserFromNewGroup(user._id)}>✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="group-modal-footer">
+              <button
+                className="group-cancel-btn"
+                onClick={() => setShowCreateGroupModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="group-create-btn"
+                onClick={handleCreateGroup}
+                disabled={creatingGroup}
+              >
+                {creatingGroup ? "Creating..." : "Create Group"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

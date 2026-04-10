@@ -137,9 +137,49 @@ const createGroup = async (req, res) => {
     }
 };
 
+const createGroupWithMembers = async (req, res) => {
+    try {
+        const { name, memberIds = [] } = req.body;
+        const currentUserId = req.user._id;
+
+        if (!name || !name.trim()) {
+            return res.status(400).json({ message: "Group name is required" });
+        }
+
+        const uniqueMembers = [
+            ...new Set([currentUserId.toString(), ...memberIds.map(String)]),
+        ];
+
+        if (uniqueMembers.length < 2) {
+            return res.status(400).json({
+                message: "Please add at least one member to create a group",
+            });
+        }
+
+        const group = await ChatGroup.create({
+            name: name.trim(),
+            description: "Group chat",
+            members: uniqueMembers,
+            admins: [currentUserId],
+            createdBy: currentUserId,
+        });
+
+        const populatedGroup = await ChatGroup.findById(group._id)
+            .populate("members", "name email role")
+            .populate("admins", "name email role")
+            .populate("createdBy", "name email role");
+
+        res.status(201).json(populatedGroup);
+    } catch (error) {
+        console.error("createGroupWithMembers error:", error);
+        res.status(500).json({ message: "Failed to create group" });
+    }
+};
+
 module.exports = {
     getMyGroups,
     getGroupMessages,
     sendGroupMessage,
-    createGroup
+    createGroup,
+    createGroupWithMembers,
 };

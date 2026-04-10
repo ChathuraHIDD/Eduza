@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import EmojiPicker from "emoji-picker-react";
 import "./GroupChat.css";
 import {
@@ -30,7 +30,7 @@ function GroupChat() {
     )
       .charAt(0)
       .toUpperCase(),
-    status: "online",
+    email: storedUser.email || "",
   };
 
   const [groups, setGroups] = useState([]);
@@ -38,15 +38,18 @@ function GroupChat() {
   const [messages, setMessages] = useState([]);
   const [members, setMembers] = useState([]);
   const [messageInput, setMessageInput] = useState("");
-  const [activeTab, setActiveTab] = useState("messages");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [typingUser, setTypingUser] = useState("");
+  const [onlineUserIds, setOnlineUserIds] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [searchedUsers, setSearchedUsers] = useState([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
+
+  const [chatFilter, setChatFilter] = useState("all");
+  const [showInfoPanel, setShowInfoPanel] = useState(true);
 
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -58,11 +61,39 @@ function GroupChat() {
   }, []);
 
   useEffect(() => {
+    if (!currentUser.id) return;
+
+    socket.emit("user_online", { userId: currentUser.id });
+
+    const handleOnlineUsers = (userIds) => {
+      setOnlineUserIds(userIds || []);
+    };
+
+    socket.on("online_users", handleOnlineUsers);
+
+    return () => {
+      socket.off("online_users", handleOnlineUsers);
+    };
+  }, [currentUser.id]);
+
+  useEffect(() => {
     if (selectedChat?._id) {
       loadMessages(selectedChat._id);
-      setMembers(selectedChat.members || []);
     }
   }, [selectedChat]);
+
+  useEffect(() => {
+    if (!selectedChat?.members) return;
+
+    const updatedMembers = selectedChat.members.map((member) => ({
+      ...member,
+      status: onlineUserIds.includes(member._id || member.id)
+        ? "online"
+        : "offline",
+    }));
+
+    setMembers(updatedMembers);
+  }, [onlineUserIds, selectedChat]);
 
   useEffect(() => {
     if (!selectedChat?._id) return;
@@ -83,7 +114,18 @@ function GroupChat() {
       setGroups((prev) =>
         prev.map((group) =>
           group._id === selectedChat._id
-            ? { ...group, lastMessage: message.text || "New message" }
+            ? {
+                ...group,
+                lastMessage:
+                  message.type === "image"
+                    ? "📷 Photo"
+                    : message.type === "file"
+                    ? "📎 File"
+                    : message.type === "voice"
+                    ? "🎤 Voice message"
+                    : message.text || "New message",
+                updatedAt: message.createdAt || new Date().toISOString(),
+              }
             : group
         )
       );
@@ -124,7 +166,6 @@ function GroupChat() {
     try {
       setLoadingGroups(true);
       const data = await getMyGroups();
-
       const groupList = Array.isArray(data) ? data : data.groups || [];
       setGroups(groupList);
 
@@ -191,7 +232,11 @@ function GroupChat() {
       setGroups((prev) =>
         prev.map((group) =>
           group._id === selectedChat._id
-            ? { ...group, lastMessage: savedMessage.text || "New message" }
+            ? {
+                ...group,
+                lastMessage: savedMessage.text || "New message",
+                updatedAt: savedMessage.createdAt || new Date().toISOString(),
+              }
             : group
         )
       );
@@ -276,6 +321,18 @@ function GroupChat() {
 
     setMessages((prev) => [...prev, previewMessage]);
 
+    setGroups((prev) =>
+      prev.map((group) =>
+        group._id === selectedChat._id
+          ? {
+              ...group,
+              lastMessage: isImage ? "📷 Photo" : "📎 File",
+              updatedAt: previewMessage.createdAt,
+            }
+          : group
+      )
+    );
+
     e.target.value = "";
   };
 
@@ -303,21 +360,31 @@ function GroupChat() {
       } finally {
         setSearchingUsers(false);
       }
-    }, 400);
+    }, 350);
   };
 
   const handleStartDirectChat = async (user) => {
     try {
       const chat = await createOrOpenDirectChat(user._id);
 
+      const chatWithStatus = {
+        ...chat,
+        members: (chat.members || []).map((member) => ({
+          ...member,
+          status: onlineUserIds.includes(member._id || member.id)
+            ? "online"
+            : "offline",
+        })),
+      };
+
       setGroups((prev) => {
-        const exists = prev.some((group) => group._id === chat._id);
+        const exists = prev.some((group) => group._id === chatWithStatus._id);
         if (exists) return prev;
-        return [chat, ...prev];
+        return [chatWithStatus, ...prev];
       });
 
-      setSelectedChat(chat);
-      setMembers(chat.members || []);
+      setSelectedChat(chatWithStatus);
+      setMembers(chatWithStatus.members || []);
       setSearchTerm("");
       setSearchedUsers([]);
     } catch (error) {
@@ -325,62 +392,17 @@ function GroupChat() {
     }
   };
 
-  const renderMessageContent = (msg, isOwn) => {
-    if (msg.type === "image") {
-      return (
-        <div
-          className={`message-bubble ${isOwn ? "own" : "other"} file-bubble`}
-        >
-          <img
-            src={msg.fileUrl}
-            alt={msg.fileName || "image"}
-            className="chat-image-preview"
-          />
-          <div className="file-details">
-            <strong>{msg.fileName || "Image"}</strong>
-            <span>{msg.fileSize || ""}</span>
-          </div>
-        </div>
-      );
-    }
-
-    if (msg.type === "file") {
-      return (
-        <a
-          href={msg.fileUrl}
-          download={msg.fileName}
-          className={`message-bubble ${isOwn ? "own" : "other"} file-bubble file-link`}
-        >
-          <div className="file-icon">📎</div>
-          <div className="file-details">
-            <strong>{msg.fileName || "File"}</strong>
-            <span>{msg.fileSize || ""}</span>
-          </div>
-        </a>
-      );
-    }
-
-    return (
-      <div className={`message-bubble ${isOwn ? "own" : "other"}`}>
-        {msg.text}
-      </div>
-    );
-  };
-
-  const isDirectChat = (chat) => {
-    return chat?.members && chat.members.length === 2;
-  };
+  const isDirectChat = (chat) => chat?.members && chat.members.length === 2;
 
   const getDirectChatOtherUser = (chat) => {
     if (!isDirectChat(chat)) return null;
-
     return chat.members.find(
       (member) => (member._id || member.id) !== currentUser.id
     );
   };
 
   const getChatDisplayName = (chat) => {
-    if (!chat) return "Select a group";
+    if (!chat) return "Select a chat";
 
     if (isDirectChat(chat)) {
       const otherUser = getDirectChatOtherUser(chat);
@@ -390,265 +412,496 @@ function GroupChat() {
     return chat.name || "Group Chat";
   };
 
-  const getChatDisplayAvatar = (chat) => {
-    const displayName = getChatDisplayName(chat);
-    return displayName.charAt(0).toUpperCase();
+  const getChatSubtitle = (chat) => {
+    if (!chat) return "";
+
+    if (isDirectChat(chat)) {
+      const otherUser = getDirectChatOtherUser(chat);
+      const isOnline = onlineUserIds.includes(otherUser?._id || otherUser?.id);
+      return isOnline ? "online" : "offline";
+    }
+
+    return `${chat.members?.length || 0} members`;
   };
 
-  return (
-    <div className="groupchat-page">
-      <div className="groupchat-header-card">
-        <div className="header-circle header-circle-one"></div>
-        <div className="header-circle header-circle-two"></div>
+  const getChatDisplayAvatar = (chat) => {
+    if (isDirectChat(chat)) {
+      const otherUser = getDirectChatOtherUser(chat);
+      return (otherUser?.name || "U").charAt(0).toUpperCase();
+    }
+    return (chat?.name || "G").charAt(0).toUpperCase();
+  };
 
-        <div className="groupchat-badge">
-          <span className="groupchat-badge-icon">💬</span>
-          <span>Collaborative</span>
+  const filteredGroups = useMemo(() => {
+    if (chatFilter === "direct") {
+      return groups.filter((chat) => isDirectChat(chat));
+    }
+    if (chatFilter === "groups") {
+      return groups.filter((chat) => !isDirectChat(chat));
+    }
+    return groups;
+  }, [groups, chatFilter]);
+
+  const formatMessageTime = (dateValue) => {
+    return new Date(dateValue || Date.now()).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatChatListTime = (dateValue) => {
+    if (!dateValue) return "";
+    const date = new Date(dateValue);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+
+    if (isToday) {
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    return date.toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const getDateLabel = (dateValue) => {
+    const date = new Date(dateValue);
+    const now = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(now.getDate() - 1);
+
+    if (date.toDateString() === now.toDateString()) return "Today";
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+
+    return date.toLocaleDateString([], {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const groupedMessages = useMemo(() => {
+    const items = [];
+    let lastLabel = "";
+
+    messages.forEach((msg) => {
+      const label = getDateLabel(msg.createdAt || Date.now());
+      if (label !== lastLabel) {
+        items.push({ type: "date", label, id: `date-${label}` });
+        lastLabel = label;
+      }
+      items.push({ type: "message", data: msg, id: msg._id || msg.id });
+    });
+
+    return items;
+  }, [messages]);
+
+  const sharedFiles = useMemo(() => {
+    return messages
+      .filter((msg) => msg.type === "image" || msg.type === "file")
+      .slice(-6)
+      .reverse();
+  }, [messages]);
+
+  const renderMessageContent = (msg, isOwn) => {
+    if (msg.type === "image") {
+      return (
+        <div className={`messenger-bubble ${isOwn ? "own" : "other"} file-bubble`}>
+          <img
+            src={msg.fileUrl}
+            alt={msg.fileName || "image"}
+            className="chat-image-preview"
+          />
+          <div className="file-details">
+            <strong>{msg.fileName || "Image"}</strong>
+            <span>{msg.fileSize || ""}</span>
+          </div>
+          <span className="bubble-time">{formatMessageTime(msg.createdAt)}</span>
         </div>
+      );
+    }
 
-        <h1>Group Chat</h1>
-        <p>
-          Connect with classmates, discuss lessons, share updates, and work
-          together in real time through your EDUZA group conversations.
-        </p>
+    if (msg.type === "file") {
+      return (
+        <a
+          href={msg.fileUrl}
+          download={msg.fileName}
+          className={`messenger-bubble ${isOwn ? "own" : "other"} file-bubble file-link`}
+        >
+          <div className="file-icon">📎</div>
+          <div className="file-details">
+            <strong>{msg.fileName || "File"}</strong>
+            <span>{msg.fileSize || ""}</span>
+          </div>
+          <span className="bubble-time">{formatMessageTime(msg.createdAt)}</span>
+        </a>
+      );
+    }
+
+    if (msg.type === "voice") {
+      return (
+        <div className={`messenger-bubble ${isOwn ? "own" : "other"} voice-bubble`}>
+          <div className="voice-wave">▶︎  ▄▅▇▆▅▄  0:24</div>
+          <span className="bubble-time">{formatMessageTime(msg.createdAt)}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`messenger-bubble ${isOwn ? "own" : "other"}`}>
+        <div className="bubble-text">{msg.text}</div>
+        <span className="bubble-time">{formatMessageTime(msg.createdAt)}</span>
       </div>
+    );
+  };
 
-      <div className="groupchat-main">
-        <aside className="chat-sidebar">
-          <div className="sidebar-top">
-            <div className="sidebar-title">Chat</div>
-          </div>
+  const teamBadges = ["A", "C", "N", "I", "P"];
 
-          <div className="profile-card">
-            <div className="profile-avatar large-avatar">{currentUser.avatar}</div>
+  return (
+    <div className="messenger-page">
+      <div className="messenger-shell">
+        <aside className="messenger-left-panel">
+          <div className="profile-card-soft">
+            <div className="profile-photo-soft">{currentUser.avatar}</div>
             <h3>{currentUser.name}</h3>
-            <span className="online-pill">{currentUser.status}</span>
+            <span>@{currentUser.email ? currentUser.email.split("@")[0] : "eduza_user"}</span>
           </div>
 
-          <div className="chat-search-box">
-            <input
-              type="text"
-              placeholder="Search student by name or email"
-              value={searchTerm}
-              onChange={(e) => handleUserSearch(e.target.value)}
-            />
+          <div className="soft-divider" />
 
-            {searchTerm && (
-              <div className="user-search-results">
-                {searchingUsers ? (
-                  <div className="user-search-item">Searching...</div>
-                ) : searchedUsers.length === 0 ? (
-                  <div className="user-search-item">No students found</div>
-                ) : (
-                  searchedUsers.map((user) => (
-                    <div
-                      key={user._id}
-                      className="user-search-item"
-                      onClick={() => handleStartDirectChat(user)}
-                    >
-                      <div className="user-search-avatar">
-                        {(user.name || "U").charAt(0).toUpperCase()}
-                      </div>
-                      <div className="user-search-info">
-                        <strong>{user.name}</strong>
-                        <span>{user.email}</span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="chat-list-title">My groups</div>
-
-          <div className="chat-list">
-            {loadingGroups ? (
-              <p>Loading groups...</p>
-            ) : groups.length === 0 ? (
-              <p>No groups found.</p>
-            ) : (
-              groups.map((chat) => (
-                <div
-                  key={chat._id}
-                  className={`chat-list-item ${selectedChat?._id === chat._id ? "active" : ""
-                    }`}
-                  onClick={() => setSelectedChat(chat)}
-                >
-                  <div className="chat-avatar">
-                    {getChatDisplayAvatar(chat)}
-                  </div>
-
-                  <div className="chat-item-content">
-                    <div className="chat-item-top">
-                      <h4>{getChatDisplayName(chat)}</h4>
-                    </div>
-                    <p>{chat.lastMessage || "No messages yet"}</p>
-                  </div>
+          <div className="side-section">
+            <h4>Teams</h4>
+            <div className="team-badges">
+              {teamBadges.map((item, index) => (
+                <div key={index} className="team-badge">
+                  {item}
                 </div>
-              ))
-            )}
+              ))}
+            </div>
+          </div>
+
+          <div className="side-section chats-section">
+            <div className="chat-section-title">
+              <h4>Chats</h4>
+              <div className="chat-filter-tabs">
+                <button
+                  className={chatFilter === "all" ? "active" : ""}
+                  onClick={() => setChatFilter("all")}
+                >
+                  All
+                </button>
+                <button
+                  className={chatFilter === "direct" ? "active" : ""}
+                  onClick={() => setChatFilter("direct")}
+                >
+                  New
+                </button>
+                <button
+                  className={chatFilter === "groups" ? "active" : ""}
+                  onClick={() => setChatFilter("groups")}
+                >
+                  Groups
+                </button>
+              </div>
+            </div>
+
+            <div className="search-box-soft">
+              <input
+                type="text"
+                placeholder="Search student by name or email"
+                value={searchTerm}
+                onChange={(e) => handleUserSearch(e.target.value)}
+              />
+
+              {searchTerm && (
+                <div className="user-search-results">
+                  {searchingUsers ? (
+                    <div className="user-search-item">Searching...</div>
+                  ) : searchedUsers.length === 0 ? (
+                    <div className="user-search-item">No students found</div>
+                  ) : (
+                    searchedUsers.map((user) => (
+                      <div
+                        key={user._id}
+                        className="user-search-item"
+                        onClick={() => handleStartDirectChat(user)}
+                      >
+                        <div className="user-search-avatar">
+                          {(user.name || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="user-search-info">
+                          <strong>{user.name}</strong>
+                          <span>{user.email}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="chat-list-soft">
+              {loadingGroups ? (
+                <div className="empty-soft">Loading chats...</div>
+              ) : filteredGroups.length === 0 ? (
+                <div className="empty-soft">No chats found.</div>
+              ) : (
+                filteredGroups.map((chat) => (
+                  <div
+                    key={chat._id}
+                    className={`chat-item-soft ${selectedChat?._id === chat._id ? "active" : ""}`}
+                    onClick={() => setSelectedChat(chat)}
+                  >
+                    <div className="chat-avatar-soft-wrap">
+                      <div className="chat-avatar-soft">
+                        {getChatDisplayAvatar(chat)}
+                      </div>
+                      {isDirectChat(chat) && (
+                        <span
+                          className={`chat-status-dot ${
+                            onlineUserIds.includes(getDirectChatOtherUser(chat)?._id)
+                              ? "online"
+                              : "offline"
+                          }`}
+                        />
+                      )}
+                    </div>
+
+                    <div className="chat-item-soft-main">
+                      <div className="chat-item-soft-top">
+                        <h5>{getChatDisplayName(chat)}</h5>
+                        <span>{formatChatListTime(chat.updatedAt)}</span>
+                      </div>
+                      <p>{chat.lastMessage || "No messages yet"}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </aside>
 
-        <section className="chat-center">
-          <div className="chat-center-top">
-            <div>
-              <h2>{getChatDisplayName(selectedChat)}</h2>
-              <p>{isDirectChat(selectedChat) ? "Direct message" : `${members.length} participants`}</p>
-            </div>
-
-            <div className="top-tabs">
-              <button
-                className={activeTab === "messages" ? "active" : ""}
-                onClick={() => setActiveTab("messages")}
-              >
-                Messages
-              </button>
-              <button
-                className={activeTab === "participants" ? "active" : ""}
-                onClick={() => setActiveTab("participants")}
-              >
-                Participants
-              </button>
-            </div>
-          </div>
-
-          <div className="chat-messages-area">
-            {loadingMessages ? (
-              <p>Loading messages...</p>
-            ) : messages.length === 0 ? (
-              <p>No messages yet.</p>
-            ) : (
-              messages.map((msg) => {
-                const isOwn =
-                  msg.sender?._id === currentUser.id ||
-                  msg.senderId === currentUser.id;
-
-                return (
-                  <div
-                    key={msg._id || msg.id}
-                    className={`message-row ${isOwn ? "own-message" : "other-message"
-                      }`}
-                  >
-                    {!isOwn && (
-                      <div className="message-avatar">
-                        {(msg.sender?.name || msg.senderName || "U")
-                          .charAt(0)
-                          .toUpperCase()}
-                      </div>
-                    )}
-
-                    <div className="message-bubble-wrap">
-                      {!isOwn && (
-                        <div className="message-meta">
-                          <span className="sender-name">
-                            {msg.sender?.name || msg.senderName || "User"}
-                          </span>
-                          <span className="message-time">
-                            {new Date(msg.createdAt || Date.now()).toLocaleTimeString(
-                              [],
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              }
-                            )}
-                          </span>
-                        </div>
-                      )}
-
-                      {renderMessageContent(msg, isOwn)}
-
-                      {isOwn && (
-                        <div className="message-meta own-meta">
-                          <span className="message-time">
-                            {new Date(msg.createdAt || Date.now()).toLocaleTimeString(
-                              [],
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              }
-                            )}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-
-            {typingUser && <div className="typing-text">{typingUser}</div>}
-            <div ref={messageEndRef}></div>
-          </div>
-
-          <div className="chat-input-wrapper">
-            {showEmojiPicker && (
-              <div className="emoji-picker-box">
-                <EmojiPicker onEmojiClick={onEmojiClick} />
-              </div>
-            )}
-
-            <div className="chat-input-area">
-              <button
-                className="icon-btn"
-                onClick={() => setShowEmojiPicker((prev) => !prev)}
-              >
-                😊
-              </button>
-
-              <textarea
-                placeholder="Write your message..."
-                value={messageInput}
-                onChange={handleTextareaChange}
-                onKeyDown={handleKeyDown}
-                rows={1}
-              />
-
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                style={{ display: "none" }}
-              />
-
-              <button className="icon-btn" onClick={handleFileButtonClick}>
-                📎
-              </button>
-
-              <button className="send-btn" onClick={handleSendMessage}>
-                ➤
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <aside className="chat-rightbar">
-          <div className="rightbar-header">
-            <h3>Members</h3>
-            <p>{members.length} people</p>
-          </div>
-
-          <div className="members-list">
-            {members.map((member, index) => (
-              <div key={member._id || index} className="member-item">
-                <div className="member-left">
-                  <div className="member-avatar">
-                    {(member.name || "U").charAt(0).toUpperCase()}
+        <main className="messenger-center-panel">
+          {selectedChat ? (
+            <>
+              <div className="conversation-header-soft">
+                <div className="conversation-user-soft">
+                  <div className="conversation-avatar-soft">
+                    {getChatDisplayAvatar(selectedChat)}
                   </div>
                   <div>
-                    <h4>{member.name || "Unknown User"}</h4>
-                    <span>{member.role || "Member"}</span>
+                    <h3>{getChatDisplayName(selectedChat)}</h3>
+                    <span>{typingUser || getChatSubtitle(selectedChat)}</span>
                   </div>
                 </div>
 
-                <div
-                  className={`status-dot ${member.status || "offline"}`}
-                ></div>
+                <div className="conversation-tools-soft">
+                  <button>🔍</button>
+                  <button>📞</button>
+                  <button>🎥</button>
+                  <button onClick={() => setShowInfoPanel((prev) => !prev)}>⋯</button>
+                </div>
               </div>
-            ))}
-          </div>
-        </aside>
+
+              <div className="messages-area-soft">
+                {loadingMessages ? (
+                  <div className="empty-soft">Loading messages...</div>
+                ) : groupedMessages.length === 0 ? (
+                  <div className="empty-soft">No messages yet.</div>
+                ) : (
+                  groupedMessages.map((item) => {
+                    if (item.type === "date") {
+                      return (
+                        <div key={item.id} className="date-divider-soft">
+                          <span>{item.label}</span>
+                        </div>
+                      );
+                    }
+
+                    const msg = item.data;
+                    const isOwn =
+                      msg.sender?._id === currentUser.id ||
+                      msg.senderId === currentUser.id;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className={`message-row-soft ${isOwn ? "own" : "other"}`}
+                      >
+                        {!isOwn && (
+                          <div className="message-avatar-soft">
+                            {(msg.sender?.name || msg.senderName || "U")
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                        )}
+
+                        <div className="message-wrap-soft">
+                          {!isOwn && (
+                            <div className="message-sender-soft">
+                              {msg.sender?.name || msg.senderName || "User"}
+                            </div>
+                          )}
+                          {renderMessageContent(msg, isOwn)}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+
+                <div ref={messageEndRef} />
+              </div>
+
+              <div className="composer-soft-wrap">
+                {showEmojiPicker && (
+                  <div className="emoji-picker-box soft-style">
+                    <EmojiPicker onEmojiClick={onEmojiClick} />
+                  </div>
+                )}
+
+                <div className="composer-soft">
+                  <button className="composer-icon-soft" onClick={() => setShowEmojiPicker((prev) => !prev)}>
+                    😊
+                  </button>
+
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    style={{ display: "none" }}
+                  />
+
+                  <button className="composer-icon-soft" onClick={handleFileButtonClick}>
+                    📎
+                  </button>
+
+                  <textarea
+                    placeholder="Type here"
+                    value={messageInput}
+                    onChange={handleTextareaChange}
+                    onKeyDown={handleKeyDown}
+                    rows={1}
+                  />
+
+                  <button className="send-soft-btn" onClick={handleSendMessage}>
+                    Send ➤
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="no-chat-soft">
+              <div className="no-chat-soft-inner">
+                <div className="no-chat-badge">💬</div>
+                <h3>Welcome to EDUZA Chat</h3>
+                <p>Select a conversation to start messaging.</p>
+              </div>
+            </div>
+          )}
+        </main>
+
+        {showInfoPanel && selectedChat && (
+          <aside className="messenger-right-panel">
+            <div className="info-profile-soft">
+              <div className="info-photo-soft">{getChatDisplayAvatar(selectedChat)}</div>
+              <h2>{getChatDisplayName(selectedChat)}</h2>
+              <p>{getChatSubtitle(selectedChat)}</p>
+            </div>
+
+            <div className="info-actions-soft">
+              <button>
+                <span>📞</span>
+                <small>Call</small>
+              </button>
+              <button>
+                <span>💬</span>
+                <small>Message</small>
+              </button>
+              <button>
+                <span>🎥</span>
+                <small>Video</small>
+              </button>
+              <button>
+                <span>⋯</span>
+                <small>More</small>
+              </button>
+            </div>
+
+            <div className="info-details-soft">
+              <div className="info-detail-row">
+                <label>Email</label>
+                <span>
+                  {isDirectChat(selectedChat)
+                    ? getDirectChatOtherUser(selectedChat)?.email || "Not available"
+                    : "Group chat"}
+                </span>
+              </div>
+              <div className="info-detail-row">
+                <label>Type</label>
+                <span>{isDirectChat(selectedChat) ? "Direct message" : "Group chat"}</span>
+              </div>
+              <div className="info-detail-row">
+                <label>Members</label>
+                <span>{members.length}</span>
+              </div>
+            </div>
+
+            <div className="shared-files-soft">
+              <div className="shared-files-header">
+                <h4>Shared files</h4>
+                <span>{sharedFiles.length}</span>
+              </div>
+
+              {sharedFiles.length === 0 ? (
+                <div className="shared-empty-soft">No shared media yet.</div>
+              ) : (
+                <div className="shared-grid-soft">
+                  {sharedFiles.map((file) =>
+                    file.type === "image" ? (
+                      <div key={file._id || file.id} className="shared-thumb-soft">
+                        <img src={file.fileUrl} alt={file.fileName || "image"} />
+                      </div>
+                    ) : (
+                      <div key={file._id || file.id} className="shared-doc-soft">
+                        <div className="shared-doc-icon">📄</div>
+                        <div className="shared-doc-text">
+                          <strong>{file.fileName || "File"}</strong>
+                          <span>{file.fileSize || ""}</span>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="members-section-soft">
+              <h4>Members</h4>
+
+              <div className="member-list-soft">
+                {members.map((member, index) => (
+                  <div key={member._id || index} className="member-item-soft">
+                    <div className="member-item-soft-left">
+                      <div className="member-avatar-soft">
+                        {(member.name || "U").charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <strong>{member.name || "Unknown User"}</strong>
+                        <span>{member.role || "Member"}</span>
+                      </div>
+                    </div>
+
+                    <div className={`member-status-soft ${member.status || "offline"}`} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   );

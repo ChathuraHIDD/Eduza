@@ -7,6 +7,8 @@ const connectDB = require("./config/db");
 
 const PORT = process.env.PORT || 5000;
 
+const onlineUsers = new Map();
+
 connectDB().then(() => {
   const server = http.createServer(app);
 
@@ -19,6 +21,13 @@ connectDB().then(() => {
 
   io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
+
+    socket.on("user_online", ({ userId }) => {
+      if (!userId) return;
+
+      onlineUsers.set(userId, socket.id);
+      io.emit("online_users", Array.from(onlineUsers.keys()));
+    });
 
     socket.on("join_group", (groupId) => {
       socket.join(groupId);
@@ -38,6 +47,20 @@ connectDB().then(() => {
     });
 
     socket.on("disconnect", () => {
+      let disconnectedUserId = null;
+
+      for (const [userId, socketId] of onlineUsers.entries()) {
+        if (socketId === socket.id) {
+          disconnectedUserId = userId;
+          break;
+        }
+      }
+
+      if (disconnectedUserId) {
+        onlineUsers.delete(disconnectedUserId);
+        io.emit("online_users", Array.from(onlineUsers.keys()));
+      }
+
       console.log("User disconnected:", socket.id);
     });
   });

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { jsPDF } from "jspdf";
 import { useNavigate } from "react-router-dom";
 import { getSoftwareListRequest } from "../../utils/api";
+import { drawEduzaLogo } from "../../utils/pdfBranding";
 
 function SoftwareHub() {
   const navigate = useNavigate();
@@ -80,7 +81,7 @@ function SoftwareHub() {
     .reduce((sum, file) => sum + parseSizeToGB(file.size), 0)
     .toFixed(2);
 
-  const handleDownloadSoftwareListPdf = () => {
+  const handleDownloadSoftwareListPdf = async () => {
     const rows = filteredFiles;
     if (rows.length === 0) {
       window.alert("No software records available to export.");
@@ -96,7 +97,7 @@ function SoftwareHub() {
     const contentWidth = pageWidth - contentX * 2;
     let y = 132;
 
-    const drawHeader = () => {
+    const drawHeader = async () => {
       doc.setDrawColor(194, 65, 12);
       doc.setLineWidth(1.6);
       doc.rect(border, border, pageWidth - border * 2, pageHeight - border * 2);
@@ -105,9 +106,12 @@ function SoftwareHub() {
       doc.rect(border + 8, border + 8, pageWidth - (border + 8) * 2, 64, "F");
 
       doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(24);
-      doc.text("EDUZA", border + 18, border + 48);
+      const hasLogo = await drawEduzaLogo(doc, border + 16, border + 16, 66, 44);
+      if (!hasLogo) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(24);
+        doc.text("EDUZA", border + 18, border + 48);
+      }
 
       doc.setFontSize(12);
       doc.text("Software Hub List", pageWidth - border - 18, border + 48, {
@@ -122,15 +126,16 @@ function SoftwareHub() {
       y = 156;
     };
 
-    const ensureSpace = (needed) => {
+    const ensureSpace = async (needed) => {
       if (y + needed <= pageHeight - 48) return;
       doc.addPage();
-      drawHeader();
+      await drawHeader();
     };
 
-    drawHeader();
+    await drawHeader();
 
-    rows.forEach((file, index) => {
+    for (let index = 0; index < rows.length; index += 1) {
+      const file = rows[index];
       const title = file.title || "Untitled";
       const softwareName = file.softwareName || "N/A";
       const type = file.type || "N/A";
@@ -141,7 +146,7 @@ function SoftwareHub() {
       const detailLines = doc.splitTextToSize(detailLine, contentWidth - 8);
       const blockHeight = titleLines.length * 14 + detailLines.length * 13 + 14;
 
-      ensureSpace(blockHeight);
+      await ensureSpace(blockHeight);
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
@@ -154,7 +159,7 @@ function SoftwareHub() {
       doc.setTextColor(51, 65, 85);
       doc.text(detailLines, contentX + 6, y + 2);
       y += detailLines.length * 13 + 10;
-    });
+    }
 
     doc.save("eduza-software-list.pdf");
   };

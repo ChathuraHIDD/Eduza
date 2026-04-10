@@ -165,6 +165,15 @@ const studyPlanSchema = new mongoose.Schema(
     },
     availability: availabilitySchema,
     preferences: preferencesSchema,
+    uiScheduleType: {
+      type: String,
+      enum: ['assignment', 'mid-exam', 'final-exam', 'whole-semester', 'other-exam', 'other-activity'],
+      required: false,
+    },
+    uiScheduleData: {
+      type: mongoose.Schema.Types.Mixed,
+      required: false,
+    },
     modules: [moduleSchema],
     sessions: [sessionSchema],
     summary: summarySchema,

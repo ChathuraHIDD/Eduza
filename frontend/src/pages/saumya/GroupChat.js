@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import EmojiPicker from "emoji-picker-react";
 import "./GroupChat.css";
 import {
@@ -6,14 +6,24 @@ import {
   getGroupMessages,
   sendGroupMessage,
 } from "../../utils/chatApi";
+import socket from "../../utils/socket";
 
 function GroupChat() {
   const storedUser = JSON.parse(localStorage.getItem("user")) || {};
 
   const currentUser = {
     id: storedUser._id || storedUser.id || "",
-    name: storedUser.name || storedUser.fullName || storedUser.username || "Saumya",
-    avatar: (storedUser.name || storedUser.fullName || storedUser.username || "S")
+    name:
+      storedUser.name ||
+      storedUser.fullName ||
+      storedUser.username ||
+      "Saumya",
+    avatar: (
+      storedUser.name ||
+      storedUser.fullName ||
+      storedUser.username ||
+      "S"
+    )
       .charAt(0)
       .toUpperCase(),
     status: "online",
@@ -28,12 +38,11 @@ function GroupChat() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [typingUser, setTypingUser] = useState("");
 
   const fileInputRef = useRef(null);
-
-  const typingText = useMemo(() => {
-    return "";
-  }, []);
+  const typingTimeoutRef = useRef(null);
+  const messageEndRef = useRef(null);
 
   useEffect(() => {
     loadGroups();
@@ -46,6 +55,54 @@ function GroupChat() {
     }
   }, [selectedChat]);
 
+  useEffect(() => {
+    if (!selectedChat?._id) return;
+
+    socket.emit("join_group", selectedChat._id);
+
+    const handleReceiveMessage = (message) => {
+      if (message.groupId !== selectedChat._id) return;
+
+      setMessages((prev) => {
+        const exists = prev.some(
+          (item) => (item._id || item.id) === (message._id || message.id)
+        );
+        if (exists) return prev;
+        return [...prev, message];
+      });
+    };
+
+    const handleUserTyping = (data) => {
+      if (
+        data.groupId === selectedChat._id &&
+        data.userId !== currentUser.id &&
+        data.userName
+      ) {
+        setTypingUser(`${data.userName} is typing...`);
+      }
+    };
+
+    const handleUserStopTyping = (data) => {
+      if (data.groupId === selectedChat._id) {
+        setTypingUser("");
+      }
+    };
+
+    socket.on("receive_message", handleReceiveMessage);
+    socket.on("user_typing", handleUserTyping);
+    socket.on("user_stop_typing", handleUserStopTyping);
+
+    return () => {
+      socket.off("receive_message", handleReceiveMessage);
+      socket.off("user_typing", handleUserTyping);
+      socket.off("user_stop_typing", handleUserStopTyping);
+    };
+  }, [selectedChat?._id, currentUser.id]);
+
+  useEffect(() => {
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, typingUser]);
+
   const loadGroups = async () => {
     try {
       setLoadingGroups(true);
@@ -55,7 +112,7 @@ function GroupChat() {
       setGroups(groupList);
 
       if (groupList.length > 0) {
-        setSelectedChat(groupList[0]);
+        setSelectedChat((prev) => prev || groupList[0]);
       }
     } catch (error) {
       console.error("Failed to load groups:", error);
@@ -79,20 +136,57 @@ function GroupChat() {
     }
   };
 
+  const emitStopTyping = () => {
+    if (!selectedChat?._id) return;
+
+    socket.emit("stop_typing", {
+      groupId: selectedChat._id,
+      userId: currentUser.id,
+      userName: currentUser.name,
+    });
+  };
+
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedChat?._id) return;
 
     try {
       const payload = {
-        text: messageInput,
+        text: messageInput.trim(),
         type: "text",
       };
 
-      const newMessage = await sendGroupMessage(selectedChat._id, payload);
+      const savedMessage = await sendGroupMessage(selectedChat._id, payload);
 
-      setMessages((prev) => [...prev, newMessage]);
+      socket.emit("send_message", {
+        ...savedMessage,
+        groupId: selectedChat._id,
+      });
+
+      setMessages((prev) => {
+        const exists = prev.some(
+          (item) => (item._id || item.id) === (savedMessage._id || savedMessage.id)
+        );
+        if (exists) return prev;
+        return [...prev, savedMessage];
+      });
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group._id === selectedChat._id
+            ? { ...group, lastMessage: savedMessage.text || "New message" }
+            : group
+        )
+      );
+
       setMessageInput("");
       setShowEmojiPicker(false);
+      setTypingUser("");
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      emitStopTyping();
     } catch (error) {
       console.error("Failed to send message:", error);
     }
@@ -109,6 +203,34 @@ function GroupChat() {
     setMessageInput((prev) => prev + emojiData.emoji);
   };
 
+  const handleTextareaChange = (e) => {
+    const value = e.target.value;
+    setMessageInput(value);
+
+    if (!selectedChat?._id) return;
+
+    if (value.trim()) {
+      socket.emit("typing", {
+        groupId: selectedChat._id,
+        userId: currentUser.id,
+        userName: currentUser.name,
+      });
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(() => {
+        emitStopTyping();
+      }, 1200);
+    } else {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      emitStopTyping();
+    }
+  };
+
   const handleFileButtonClick = () => {
     fileInputRef.current?.click();
   };
@@ -122,6 +244,7 @@ function GroupChat() {
 
     const previewMessage = {
       _id: Date.now().toString(),
+      groupId: selectedChat._id,
       sender: {
         _id: currentUser.id,
         name: currentUser.name,
@@ -141,7 +264,9 @@ function GroupChat() {
   const renderMessageContent = (msg, isOwn) => {
     if (msg.type === "image") {
       return (
-        <div className={`message-bubble ${isOwn ? "own" : "other"} file-bubble`}>
+        <div
+          className={`message-bubble ${isOwn ? "own" : "other"} file-bubble`}
+        >
           <img
             src={msg.fileUrl}
             alt={msg.fileName || "image"}
@@ -223,7 +348,9 @@ function GroupChat() {
               groups.map((chat) => (
                 <div
                   key={chat._id}
-                  className={`chat-list-item ${selectedChat?._id === chat._id ? "active" : ""}`}
+                  className={`chat-list-item ${
+                    selectedChat?._id === chat._id ? "active" : ""
+                  }`}
                   onClick={() => setSelectedChat(chat)}
                 >
                   <div className="chat-avatar">
@@ -273,16 +400,21 @@ function GroupChat() {
             ) : (
               messages.map((msg) => {
                 const isOwn =
-                  msg.sender?._id === currentUser.id || msg.senderId === currentUser.id;
+                  msg.sender?._id === currentUser.id ||
+                  msg.senderId === currentUser.id;
 
                 return (
                   <div
                     key={msg._id || msg.id}
-                    className={`message-row ${isOwn ? "own-message" : "other-message"}`}
+                    className={`message-row ${
+                      isOwn ? "own-message" : "other-message"
+                    }`}
                   >
                     {!isOwn && (
                       <div className="message-avatar">
-                        {(msg.sender?.name || msg.senderName || "U").charAt(0)}
+                        {(msg.sender?.name || msg.senderName || "U")
+                          .charAt(0)
+                          .toUpperCase()}
                       </div>
                     )}
 
@@ -293,10 +425,13 @@ function GroupChat() {
                             {msg.sender?.name || msg.senderName || "User"}
                           </span>
                           <span className="message-time">
-                            {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {new Date(msg.createdAt || Date.now()).toLocaleTimeString(
+                              [],
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )}
                           </span>
                         </div>
                       )}
@@ -306,10 +441,13 @@ function GroupChat() {
                       {isOwn && (
                         <div className="message-meta own-meta">
                           <span className="message-time">
-                            {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {new Date(msg.createdAt || Date.now()).toLocaleTimeString(
+                              [],
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )}
                           </span>
                         </div>
                       )}
@@ -319,7 +457,8 @@ function GroupChat() {
               })
             )}
 
-            {typingText && <div className="typing-text">{typingText}</div>}
+            {typingUser && <div className="typing-text">{typingUser}</div>}
+            <div ref={messageEndRef}></div>
           </div>
 
           <div className="chat-input-wrapper">
@@ -340,7 +479,7 @@ function GroupChat() {
               <textarea
                 placeholder="Write your message..."
                 value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
+                onChange={handleTextareaChange}
                 onKeyDown={handleKeyDown}
                 rows={1}
               />
@@ -382,7 +521,9 @@ function GroupChat() {
                   </div>
                 </div>
 
-                <div className={`status-dot ${member.status || "offline"}`}></div>
+                <div
+                  className={`status-dot ${member.status || "offline"}`}
+                ></div>
               </div>
             ))}
           </div>

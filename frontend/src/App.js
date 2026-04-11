@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import HomeWrapper from './pages/HomeWrapper'
 import Home from './pages/Home'
+import LandingPage from './pages/LandingPage'
 import SmartSchedule from './pages/SmartSchedule'
 import Profile from './pages/Profile'
 import LectureProfile from './pages/LectureProfile'
@@ -13,6 +14,7 @@ import StressHubGreenResult from './pages/StressHubGreenResult'
 import StressHubBlueResult from './pages/StressHubBlueResult'
 import StressHubOrangeGamePage from './pages/StressHubOrangeGamePage'
 import ProgressTracker from './pages/ProgressTracker'
+import GPACalculator from './pages/GPACalculator'
 
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -34,13 +36,15 @@ import SoftwareDetails from './pages/saumya/SoftwareDetails'
 import UploadSoftware from './pages/saumya/UploadSoftware'
 
 import LecturerModuleQuiz from './pages/LecturerModuleQuiz'
+import LecturerModuleSelfCheck from './pages/LecturerModuleSelfCheck'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/" element={<Layout />}>
-          <Route index element={<HomeWrapper />} />
+          <Route path="dashboard" element={<HomeWrapper />} />
           <Route path="smart-schedule" element={<SmartSchedule />} />
           <Route path="stress-hub" element={<StressHub />} />
           <Route path="stress-hub/red" element={<StressHubRedResult />} />
@@ -49,6 +53,7 @@ function App() {
           <Route path="stress-hub/green" element={<StressHubGreenResult />} />
           <Route path="stress-hub/blue" element={<StressHubBlueResult />} />
           <Route path="progress-tracker" element={<ProgressTracker />} />
+          <Route path="gpa-calculator" element={<GPACalculator />} />
 
           <Route
             path="profile"
@@ -82,6 +87,15 @@ function App() {
             element={
               <ProtectedRoute roles={['lecturer', 'admin']}>
                 <LecturerModuleQuiz />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="lecturer/module-selfcheck"
+            element={
+              <ProtectedRoute roles={['lecturer', 'admin']}>
+                <LecturerModuleSelfCheck />
               </ProtectedRoute>
             }
           />
@@ -167,6 +181,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )

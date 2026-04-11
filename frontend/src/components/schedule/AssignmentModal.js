@@ -10,6 +10,13 @@ const gradeColors = {
   'D': '#ef4444', 'F': '#ef4444',
 }
 
+const DISALLOWED_SPECIALS = /[!@#$%^&*()]/
+const SPECIAL_CHAR_ERROR = 'Special characters ! @ # $ % ^ & * ( ) are not allowed'
+
+function sanitizeTextValue(value) {
+  return value.replace(/[!@#$%^&*()]/g, '')
+}
+
 const steps = ['Details', 'Study Habits', 'Target']
 
 function StepIndicator({ current }) {
@@ -69,6 +76,17 @@ function AssignmentModal({ onClose, onGenerate }) {
   const [errors, setErrors] = useState({})
 
   const set = (key, value) => {
+    if (key === 'subject') {
+      const hasSpecials = DISALLOWED_SPECIALS.test(value)
+      const cleaned = sanitizeTextValue(value)
+      setForm((f) => ({ ...f, [key]: cleaned }))
+      setErrors((e) => ({
+        ...e,
+        [key]: hasSpecials ? SPECIAL_CHAR_ERROR : '',
+      }))
+      return
+    }
+
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => ({ ...e, [key]: '' }))
   }
@@ -77,6 +95,7 @@ function AssignmentModal({ onClose, onGenerate }) {
     const errs = {}
     if (step === 0) {
       if (!form.subject.trim()) errs.subject = 'Subject is required'
+      else if (DISALLOWED_SPECIALS.test(form.subject)) errs.subject = SPECIAL_CHAR_ERROR
       if (!form.dueDate) errs.dueDate = 'Due date is required'
       else if (new Date(form.dueDate) <= new Date()) errs.dueDate = 'Due date must be in the future'
       if (form.currentProgress < 0 || form.currentProgress > 100) errs.currentProgress = 'Progress must be between 0 and 100'
@@ -202,11 +221,11 @@ function AssignmentModal({ onClose, onGenerate }) {
                 />
                 <div style={{
                   minWidth: 64, height: 40,
-                  background: 'rgba(59,130,246,0.10)',
-                  border: '1.5px solid rgba(59,130,246,0.25)',
+                  background: 'rgba(249,115,22,0.10)',
+                  border: '1.5px solid rgba(249,115,22,0.25)',
                   borderRadius: 10,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 16, fontWeight: 800, color: '#3b82f6',
+                  fontSize: 16, fontWeight: 800, color: '#f97316',
                 }}>
                   {form.currentProgress}%
                 </div>

@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react'
 import { generateMidExamSchedule } from '../../utils/midExamEngine'
+import ExcelJS from 'exceljs'
+import Papa from 'papaparse'
 
 const GRADES = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D', 'F']
 const gradeColors = {
@@ -13,6 +15,161 @@ const WEAKNESS_LABELS = { 1: 'Very Strong', 2: 'Strong', 3: 'Average', 4: 'Weak'
 const WEAKNESS_COLORS = { 1: '#22c55e', 2: '#86efac', 3: '#eab308', 4: '#f97316', 5: '#ef4444' }
 const PREP_LABELS = { 1: "Haven't Started", 2: 'Just Started', 3: 'Getting There', 4: 'Well Prepared', 5: 'Fully Ready' }
 const PREP_COLORS = { 1: '#ef4444', 2: '#f97316', 3: '#eab308', 4: '#86efac', 5: '#22c55e' }
+
+const ACCENT = '#f97316'
+const ACCENT_DARK = '#c2410c'
+const ACCENT_BORDER = 'rgba(249,115,22,0.3)'
+const ACCENT_RGBA = (a) => `rgba(249,115,22,${a})`
+const GRADIENT = `linear-gradient(135deg, ${ACCENT}, ${ACCENT_DARK})`
+
+const DISALLOWED_SPECIALS = /[!@#$%^&*()]/
+const SPECIAL_CHAR_ERROR = 'Special characters ! @ # $ % ^ & * ( ) are not allowed'
+
+function sanitizeTextValue(value) {
+  return value.replace(/[!@#$%^&*()]/g, '')
+}
+
+function normalizeHeader(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+}
+
+function excelSerialToDate(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return ''
+  const base = Date.UTC(1899, 11, 30)
+  const millis = Math.round(value * 24 * 60 * 60 * 1000)
+  const dt = new Date(base + millis)
+  if (Number.isNaN(dt.getTime())) return ''
+  return dt.toISOString().split('T')[0]
+}
+
+function toInputDate(value) {
+  if (!value && value !== 0) return ''
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().split('T')[0]
+  }
+
+  if (typeof value === 'number') {
+    return excelSerialToDate(value)
+  }
+
+  const text = String(value).trim()
+  if (!text) return ''
+
+  const yyyymmdd = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (yyyymmdd) {
+    const year = Number(yyyymmdd[1])
+    const month = Number(yyyymmdd[2])
+    const day = Number(yyyymmdd[3])
+    const dt = new Date(Date.UTC(year, month - 1, day))
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString().split('T')[0]
+  }
+
+  const ddmmyyyy = text.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/)
+  if (ddmmyyyy) {
+    const day = Number(ddmmyyyy[1])
+    const month = Number(ddmmyyyy[2])
+    const year = Number(ddmmyyyy[3])
+    const dt = new Date(Date.UTC(year, month - 1, day))
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString().split('T')[0]
+  }
+
+  const parsed = new Date(text)
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().split('T')[0]
+  }
+
+  return ''
+}
+
+function parseExamRowsFromMatrix(matrix) {
+  if (!matrix.length) return []
+
+  const subjectCandidates = [
+    'module',
+    'module name',
+    'module subject',
+    'module subject name',
+    'subject',
+    'subject name',
+    'paper',
+    'course',
+    'unit',
+  ]
+
+  const dateCandidates = [
+    'date',
+    'due date',
+    'exam date',
+    'mid exam date',
+    'examdate',
+    'date exam',
+    'date due',
+  ]
+
+  let headerRowIndex = -1
+  let subjectIndex = -1
+  let dateIndex = -1
+
+  // Detect the real header row from top rows (supports title rows before headers)
+  for (let i = 0; i < Math.min(matrix.length, 15); i += 1) {
+    const row = Array.isArray(matrix[i]) ? matrix[i] : []
+    const cells = row.map((cell) => normalizeHeader(cell))
+
+    const foundSubject = cells.findIndex((cell) => {
+      return subjectCandidates.some((candidate) => {
+        const normalizedCandidate = normalizeHeader(candidate)
+        return cell === normalizedCandidate || cell.includes(normalizedCandidate) || normalizedCandidate.includes(cell)
+      })
+    })
+
+    const foundDate = cells.findIndex((cell) => {
+      return dateCandidates.some((candidate) => {
+        const normalizedCandidate = normalizeHeader(candidate)
+        return cell === normalizedCandidate || cell.includes(normalizedCandidate) || normalizedCandidate.includes(cell)
+      })
+    })
+
+    if (foundSubject !== -1 && foundDate !== -1) {
+      headerRowIndex = i
+      subjectIndex = foundSubject
+      dateIndex = foundDate
+      break
+    }
+  }
+
+  if (headerRowIndex === -1) return []
+
+  const parsed = []
+  for (let i = headerRowIndex + 1; i < matrix.length; i += 1) {
+    const row = Array.isArray(matrix[i]) ? matrix[i] : []
+    const subject = sanitizeTextValue(String(row[subjectIndex] || '').trim())
+    const date = toInputDate(row[dateIndex])
+
+    if (!subject && !date) continue
+    if (!subject || !date) continue
+
+    parsed.push({ id: nextId++, subject, date })
+  }
+
+  return parsed
+}
+
+function parseExamRowsFromWorkbook(workbook) {
+  const worksheet = workbook.worksheets?.[0]
+  if (!worksheet) return []
+
+  const matrix = []
+  worksheet.eachRow({ includeEmpty: false }, (row) => {
+    matrix.push(row.values.slice(1))
+  })
+
+  return parseExamRowsFromMatrix(matrix)
+}
 
 let nextId = 1
 function newExam() {
@@ -31,23 +188,23 @@ function StepIndicator({ current }) {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
               <div style={{
                 width: 30, height: 30, borderRadius: '50%',
-                background: done ? '#3b82f6' : active ? 'rgba(59,130,246,0.15)' : '#1e1e1e',
-                border: done || active ? '2px solid #3b82f6' : '2px solid #2a2a2a',
+                background: done ? ACCENT : active ? ACCENT_RGBA(0.15) : '#1e1e1e',
+                border: done || active ? `2px solid ${ACCENT}` : '2px solid #2a2a2a',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.25s',
               }}>
                 {done
                   ? <svg width="13" height="13" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>
-                  : <span style={{ fontSize: 11, fontWeight: 700, color: active ? '#3b82f6' : '#555' }}>{i + 1}</span>}
+                  : <span style={{ fontSize: 11, fontWeight: 700, color: active ? ACCENT : '#555' }}>{i + 1}</span>}
               </div>
-              <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, color: active ? '#3b82f6' : done ? '#aaa' : '#444', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, color: active ? ACCENT : done ? '#aaa' : '#444', whiteSpace: 'nowrap' }}>
                 {label}
               </span>
             </div>
             {i < STEPS.length - 1 && (
               <div style={{
                 flex: 1, height: 2, margin: '-14px 6px 0',
-                background: done ? '#3b82f6' : '#1e1e1e',
+                background: done ? ACCENT : '#1e1e1e',
                 transition: 'background 0.3s',
               }} />
             )}
@@ -76,6 +233,8 @@ function MidExamModal({ onClose, onGenerate }) {
   const [grade, setGrade] = useState('')
   const [mark, setMark] = useState(70)
   const [errors, setErrors] = useState({})
+  const [uploadInfo, setUploadInfo] = useState('')
+  const [uploadError, setUploadError] = useState('')
   const fileRef = useRef()
   const today = new Date().toISOString().split('T')[0]
 
@@ -83,24 +242,87 @@ function MidExamModal({ onClose, onGenerate }) {
   const addExam = () => setExams((e) => [...e, newExam()])
   const removeExam = (id) => setExams((e) => e.filter((x) => x.id !== id))
   const updateExam = (id, field, value) => {
+    if (field === 'subject') {
+      const hasSpecials = DISALLOWED_SPECIALS.test(value)
+      const cleaned = sanitizeTextValue(value)
+      setExams((e) => e.map((x) => x.id === id ? { ...x, [field]: cleaned } : x))
+      setErrors((err) => ({
+        ...err,
+        [`exam_${id}_${field}`]: hasSpecials ? SPECIAL_CHAR_ERROR : '',
+      }))
+      return
+    }
+
     setExams((e) => e.map((x) => x.id === id ? { ...x, [field]: value } : x))
     setErrors((err) => ({ ...err, [`exam_${id}_${field}`]: '' }))
   }
 
   // ── Subject detail helpers ──
   const getDetail = (id) => subjectDetails[id] || { weakness: 3, prep: 2, notes: '' }
-  const setDetail = (id, field, value) =>
+  const setDetail = (id, field, value) => {
+    if (field === 'notes') {
+      const hasSpecials = DISALLOWED_SPECIALS.test(value)
+      const cleaned = sanitizeTextValue(value)
+      setSubjectDetails((d) => ({ ...d, [id]: { ...getDetail(id), [field]: cleaned } }))
+      setErrors((err) => ({
+        ...err,
+        [`detail_${id}_${field}`]: hasSpecials ? SPECIAL_CHAR_ERROR : '',
+      }))
+      return
+    }
+
     setSubjectDetails((d) => ({ ...d, [id]: { ...getDetail(id), [field]: value } }))
+  }
 
   // ── File upload ──
-  const handleFile = (file) => {
+  const handleFile = async (file) => {
     if (!file) return
+    setUploadInfo('')
+    setUploadError('')
+
+    const allowed = /\.(xlsx|csv)$/i.test(file.name)
+    if (!allowed) {
+      setUploadError('Please upload an Excel or CSV file (.xlsx, .csv).')
+      return
+    }
+
+    try {
+      let imported = []
+      if (/\.csv$/i.test(file.name)) {
+        const text = await file.text()
+        const csv = Papa.parse(text, { skipEmptyLines: true })
+        if (csv.errors?.length) {
+          setUploadError('Failed to parse CSV. Please check file format and try again.')
+          return
+        }
+        imported = parseExamRowsFromMatrix(csv.data || [])
+      } else {
+        const buffer = await file.arrayBuffer()
+        const workbook = new ExcelJS.Workbook()
+        await workbook.xlsx.load(buffer)
+        imported = parseExamRowsFromWorkbook(workbook)
+      }
+
+      if (!imported.length) {
+        setUploadError('Could not detect module and date columns. Use columns like Module/Subject and Date/Exam Date.')
+        return
+      }
+
+      setExams(imported)
+      setSubjectDetails({})
+      setErrors((prev) => ({ ...prev, exams: '', file: '' }))
+      setUploadInfo(`${imported.length} exam item${imported.length > 1 ? 's' : ''} imported from file.`)
+    } catch {
+      setUploadError('Failed to read file. Please check format and try again.')
+      return
+    }
+
     setUploadedFile(file)
   }
   const onDrop = (e) => {
     e.preventDefault()
     setDragOver(false)
-    handleFile(e.dataTransfer.files[0])
+    void handleFile(e.dataTransfer.files[0])
   }
 
   // ── Days remaining utility ──
@@ -123,6 +345,7 @@ function MidExamModal({ onClose, onGenerate }) {
       }
       exams.forEach((e) => {
         if (!e.subject.trim()) errs[`exam_${e.id}_subject`] = 'Required'
+        else if (DISALLOWED_SPECIALS.test(e.subject)) errs[`exam_${e.id}_subject`] = SPECIAL_CHAR_ERROR
         if (!e.date) errs[`exam_${e.id}_date`] = 'Required'
         else if (new Date(e.date) <= new Date()) errs[`exam_${e.id}_date`] = 'Must be future date'
       })
@@ -192,10 +415,10 @@ function MidExamModal({ onClose, onGenerate }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <div style={{
                 width: 30, height: 30, borderRadius: 8,
-                background: 'rgba(59,130,246,0.15)',
+                background: ACCENT_RGBA(0.15),
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <svg width="15" height="15" fill="none" stroke="#3b82f6" strokeWidth="2" viewBox="0 0 24 24">
+                <svg width="15" height="15" fill="none" stroke={ACCENT} strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
                   <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
                 </svg>
@@ -237,7 +460,7 @@ function MidExamModal({ onClose, onGenerate }) {
               ].map((opt) => (
                 <button key={opt.id} onClick={() => setTimetableMode(opt.id)} style={{
                   flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                  background: timetableMode === opt.id ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : 'transparent',
+                  background: timetableMode === opt.id ? GRADIENT : 'transparent',
                   color: timetableMode === opt.id ? '#fff' : '#666',
                   fontSize: 13, fontWeight: timetableMode === opt.id ? 600 : 400,
                   transition: 'all 0.15s',
@@ -248,9 +471,9 @@ function MidExamModal({ onClose, onGenerate }) {
             {timetableMode === 'upload' && (
               <div>
                 <input
-                  ref={fileRef} type="file" accept="image/*,.pdf"
+                  ref={fileRef} type="file" accept=".xlsx,.csv"
                   style={{ display: 'none' }}
-                  onChange={(e) => handleFile(e.target.files[0])}
+                  onChange={(e) => { void handleFile(e.target.files[0]) }}
                 />
                 <div
                   onClick={() => fileRef.current.click()}
@@ -258,9 +481,9 @@ function MidExamModal({ onClose, onGenerate }) {
                   onDragLeave={() => setDragOver(false)}
                   onDrop={onDrop}
                   style={{
-                    border: `2px dashed ${dragOver ? '#3b82f6' : uploadedFile ? '#22c55e' : '#2a2a2a'}`,
+                    border: `2px dashed ${dragOver ? ACCENT : uploadedFile ? '#22c55e' : '#2a2a2a'}`,
                     borderRadius: 14, padding: '2rem',
-                    background: dragOver ? 'rgba(59,130,246,0.05)' : uploadedFile ? 'rgba(34,197,94,0.05)' : '#111',
+                    background: dragOver ? ACCENT_RGBA(0.05) : uploadedFile ? 'rgba(34,197,94,0.05)' : '#111',
                     textAlign: 'center', cursor: 'pointer',
                     transition: 'all 0.2s',
                   }}
@@ -282,24 +505,30 @@ function MidExamModal({ onClose, onGenerate }) {
                         Drop your timetable here
                       </div>
                       <div style={{ fontSize: 12, color: '#555' }}>
-                        Supports JPG, PNG, PDF · Click to browse
+                        Supports Excel and CSV files · Click to browse
                       </div>
                     </>
                   )}
                 </div>
                 {errors.file && <div style={errStyle}>{errors.file}</div>}
+                {uploadError && <div style={errStyle}>{uploadError}</div>}
+                {uploadInfo && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#22c55e' }}>
+                    {uploadInfo}
+                  </div>
+                )}
                 {uploadedFile && (
                   <div style={{
-                    marginTop: 10, background: 'rgba(59,130,246,0.08)',
-                    border: '1px solid rgba(59,130,246,0.2)',
+                    marginTop: 10, background: ACCENT_RGBA(0.08),
+                    border: `1px solid ${ACCENT_RGBA(0.2)}`,
                     borderRadius: 10, padding: '10px 14px',
-                    fontSize: 12, color: '#3b82f6',
+                    fontSize: 12, color: ACCENT,
                     display: 'flex', gap: 8, alignItems: 'flex-start',
                   }}>
                     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0, marginTop: 1 }}>
                       <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
-                    Please enter your exam dates below to confirm — auto-parsing from image will be available soon.
+                    Parsed from upload. Review and edit module names or dates below if needed.
                   </div>
                 )}
               </div>
@@ -308,7 +537,7 @@ function MidExamModal({ onClose, onGenerate }) {
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#c0c0c0', marginBottom: 8 }}>
                 {timetableMode === 'upload' ? 'Confirm Your Exam Schedule' : 'Enter Your Exam Schedule'}
-                <span style={{ color: '#3b82f6', marginLeft: 4 }}>*</span>
+                <span style={{ color: ACCENT, marginLeft: 4 }}>*</span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -320,9 +549,9 @@ function MidExamModal({ onClose, onGenerate }) {
                   }}>
                     <div style={{
                       width: 24, height: 24, borderRadius: '50%',
-                      background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.2)',
+                      background: ACCENT_RGBA(0.12), border: `1px solid ${ACCENT_RGBA(0.2)}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 11, fontWeight: 700, color: '#3b82f6',
+                      fontSize: 11, fontWeight: 700, color: ACCENT,
                       flexShrink: 0, marginTop: 8,
                     }}>{idx + 1}</div>
 
@@ -345,7 +574,7 @@ function MidExamModal({ onClose, onGenerate }) {
                         />
                         {errors[`exam_${exam.id}_date`] && <div style={errStyle}>{errors[`exam_${exam.id}_date`]}</div>}
                         {exam.date && !errors[`exam_${exam.id}_date`] && (
-                          <div style={{ fontSize: 10, color: '#3b82f6', marginTop: 3 }}>
+                          <div style={{ fontSize: 10, color: ACCENT, marginTop: 3 }}>
                             {daysUntil(exam.date)} days away
                           </div>
                         )}
@@ -381,7 +610,7 @@ function MidExamModal({ onClose, onGenerate }) {
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   transition: 'all 0.15s',
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.color = '#3b82f6' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = ACCENT; e.currentTarget.style.color = ACCENT }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#2a2a2a'; e.currentTarget.style.color = '#666' }}
               >
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -415,7 +644,7 @@ function MidExamModal({ onClose, onGenerate }) {
                         {days !== null && (
                           <span style={{
                             marginLeft: 8, fontWeight: 600,
-                            color: days <= 3 ? '#ef4444' : days <= 7 ? '#f97316' : '#3b82f6',
+                            color: days <= 3 ? '#ef4444' : days <= 7 ? '#f97316' : ACCENT,
                           }}>
                             {days} day{days !== 1 ? 's' : ''} away
                           </span>
@@ -425,8 +654,8 @@ function MidExamModal({ onClose, onGenerate }) {
                     {days !== null && (
                       <div style={{
                         padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                        background: days <= 3 ? 'rgba(239,68,68,0.12)' : days <= 7 ? 'rgba(249,115,22,0.12)' : 'rgba(59,130,246,0.12)',
-                        color: days <= 3 ? '#ef4444' : days <= 7 ? '#f97316' : '#3b82f6',
+                        background: days <= 3 ? 'rgba(239,68,68,0.12)' : days <= 7 ? 'rgba(249,115,22,0.12)' : ACCENT_RGBA(0.12),
+                        color: days <= 3 ? '#ef4444' : days <= 7 ? '#f97316' : ACCENT,
                       }}>
                         {days <= 3 ? 'URGENT' : days <= 7 ? 'SOON' : 'UPCOMING'}
                       </div>
@@ -492,6 +721,7 @@ function MidExamModal({ onClose, onGenerate }) {
                         fontFamily: 'inherit',
                       }}
                     />
+                    {errors[`detail_${exam.id}_notes`] && <div style={errStyle}>{errors[`detail_${exam.id}_notes`]}</div>}
                   </div>
                 </div>
               )
@@ -516,15 +746,15 @@ function MidExamModal({ onClose, onGenerate }) {
                   max={100}
                   value={currentProgress}
                   onChange={(e) => { setCurrentProgress(Number(e.target.value)); setErrors((er) => ({ ...er, currentProgress: '' })) }}
-                  style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer' }}
+                  style={{ flex: 1, accentColor: ACCENT, cursor: 'pointer' }}
                 />
                 <div style={{
                   minWidth: 64, height: 40,
-                  background: 'rgba(59,130,246,0.12)',
-                  border: '1.5px solid rgba(59,130,246,0.3)',
+                  background: ACCENT_RGBA(0.12),
+                  border: `1.5px solid ${ACCENT_BORDER}`,
                   borderRadius: 10,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 16, fontWeight: 800, color: '#3b82f6',
+                  fontSize: 16, fontWeight: 800, color: ACCENT,
                 }}>
                   {currentProgress}%
                 </div>
@@ -540,13 +770,13 @@ function MidExamModal({ onClose, onGenerate }) {
                 <input
                   type="range" min={1} max={12} value={hoursPerDay}
                   onChange={(e) => setHoursPerDay(Number(e.target.value))}
-                  style={{ flex: 1, accentColor: '#3b82f6', cursor: 'pointer' }}
+                  style={{ flex: 1, accentColor: ACCENT, cursor: 'pointer' }}
                 />
                 <div style={{
-                  minWidth: 52, height: 40, background: 'rgba(59,130,246,0.12)',
-                  border: '1.5px solid rgba(59,130,246,0.3)', borderRadius: 10,
+                  minWidth: 52, height: 40, background: ACCENT_RGBA(0.12),
+                  border: `1.5px solid ${ACCENT_BORDER}`, borderRadius: 10,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 16, fontWeight: 800, color: '#3b82f6',
+                  fontSize: 16, fontWeight: 800, color: ACCENT,
                 }}>{hoursPerDay}h</div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
@@ -562,13 +792,13 @@ function MidExamModal({ onClose, onGenerate }) {
                   { id: 'night', label: 'Night Owl', sub: 'Sessions from 7:00 PM', emoji: '🌙' },
                 ].map((opt) => (
                   <button key={opt.id} onClick={() => { setStudyTime(opt.id); setErrors((e) => ({ ...e, studyTime: '' })) }} style={{
-                    background: studyTime === opt.id ? 'rgba(59,130,246,0.1)' : '#1a1a1a',
-                    border: studyTime === opt.id ? '2px solid #3b82f6' : '1.5px solid #2a2a2a',
+                    background: studyTime === opt.id ? ACCENT_RGBA(0.1) : '#1a1a1a',
+                    border: studyTime === opt.id ? `2px solid ${ACCENT}` : '1.5px solid #2a2a2a',
                     borderRadius: 14, padding: '1rem', cursor: 'pointer', textAlign: 'left',
                     transition: 'all 0.15s',
                   }}>
                     <div style={{ fontSize: 28, marginBottom: 8 }}>{opt.emoji}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: studyTime === opt.id ? '#3b82f6' : '#ddd', marginBottom: 3 }}>{opt.label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: studyTime === opt.id ? ACCENT : '#ddd', marginBottom: 3 }}>{opt.label}</div>
                     <div style={{ fontSize: 11, color: '#555' }}>{opt.sub}</div>
                   </button>
                 ))}
@@ -589,7 +819,7 @@ function MidExamModal({ onClose, onGenerate }) {
                 {[{ id: 'grade', label: 'By Grade' }, { id: 'mark', label: 'By Mark (%)' }].map((opt) => (
                   <button key={opt.id} onClick={() => setPerformanceType(opt.id)} style={{
                     flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                    background: performanceType === opt.id ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : 'transparent',
+                    background: performanceType === opt.id ? GRADIENT : 'transparent',
                     color: performanceType === opt.id ? '#fff' : '#666',
                     fontSize: 13, fontWeight: performanceType === opt.id ? 600 : 400, transition: 'all 0.15s',
                   }}>{opt.label}</button>
@@ -657,9 +887,9 @@ function MidExamModal({ onClose, onGenerate }) {
             onClick={next}
             style={{
               flex: 2, padding: '11px', borderRadius: 11, border: 'none',
-              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+              background: GRADIENT,
               color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              boxShadow: '0 4px 20px rgba(59,130,246,0.35)',
+              boxShadow: `0 4px 20px ${ACCENT_RGBA(0.35)}`,
             }}
           >{step < 3 ? 'Continue →' : '✨ Generate Schedule'}</button>
         </div>
@@ -674,7 +904,7 @@ function Field({ label, hint, error, required, children }) {
   return (
     <div>
       <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#c0c0c0', marginBottom: 6 }}>
-        {label}{required && <span style={{ color: '#3b82f6', marginLeft: 3 }}>*</span>}
+        {label}{required && <span style={{ color: ACCENT, marginLeft: 3 }}>*</span>}
       </label>
       {hint && <p style={{ margin: '0 0 8px', fontSize: 11, color: '#555' }}>{hint}</p>}
       {children}

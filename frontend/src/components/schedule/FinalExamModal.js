@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react'
 import { generateFinalExamSchedule } from '../../utils/finalExamEngine'
+import ExcelJS from 'exceljs'
+import Papa from 'papaparse'
 
 const GRADES = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D', 'F']
 const gradeColors = {
@@ -14,12 +16,160 @@ const WEAKNESS_COLORS = { 1: '#22c55e', 2: '#86efac', 3: '#eab308', 4: '#f97316'
 const PREP_LABELS = { 1: "Haven't Started", 2: 'Just Started', 3: 'Getting There', 4: 'Well Prepared', 5: 'Fully Ready' }
 const PREP_COLORS = { 1: '#ef4444', 2: '#f97316', 3: '#eab308', 4: '#86efac', 5: '#22c55e' }
 
-const ACCENT = '#ef4444'
-const ACCENT_DARK = '#b91c1c'
-const ACCENT_BG = 'rgba(239,68,68,0.15)'
-const ACCENT_BORDER = 'rgba(239,68,68,0.3)'
-const ACCENT_RGBA = (a) => `rgba(239,68,68,${a})`
+const ACCENT = '#f97316'
+const ACCENT_DARK = '#c2410c'
+const ACCENT_BG = 'rgba(249,115,22,0.15)'
+const ACCENT_BORDER = 'rgba(249,115,22,0.3)'
+const ACCENT_RGBA = (a) => `rgba(249,115,22,${a})`
 const GRADIENT = `linear-gradient(135deg, ${ACCENT}, ${ACCENT_DARK})`
+
+const DISALLOWED_SPECIALS = /[!@#$%^&*()]/
+const SPECIAL_CHAR_ERROR = 'Special characters ! @ # $ % ^ & * ( ) are not allowed'
+
+function sanitizeTextValue(value) {
+  return value.replace(/[!@#$%^&*()]/g, '')
+}
+
+function normalizeHeader(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+}
+
+function excelSerialToDate(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return ''
+  const base = Date.UTC(1899, 11, 30)
+  const millis = Math.round(value * 24 * 60 * 60 * 1000)
+  const dt = new Date(base + millis)
+  if (Number.isNaN(dt.getTime())) return ''
+  return dt.toISOString().split('T')[0]
+}
+
+function toInputDate(value) {
+  if (!value && value !== 0) return ''
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().split('T')[0]
+  }
+
+  if (typeof value === 'number') {
+    return excelSerialToDate(value)
+  }
+
+  const text = String(value).trim()
+  if (!text) return ''
+
+  const yyyymmdd = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (yyyymmdd) {
+    const year = Number(yyyymmdd[1])
+    const month = Number(yyyymmdd[2])
+    const day = Number(yyyymmdd[3])
+    const dt = new Date(Date.UTC(year, month - 1, day))
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString().split('T')[0]
+  }
+
+  const ddmmyyyy = text.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/)
+  if (ddmmyyyy) {
+    const day = Number(ddmmyyyy[1])
+    const month = Number(ddmmyyyy[2])
+    const year = Number(ddmmyyyy[3])
+    const dt = new Date(Date.UTC(year, month - 1, day))
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString().split('T')[0]
+  }
+
+  const parsed = new Date(text)
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().split('T')[0]
+  }
+
+  return ''
+}
+
+function parseExamRowsFromMatrix(matrix) {
+  if (!matrix.length) return []
+
+  const subjectCandidates = [
+    'module',
+    'module name',
+    'module subject',
+    'module subject name',
+    'subject',
+    'subject name',
+    'paper',
+    'course',
+    'unit',
+  ]
+
+  const dateCandidates = [
+    'date',
+    'due date',
+    'exam date',
+    'final exam date',
+    'examdate',
+    'date exam',
+    'date due',
+  ]
+
+  let headerRowIndex = -1
+  let subjectIndex = -1
+  let dateIndex = -1
+
+  for (let i = 0; i < Math.min(matrix.length, 15); i += 1) {
+    const row = Array.isArray(matrix[i]) ? matrix[i] : []
+    const cells = row.map((cell) => normalizeHeader(cell))
+
+    const foundSubject = cells.findIndex((cell) => {
+      return subjectCandidates.some((candidate) => {
+        const normalizedCandidate = normalizeHeader(candidate)
+        return cell === normalizedCandidate || cell.includes(normalizedCandidate) || normalizedCandidate.includes(cell)
+      })
+    })
+
+    const foundDate = cells.findIndex((cell) => {
+      return dateCandidates.some((candidate) => {
+        const normalizedCandidate = normalizeHeader(candidate)
+        return cell === normalizedCandidate || cell.includes(normalizedCandidate) || normalizedCandidate.includes(cell)
+      })
+    })
+
+    if (foundSubject !== -1 && foundDate !== -1) {
+      headerRowIndex = i
+      subjectIndex = foundSubject
+      dateIndex = foundDate
+      break
+    }
+  }
+
+  if (headerRowIndex === -1) return []
+
+  const parsed = []
+  for (let i = headerRowIndex + 1; i < matrix.length; i += 1) {
+    const row = Array.isArray(matrix[i]) ? matrix[i] : []
+    const subject = sanitizeTextValue(String(row[subjectIndex] || '').trim())
+    const date = toInputDate(row[dateIndex])
+
+    if (!subject && !date) continue
+    if (!subject || !date) continue
+
+    parsed.push({ id: nextId++, subject, date })
+  }
+
+  return parsed
+}
+
+function parseExamRowsFromWorkbook(workbook) {
+  const worksheet = workbook.worksheets?.[0]
+  if (!worksheet) return []
+
+  const matrix = []
+  worksheet.eachRow({ includeEmpty: false }, (row) => {
+    matrix.push(row.values.slice(1))
+  })
+
+  return parseExamRowsFromMatrix(matrix)
+}
 
 let nextId = 1
 function newExam() {
@@ -80,6 +230,8 @@ function FinalExamModal({ onClose, onGenerate }) {
   const [grade, setGrade] = useState('')
   const [mark, setMark] = useState(70)
   const [errors, setErrors] = useState({})
+  const [uploadInfo, setUploadInfo] = useState('')
+  const [uploadError, setUploadError] = useState('')
   const fileRef = useRef()
   const today = new Date().toISOString().split('T')[0]
 
@@ -87,24 +239,86 @@ function FinalExamModal({ onClose, onGenerate }) {
   const addExam = () => setExams((e) => [...e, newExam()])
   const removeExam = (id) => setExams((e) => e.filter((x) => x.id !== id))
   const updateExam = (id, field, value) => {
+    if (field === 'subject') {
+      const hasSpecials = DISALLOWED_SPECIALS.test(value)
+      const cleaned = sanitizeTextValue(value)
+      setExams((e) => e.map((x) => x.id === id ? { ...x, [field]: cleaned } : x))
+      setErrors((err) => ({
+        ...err,
+        [`exam_${id}_${field}`]: hasSpecials ? SPECIAL_CHAR_ERROR : '',
+      }))
+      return
+    }
+
     setExams((e) => e.map((x) => x.id === id ? { ...x, [field]: value } : x))
     setErrors((err) => ({ ...err, [`exam_${id}_${field}`]: '' }))
   }
 
   // ── Subject detail helpers ──
   const getDetail = (id) => subjectDetails[id] || { weakness: 3, prep: 2, notes: '' }
-  const setDetail = (id, field, value) =>
+  const setDetail = (id, field, value) => {
+    if (field === 'notes') {
+      const hasSpecials = DISALLOWED_SPECIALS.test(value)
+      const cleaned = sanitizeTextValue(value)
+      setSubjectDetails((d) => ({ ...d, [id]: { ...getDetail(id), [field]: cleaned } }))
+      setErrors((err) => ({
+        ...err,
+        [`detail_${id}_${field}`]: hasSpecials ? SPECIAL_CHAR_ERROR : '',
+      }))
+      return
+    }
+
     setSubjectDetails((d) => ({ ...d, [id]: { ...getDetail(id), [field]: value } }))
+  }
 
   // ── File upload ──
-  const handleFile = (file) => {
+  const handleFile = async (file) => {
     if (!file) return
+    setUploadInfo('')
+    setUploadError('')
+
+    const allowed = /\.(xlsx|csv)$/i.test(file.name)
+    if (!allowed) {
+      setUploadError('Please upload an Excel or CSV file (.xlsx, .csv).')
+      return
+    }
+
+    try {
+      let imported = []
+      if (/\.csv$/i.test(file.name)) {
+        const text = await file.text()
+        const csv = Papa.parse(text, { skipEmptyLines: true })
+        if (csv.errors?.length) {
+          setUploadError('Failed to parse CSV. Please check file format and try again.')
+          return
+        }
+        imported = parseExamRowsFromMatrix(csv.data || [])
+      } else {
+        const buffer = await file.arrayBuffer()
+        const workbook = new ExcelJS.Workbook()
+        await workbook.xlsx.load(buffer)
+        imported = parseExamRowsFromWorkbook(workbook)
+      }
+
+      if (!imported.length) {
+        setUploadError('Could not detect subject and date columns. Use columns like Module/Subject and Date/Exam Date.')
+        return
+      }
+
+      setExams(imported)
+      setErrors((prev) => ({ ...prev, exams: '', file: '' }))
+      setUploadInfo(`${imported.length} exam item${imported.length > 1 ? 's' : ''} imported from file.`)
+    } catch {
+      setUploadError('Failed to read file. Please check format and try again.')
+      return
+    }
+
     setUploadedFile(file)
   }
   const onDrop = (e) => {
     e.preventDefault()
     setDragOver(false)
-    handleFile(e.dataTransfer.files[0])
+    void handleFile(e.dataTransfer.files[0])
   }
 
   // ── Days remaining utility ──
@@ -127,6 +341,7 @@ function FinalExamModal({ onClose, onGenerate }) {
       }
       exams.forEach((e) => {
         if (!e.subject.trim()) errs[`exam_${e.id}_subject`] = 'Required'
+        else if (DISALLOWED_SPECIALS.test(e.subject)) errs[`exam_${e.id}_subject`] = SPECIAL_CHAR_ERROR
         if (!e.date) errs[`exam_${e.id}_date`] = 'Required'
         else if (new Date(e.date) <= new Date()) errs[`exam_${e.id}_date`] = 'Must be future date'
       })
@@ -207,8 +422,8 @@ function FinalExamModal({ onClose, onGenerate }) {
               </span>
             </div>
             <p style={{ margin: 0, fontSize: 12, color: '#555' }}>
-              Build a comprehensive study plan across all your final exams
-            </p>
+                  Build a comprehensive study plan across all your final exams
+                </p>
           </div>
           <button
             onClick={onClose}
@@ -250,9 +465,9 @@ function FinalExamModal({ onClose, onGenerate }) {
             {timetableMode === 'upload' && (
               <div>
                 <input
-                  ref={fileRef} type="file" accept="image/*,.pdf"
+                  ref={fileRef} type="file" accept=".xlsx,.csv"
                   style={{ display: 'none' }}
-                  onChange={(e) => handleFile(e.target.files[0])}
+                  onChange={(e) => { void handleFile(e.target.files[0]) }}
                 />
                 <div
                   onClick={() => fileRef.current.click()}
@@ -284,11 +499,17 @@ function FinalExamModal({ onClose, onGenerate }) {
                         Drop your timetable here
                       </div>
                       <div style={{ fontSize: 12, color: '#555' }}>
-                        Supports JPG, PNG, PDF · Click to browse
+                        Supports Excel and CSV files · Click to browse
                       </div>
                     </>
                   )}
                 </div>
+                {uploadError && <div style={errStyle}>{uploadError}</div>}
+                {uploadInfo && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#22c55e' }}>
+                    {uploadInfo}
+                  </div>
+                )}
                 {errors.file && <div style={errStyle}>{errors.file}</div>}
                 {uploadedFile && (
                   <div style={{
@@ -301,7 +522,7 @@ function FinalExamModal({ onClose, onGenerate }) {
                     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0, marginTop: 1 }}>
                       <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
-                    Please enter your exam dates below to confirm — auto-parsing from image will be available soon.
+                    Parsed from upload. Review and edit module names or dates below if needed.
                   </div>
                 )}
               </div>
@@ -494,6 +715,7 @@ function FinalExamModal({ onClose, onGenerate }) {
                         fontFamily: 'inherit',
                       }}
                     />
+                    {errors[`detail_${exam.id}_notes`] && <div style={errStyle}>{errors[`detail_${exam.id}_notes`]}</div>}
                   </div>
                 </div>
               )

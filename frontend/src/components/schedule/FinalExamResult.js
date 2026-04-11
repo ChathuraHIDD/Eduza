@@ -1,17 +1,24 @@
 import { useState } from 'react'
+import { downloadSchedulePdf } from '../../utils/schedulePdf'
+import StudySessionTracker from '../study/StudySessionTracker'
 
 const WEAKNESS_LABELS = { 1: 'Very Strong', 2: 'Strong', 3: 'Average', 4: 'Weak', 5: 'Very Weak' }
 const PREP_LABELS     = { 1: "Haven't Started", 2: 'Just Started', 3: 'Getting There', 4: 'Well Prepared', 5: 'Fully Ready' }
 
-const ACCENT = '#ef4444'
-const ACCENT_DARK = '#b91c1c'
-const ACCENT_RGBA = (a) => `rgba(239,68,68,${a})`
+const ACCENT = '#f97316'
+const ACCENT_DARK = '#c2410c'
+const ACCENT_RGBA = (a) => `rgba(249,115,22,${a})`
 
 function FinalExamResult({ data, onBack }) {
   const [expandedDay, setExpandedDay] = useState(0)
   const [activeSubject, setActiveSubject] = useState(null)
 
+  const handleDownloadPdf = async () => {
+    await downloadSchedulePdf({ planType: 'final-exam', data })
+  }
+
   const { exams, totalDays, hoursPerDay, studyTime, targetLabel, totalHours, days } = data
+  const plannedMinutesToday = Math.max(0, Math.round((hoursPerDay || 0) * 60))
 
   const filteredDays = activeSubject
     ? days.filter((d) => d.subject === activeSubject || d.isExamDay)
@@ -39,6 +46,14 @@ function FinalExamResult({ data, onBack }) {
           <p style={{ margin: 0, fontSize: 12, color: '#555' }}>Priority-driven · personalised to your exam dates</p>
         </div>
       </div>
+
+      <StudySessionTracker
+        label="Final Exam Study Plan"
+        moduleName={exams?.[0]?.subject || 'Final Exam'}
+        sessionType="revision"
+        studyPlanId={data?.studyPlanId || null}
+        plannedMinutesToday={plannedMinutesToday}
+      />
 
       {/* Summary banner */}
       <div style={{
@@ -157,7 +172,7 @@ function FinalExamResult({ data, onBack }) {
 
       {/* Day-by-day schedule */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {filteredDays.map((day, idx) => {
+        {filteredDays.map((day) => {
           const globalIdx = days.indexOf(day)
           const isOpen = expandedDay === globalIdx
 
@@ -375,12 +390,24 @@ function FinalExamResult({ data, onBack }) {
             {exams.length} exams tracked · Target: {targetLabel}
           </div>
         </div>
-        <button onClick={onBack} style={{
-          background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT_DARK})`,
-          border: 'none', borderRadius: 10, color: '#fff',
-          padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          boxShadow: `0 4px 18px ${ACCENT_RGBA(0.3)}`,
-        }}>Create Another Plan</button>
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <button onClick={handleDownloadPdf} style={{
+            background: '#fff',
+            border: `1px solid ${ACCENT_RGBA(0.35)}`,
+            borderRadius: 10,
+            color: ACCENT_DARK,
+            padding: '10px 18px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}>Download PDF</button>
+          <button onClick={onBack} style={{
+            background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT_DARK})`,
+            border: 'none', borderRadius: 10, color: '#fff',
+            padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            boxShadow: `0 4px 18px ${ACCENT_RGBA(0.3)}`,
+          }}>Create Another Plan</button>
+        </div>
       </div>
     </div>
   )

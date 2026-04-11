@@ -80,3 +80,14 @@ export const renameGroupRequest = async (groupId, payload) => {
       },
     });
   };
+
+  export const deleteGroupMessageRequest = async (groupId, messageId) => {
+    const token = getAuthToken();
+  
+    return apiFetch(`/api/chat/groups/${groupId}/messages/${messageId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  };

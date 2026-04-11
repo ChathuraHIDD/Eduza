@@ -6,6 +6,9 @@ import {
   getGroupMessages,
   sendGroupMessage,
   createGroupWithMembers,
+  renameGroupRequest,
+  addGroupMembersRequest,
+  removeGroupMemberRequest,
 } from "../../utils/chatApi";
 import {
   searchChatUsers,
@@ -59,10 +62,21 @@ function GroupChat() {
   const [selectedGroupUsers, setSelectedGroupUsers] = useState([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
 
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameGroupName, setRenameGroupName] = useState("");
+  const [renamingGroup, setRenamingGroup] = useState(false);
+
+  const [showAddMembersModal, setShowAddMembersModal] = useState(false);
+  const [addMemberSearch, setAddMemberSearch] = useState("");
+  const [addMemberResults, setAddMemberResults] = useState([]);
+  const [selectedNewMembers, setSelectedNewMembers] = useState([]);
+  const [addingMembers, setAddingMembers] = useState(false);
+
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const searchTimeoutRef = useRef(null);
   const groupSearchTimeoutRef = useRef(null);
+  const addMemberSearchTimeoutRef = useRef(null);
   const messageEndRef = useRef(null);
 
   useEffect(() => {
@@ -130,8 +144,6 @@ function GroupChat() {
                     ? "📷 Photo"
                     : message.type === "file"
                     ? "📎 File"
-                    : message.type === "voice"
-                    ? "🎤 Voice message"
                     : message.text || "New message",
                 updatedAt: message.createdAt || new Date().toISOString(),
               }
@@ -210,6 +222,89 @@ function GroupChat() {
       groupId: selectedChat._id,
       userId: currentUser.id,
       userName: currentUser.name,
+    });
+  };
+
+  const isDirectChat = (chat) => chat?.members && chat.members.length === 2;
+
+  const isCurrentUserAdmin = (chat) => {
+    if (!chat?.admins) return false;
+    return chat.admins.some(
+      (admin) => (admin._id || admin.id || admin).toString() === currentUser.id.toString()
+    );
+  };
+
+  const getDirectChatOtherUser = (chat) => {
+    if (!isDirectChat(chat)) return null;
+    return chat.members.find(
+      (member) => (member._id || member.id) !== currentUser.id
+    );
+  };
+
+  const getChatDisplayName = (chat) => {
+    if (!chat) return "Select a chat";
+
+    if (isDirectChat(chat)) {
+      const otherUser = getDirectChatOtherUser(chat);
+      return otherUser?.name || chat.name || "Direct Chat";
+    }
+
+    return chat.name || "Group Chat";
+  };
+
+  const getChatSubtitle = (chat) => {
+    if (!chat) return "";
+
+    if (isDirectChat(chat)) {
+      const otherUser = getDirectChatOtherUser(chat);
+      const isOnline = onlineUserIds.includes(otherUser?._id || otherUser?.id);
+      return isOnline ? "online" : "offline";
+    }
+
+    return `${chat.members?.length || 0} members`;
+  };
+
+  const getChatDisplayAvatar = (chat) => {
+    if (isDirectChat(chat)) {
+      const otherUser = getDirectChatOtherUser(chat);
+      return (otherUser?.name || "U").charAt(0).toUpperCase();
+    }
+    return (chat?.name || "G").charAt(0).toUpperCase();
+  };
+
+  const filteredGroups = useMemo(() => {
+    if (chatFilter === "direct") {
+      return groups.filter((chat) => isDirectChat(chat));
+    }
+    if (chatFilter === "groups") {
+      return groups.filter((chat) => !isDirectChat(chat));
+    }
+    return groups;
+  }, [groups, chatFilter]);
+
+  const formatMessageTime = (dateValue) => {
+    return new Date(dateValue || Date.now()).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatChatListTime = (dateValue) => {
+    if (!dateValue) return "";
+    const date = new Date(dateValue);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+
+    if (isToday) {
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    return date.toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -399,6 +494,35 @@ function GroupChat() {
     }, 300);
   };
 
+  const handleAddMemberSearch = async (value) => {
+    setAddMemberSearch(value);
+
+    if (addMemberSearchTimeoutRef.current) {
+      clearTimeout(addMemberSearchTimeoutRef.current);
+    }
+
+    if (!value.trim() || !selectedChat) {
+      setAddMemberResults([]);
+      return;
+    }
+
+    addMemberSearchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const users = await searchChatUsers(value.trim());
+        const existingIds = (selectedChat.members || []).map((member) => member._id);
+        const filtered = (Array.isArray(users) ? users : []).filter(
+          (user) =>
+            !existingIds.includes(user._id) &&
+            !selectedNewMembers.some((selected) => selected._id === user._id)
+        );
+        setAddMemberResults(filtered);
+      } catch (error) {
+        console.error("Failed to search new members:", error);
+        setAddMemberResults([]);
+      }
+    }, 300);
+  };
+
   const addUserToNewGroup = (user) => {
     setSelectedGroupUsers((prev) => [...prev, user]);
     setGroupUserSearch("");
@@ -407,6 +531,16 @@ function GroupChat() {
 
   const removeUserFromNewGroup = (userId) => {
     setSelectedGroupUsers((prev) => prev.filter((user) => user._id !== userId));
+  };
+
+  const addUserToExistingGroup = (user) => {
+    setSelectedNewMembers((prev) => [...prev, user]);
+    setAddMemberSearch("");
+    setAddMemberResults([]);
+  };
+
+  const removeSelectedNewMember = (userId) => {
+    setSelectedNewMembers((prev) => prev.filter((user) => user._id !== userId));
   };
 
   const handleCreateGroup = async () => {
@@ -472,80 +606,100 @@ function GroupChat() {
     }
   };
 
-  const isDirectChat = (chat) => chat?.members && chat.members.length === 2;
-
-  const getDirectChatOtherUser = (chat) => {
-    if (!isDirectChat(chat)) return null;
-    return chat.members.find(
-      (member) => (member._id || member.id) !== currentUser.id
-    );
+  const openRenameModal = () => {
+    setRenameGroupName(selectedChat?.name || "");
+    setShowRenameModal(true);
   };
 
-  const getChatDisplayName = (chat) => {
-    if (!chat) return "Select a chat";
-
-    if (isDirectChat(chat)) {
-      const otherUser = getDirectChatOtherUser(chat);
-      return otherUser?.name || chat.name || "Direct Chat";
+  const handleRenameGroup = async () => {
+    if (!selectedChat?._id || !renameGroupName.trim()) {
+      alert("Please enter a group name");
+      return;
     }
 
-    return chat.name || "Group Chat";
-  };
-
-  const getChatSubtitle = (chat) => {
-    if (!chat) return "";
-
-    if (isDirectChat(chat)) {
-      const otherUser = getDirectChatOtherUser(chat);
-      const isOnline = onlineUserIds.includes(otherUser?._id || otherUser?.id);
-      return isOnline ? "online" : "offline";
-    }
-
-    return `${chat.members?.length || 0} members`;
-  };
-
-  const getChatDisplayAvatar = (chat) => {
-    if (isDirectChat(chat)) {
-      const otherUser = getDirectChatOtherUser(chat);
-      return (otherUser?.name || "U").charAt(0).toUpperCase();
-    }
-    return (chat?.name || "G").charAt(0).toUpperCase();
-  };
-
-  const filteredGroups = useMemo(() => {
-    if (chatFilter === "direct") {
-      return groups.filter((chat) => isDirectChat(chat));
-    }
-    if (chatFilter === "groups") {
-      return groups.filter((chat) => !isDirectChat(chat));
-    }
-    return groups;
-  }, [groups, chatFilter]);
-
-  const formatMessageTime = (dateValue) => {
-    return new Date(dateValue || Date.now()).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const formatChatListTime = (dateValue) => {
-    if (!dateValue) return "";
-    const date = new Date(dateValue);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-
-    if (isToday) {
-      return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
+    try {
+      setRenamingGroup(true);
+      const updatedGroup = await renameGroupRequest(selectedChat._id, {
+        name: renameGroupName.trim(),
       });
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group._id === updatedGroup._id
+            ? { ...group, ...updatedGroup }
+            : group
+        )
+      );
+
+      setSelectedChat(updatedGroup);
+      setShowRenameModal(false);
+    } catch (error) {
+      console.error("Failed to rename group:", error);
+      alert("Failed to rename group");
+    } finally {
+      setRenamingGroup(false);
+    }
+  };
+
+  const handleAddMembersToGroup = async () => {
+    if (!selectedChat?._id || selectedNewMembers.length === 0) {
+      alert("Please select members to add");
+      return;
     }
 
-    return date.toLocaleDateString([], {
-      month: "short",
-      day: "numeric",
-    });
+    try {
+      setAddingMembers(true);
+
+      const updatedGroup = await addGroupMembersRequest(
+        selectedChat._id,
+        selectedNewMembers.map((user) => user._id)
+      );
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group._id === updatedGroup._id
+            ? { ...group, ...updatedGroup }
+            : group
+        )
+      );
+
+      setSelectedChat(updatedGroup);
+      setMembers(updatedGroup.members || []);
+      setShowAddMembersModal(false);
+      setAddMemberSearch("");
+      setAddMemberResults([]);
+      setSelectedNewMembers([]);
+    } catch (error) {
+      console.error("Failed to add members:", error);
+      alert("Failed to add members");
+    } finally {
+      setAddingMembers(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!selectedChat?._id) return;
+
+    const confirmed = window.confirm("Remove this member from the group?");
+    if (!confirmed) return;
+
+    try {
+      const updatedGroup = await removeGroupMemberRequest(selectedChat._id, memberId);
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group._id === updatedGroup._id
+            ? { ...group, ...updatedGroup }
+            : group
+        )
+      );
+
+      setSelectedChat(updatedGroup);
+      setMembers(updatedGroup.members || []);
+    } catch (error) {
+      console.error("Failed to remove member:", error);
+      alert(error?.message || "Failed to remove member");
+    }
   };
 
   const renderMessageContent = (msg, isOwn) => {
@@ -845,63 +999,59 @@ function GroupChat() {
               <p>{getChatSubtitle(selectedChat)}</p>
             </div>
 
-            <div className="info-actions-soft">
-              <button>
-                <span>📞</span>
-                <small>Call</small>
-              </button>
-              <button>
-                <span>💬</span>
-                <small>Message</small>
-              </button>
-              <button>
-                <span>🎥</span>
-                <small>Video</small>
-              </button>
-              <button>
-                <span>⋯</span>
-                <small>More</small>
-              </button>
-            </div>
-
-            <div className="info-details-soft">
-              <div className="info-detail-row">
-                <label>Email</label>
-                <span>
-                  {isDirectChat(selectedChat)
-                    ? getDirectChatOtherUser(selectedChat)?.email || "Not available"
-                    : "Group chat"}
-                </span>
+            {!isDirectChat(selectedChat) && isCurrentUserAdmin(selectedChat) && (
+              <div className="group-admin-actions">
+                <button onClick={openRenameModal}>✏️ Rename Group</button>
+                <button onClick={() => setShowAddMembersModal(true)}>➕ Add Members</button>
               </div>
-              <div className="info-detail-row">
-                <label>Type</label>
-                <span>{isDirectChat(selectedChat) ? "Direct message" : "Group chat"}</span>
-              </div>
-              <div className="info-detail-row">
-                <label>Members</label>
-                <span>{members.length}</span>
-              </div>
-            </div>
+            )}
 
             <div className="members-section-soft">
               <h4>Members</h4>
 
               <div className="member-list-soft">
-                {members.map((member, index) => (
-                  <div key={member._id || index} className="member-item-soft">
-                    <div className="member-item-soft-left">
-                      <div className="member-avatar-soft">
-                        {(member.name || "U").charAt(0).toUpperCase()}
+                {members.map((member, index) => {
+                  const memberId = member._id || member.id;
+                  const isAdmin = selectedChat?.admins?.some(
+                    (admin) =>
+                      (admin._id || admin.id || admin).toString() === memberId.toString()
+                  );
+
+                  const canRemove =
+                    !isDirectChat(selectedChat) &&
+                    isCurrentUserAdmin(selectedChat) &&
+                    memberId.toString() !== currentUser.id.toString() &&
+                    memberId.toString() !== (selectedChat?.createdBy?._id || selectedChat?.createdBy || "").toString();
+
+                  return (
+                    <div key={memberId || index} className="member-item-soft admin-layout">
+                      <div className="member-item-soft-left">
+                        <div className="member-avatar-soft">
+                          {(member.name || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <strong>{member.name || "Unknown User"}</strong>
+                          <div className="member-meta-row">
+                            <span>{member.role || "Member"}</span>
+                            {isAdmin && <span className="admin-badge-soft">Admin</span>}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <strong>{member.name || "Unknown User"}</strong>
-                        <span>{member.role || "Member"}</span>
+
+                      <div className="member-action-side">
+                        <div className={`member-status-soft ${member.status || "offline"}`} />
+                        {canRemove && (
+                          <button
+                            className="remove-member-btn"
+                            onClick={() => handleRemoveMember(memberId)}
+                          >
+                            Remove
+                          </button>
+                        )}
                       </div>
                     </div>
-
-                    <div className={`member-status-soft ${member.status || "offline"}`} />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </aside>
@@ -980,6 +1130,113 @@ function GroupChat() {
                 disabled={creatingGroup}
               >
                 {creatingGroup ? "Creating..." : "Create Group"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRenameModal && (
+        <div className="group-modal-overlay" onClick={() => setShowRenameModal(false)}>
+          <div className="group-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="group-modal-header">
+              <h3>Rename Group</h3>
+              <button onClick={() => setShowRenameModal(false)}>✕</button>
+            </div>
+
+            <div className="group-modal-body">
+              <label>New Group Name</label>
+              <input
+                type="text"
+                placeholder="Enter new group name"
+                value={renameGroupName}
+                onChange={(e) => setRenameGroupName(e.target.value)}
+              />
+            </div>
+
+            <div className="group-modal-footer">
+              <button
+                className="group-cancel-btn"
+                onClick={() => setShowRenameModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="group-create-btn"
+                onClick={handleRenameGroup}
+                disabled={renamingGroup}
+              >
+                {renamingGroup ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddMembersModal && (
+        <div className="group-modal-overlay" onClick={() => setShowAddMembersModal(false)}>
+          <div className="group-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="group-modal-header">
+              <h3>Add Members</h3>
+              <button onClick={() => setShowAddMembersModal(false)}>✕</button>
+            </div>
+
+            <div className="group-modal-body">
+              <label>Search Users</label>
+              <input
+                type="text"
+                placeholder="Search users by name or email"
+                value={addMemberSearch}
+                onChange={(e) => handleAddMemberSearch(e.target.value)}
+              />
+
+              {addMemberSearch && (
+                <div className="group-user-search-results">
+                  {addMemberResults.length === 0 ? (
+                    <div className="group-user-search-item">No users found</div>
+                  ) : (
+                    addMemberResults.map((user) => (
+                      <div
+                        key={user._id}
+                        className="group-user-search-item"
+                        onClick={() => addUserToExistingGroup(user)}
+                      >
+                        <div className="group-user-avatar">
+                          {(user.name || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="group-user-info">
+                          <strong>{user.name}</strong>
+                          <span>{user.email}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              <div className="selected-group-users">
+                {selectedNewMembers.map((user) => (
+                  <div key={user._id} className="selected-group-user-chip">
+                    <span>{user.name}</span>
+                    <button onClick={() => removeSelectedNewMember(user._id)}>✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="group-modal-footer">
+              <button
+                className="group-cancel-btn"
+                onClick={() => setShowAddMembersModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="group-create-btn"
+                onClick={handleAddMembersToGroup}
+                disabled={addingMembers}
+              >
+                {addingMembers ? "Adding..." : "Add Members"}
               </button>
             </div>
           </div>

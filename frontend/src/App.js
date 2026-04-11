@@ -15,6 +15,13 @@ import StressHubBlueResult from './pages/StressHubBlueResult'
 import StressHubOrangeGamePage from './pages/StressHubOrangeGamePage'
 import ProgressTracker from './pages/ProgressTracker'
 import GPACalculator from './pages/GPACalculator'
+import MBTIMeasure from './pages/MBTIMeasure'
+import GetBreak from './pages/GetBreak'
+import MusicPlayer from './pages/MusicPlayer'
+import MemoryGame from './pages/MemoryGame'
+import Game2048 from './pages/Game2048'
+import PuzzleGame from './pages/PuzzleGame'
+import WordGame from './pages/WordGame'
 
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -54,6 +61,13 @@ function App() {
           <Route path="stress-hub/blue" element={<StressHubBlueResult />} />
           <Route path="progress-tracker" element={<ProgressTracker />} />
           <Route path="gpa-calculator" element={<GPACalculator />} />
+          <Route path="mbti-measure" element={<MBTIMeasure />} />
+          <Route path="get-break" element={<GetBreak />} />
+          <Route path="music-player" element={<MusicPlayer />} />
+          <Route path="memory-game" element={<MemoryGame />} />
+          <Route path="2048-game" element={<Game2048 />} />
+          <Route path="puzzle-game" element={<PuzzleGame />} />
+          <Route path="word-game" element={<WordGame />} />
 
           <Route
             path="profile"

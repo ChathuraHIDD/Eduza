@@ -16,6 +16,8 @@ import StressHubOrangeGamePage from './pages/StressHubOrangeGamePage'
 import ProgressTracker from './pages/ProgressTracker'
 import GPACalculator from './pages/GPACalculator'
 import MBTIMeasure from './pages/MBTIMeasure'
+import GetBreak from './pages/GetBreak'
+import MusicPlayer from './pages/MusicPlayer'
 
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -56,6 +58,8 @@ function App() {
           <Route path="progress-tracker" element={<ProgressTracker />} />
           <Route path="gpa-calculator" element={<GPACalculator />} />
           <Route path="mbti-measure" element={<MBTIMeasure />} />
+          <Route path="get-break" element={<GetBreak />} />
+          <Route path="music-player" element={<MusicPlayer />} />
 
           <Route
             path="profile"

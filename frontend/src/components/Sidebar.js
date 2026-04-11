@@ -111,6 +111,11 @@ function SidebarContent({ onClose }) {
       icon: aiNotesIcon,
     },
     {
+      label: 'MBTI Measure',
+      path: '/mbti-measure',
+      icon: mbtiIcon,
+    },
+    {
       label: 'Progress Tracker',
       path: '/progress-tracker',
       icon: aiNotesIcon,
@@ -190,6 +195,11 @@ function SidebarContent({ onClose }) {
       label: 'AI Notes',
       path: '/ai-notes',
       icon: aiNotesIcon,
+    },
+    {
+      label: 'MBTI Measure',
+      path: '/mbti-measure',
+      icon: mbtiIcon,
     },
   ]
 
@@ -515,6 +525,16 @@ const calendarIcon = (
     <line x1="16" y1="2" x2="16" y2="6" />
     <line x1="8" y1="2" x2="8" y2="6" />
     <line x1="3" y1="10" x2="21" y2="10" />
+  </svg>
+)
+
+const mbtiIcon = (
+  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+    <path d="M12 3a3 3 0 0 1 3 3c0 .74-.27 1.41-.72 1.92A4.5 4.5 0 0 1 18.5 12v1.5" />
+    <path d="M12 3a3 3 0 0 0-3 3c0 .74.27 1.41.72 1.92A4.5 4.5 0 0 0 5.5 12v1.5" />
+    <path d="M8 21v-2.5A2.5 2.5 0 0 1 10.5 16H12" />
+    <path d="M16 21v-2.5a2.5 2.5 0 0 0-2.5-2.5H12" />
+    <circle cx="12" cy="12" r="2.25" />
   </svg>
 )
 

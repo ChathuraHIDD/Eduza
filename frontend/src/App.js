@@ -15,6 +15,7 @@ import StressHubBlueResult from './pages/StressHubBlueResult'
 import StressHubOrangeGamePage from './pages/StressHubOrangeGamePage'
 import ProgressTracker from './pages/ProgressTracker'
 import GPACalculator from './pages/GPACalculator'
+import MBTIMeasure from './pages/MBTIMeasure'
 
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -54,6 +55,7 @@ function App() {
           <Route path="stress-hub/blue" element={<StressHubBlueResult />} />
           <Route path="progress-tracker" element={<ProgressTracker />} />
           <Route path="gpa-calculator" element={<GPACalculator />} />
+          <Route path="mbti-measure" element={<MBTIMeasure />} />
 
           <Route
             path="profile"

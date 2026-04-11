@@ -9,6 +9,7 @@ import {
   renameGroupRequest,
   addGroupMembersRequest,
   removeGroupMemberRequest,
+  deleteGroupMessageRequest,
 } from "../../utils/chatApi";
 import {
   searchChatUsers,
@@ -230,7 +231,8 @@ function GroupChat() {
   const isCurrentUserAdmin = (chat) => {
     if (!chat?.admins) return false;
     return chat.admins.some(
-      (admin) => (admin._id || admin.id || admin).toString() === currentUser.id.toString()
+      (admin) =>
+        (admin._id || admin.id || admin).toString() === currentUser.id.toString()
     );
   };
 
@@ -356,6 +358,36 @@ function GroupChat() {
       emitStopTyping();
     } catch (error) {
       console.error("Failed to send message:", error);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    if (!selectedChat?._id || !messageId) return;
+
+    const confirmed = window.confirm("Delete this message?");
+    if (!confirmed) return;
+
+    try {
+      const result = await deleteGroupMessageRequest(selectedChat._id, messageId);
+
+      setMessages((prev) =>
+        prev.filter((msg) => (msg._id || msg.id) !== messageId)
+      );
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group._id === selectedChat._id
+            ? {
+                ...group,
+                lastMessage: result.lastMessageText || "No messages yet",
+                updatedAt: new Date().toISOString(),
+              }
+            : group
+        )
+      );
+    } catch (error) {
+      console.error("Failed to delete message:", error);
+      alert(error?.message || "Failed to delete message");
     }
   };
 
@@ -684,7 +716,10 @@ function GroupChat() {
     if (!confirmed) return;
 
     try {
-      const updatedGroup = await removeGroupMemberRequest(selectedChat._id, memberId);
+      const updatedGroup = await removeGroupMemberRequest(
+        selectedChat._id,
+        memberId
+      );
 
       setGroups((prev) =>
         prev.map((group) =>
@@ -914,6 +949,9 @@ function GroupChat() {
                       msg.sender?._id === currentUser.id ||
                       msg.senderId === currentUser.id;
 
+                    const canDelete =
+                      isOwn || (!isDirectChat(selectedChat) && isCurrentUserAdmin(selectedChat));
+
                     return (
                       <div
                         key={msg._id || msg.id}
@@ -933,7 +971,20 @@ function GroupChat() {
                               {msg.sender?.name || msg.senderName || "User"}
                             </div>
                           )}
-                          {renderMessageContent(msg, isOwn)}
+
+                          <div className="message-bubble-row">
+                            {renderMessageContent(msg, isOwn)}
+
+                            {canDelete && (
+                              <button
+                                className="delete-message-btn"
+                                onClick={() => handleDeleteMessage(msg._id || msg.id)}
+                                title="Delete message"
+                              >
+                                🗑️
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -951,7 +1002,10 @@ function GroupChat() {
                 )}
 
                 <div className="composer-soft">
-                  <button className="composer-icon-soft" onClick={() => setShowEmojiPicker((prev) => !prev)}>
+                  <button
+                    className="composer-icon-soft"
+                    onClick={() => setShowEmojiPicker((prev) => !prev)}
+                  >
                     😊
                   </button>
 
@@ -1021,7 +1075,12 @@ function GroupChat() {
                     !isDirectChat(selectedChat) &&
                     isCurrentUserAdmin(selectedChat) &&
                     memberId.toString() !== currentUser.id.toString() &&
-                    memberId.toString() !== (selectedChat?.createdBy?._id || selectedChat?.createdBy || "").toString();
+                    memberId.toString() !==
+                      (
+                        selectedChat?.createdBy?._id ||
+                        selectedChat?.createdBy ||
+                        ""
+                      ).toString();
 
                   return (
                     <div key={memberId || index} className="member-item-soft admin-layout">
@@ -1059,7 +1118,10 @@ function GroupChat() {
       </div>
 
       {showCreateGroupModal && (
-        <div className="group-modal-overlay" onClick={() => setShowCreateGroupModal(false)}>
+        <div
+          className="group-modal-overlay"
+          onClick={() => setShowCreateGroupModal(false)}
+        >
           <div className="group-modal" onClick={(e) => e.stopPropagation()}>
             <div className="group-modal-header">
               <h3>Create Group</h3>
@@ -1137,7 +1199,10 @@ function GroupChat() {
       )}
 
       {showRenameModal && (
-        <div className="group-modal-overlay" onClick={() => setShowRenameModal(false)}>
+        <div
+          className="group-modal-overlay"
+          onClick={() => setShowRenameModal(false)}
+        >
           <div className="group-modal" onClick={(e) => e.stopPropagation()}>
             <div className="group-modal-header">
               <h3>Rename Group</h3>
@@ -1174,7 +1239,10 @@ function GroupChat() {
       )}
 
       {showAddMembersModal && (
-        <div className="group-modal-overlay" onClick={() => setShowAddMembersModal(false)}>
+        <div
+          className="group-modal-overlay"
+          onClick={() => setShowAddMembersModal(false)}
+        >
           <div className="group-modal" onClick={(e) => e.stopPropagation()}>
             <div className="group-modal-header">
               <h3>Add Members</h3>

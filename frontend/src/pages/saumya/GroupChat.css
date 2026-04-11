@@ -1216,3 +1216,32 @@
   font-size: 12px;
   font-weight: 700;
 }
+
+.message-bubble-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.message-bubble-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.delete-message-btn {
+  border: none;
+  background: #fff1f2;
+  color: #be123c;
+  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  font-size: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05);
+}
+
+.delete-message-btn:hover {
+  background: #ffe4e6;
+}

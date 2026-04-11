@@ -298,6 +298,67 @@ const removeMemberFromGroup = async (req, res) => {
   }
 };
 
+const deleteGroupMessage = async (req, res) => {
+  try {
+    const { groupId, messageId } = req.params;
+    const userId = req.user._id;
+
+    const group = await ChatGroup.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
+    }
+
+    const isMember = group.members.some(
+      (memberId) => memberId.toString() === userId.toString()
+    );
+
+    if (!isMember) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const message = await ChatMessage.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    if (message.group.toString() !== groupId.toString()) {
+      return res.status(400).json({ message: "Message does not belong to this group" });
+    }
+
+    const isSender = message.sender.toString() === userId.toString();
+    const isAdmin = group.admins.some(
+      (adminId) => adminId.toString() === userId.toString()
+    );
+
+    if (!isSender && !isAdmin) {
+      return res
+        .status(403)
+        .json({ message: "Only the sender or a group admin can delete this message" });
+    }
+
+    await ChatMessage.findByIdAndDelete(messageId);
+
+    const lastMessage = await ChatMessage.findOne({ group: groupId })
+      .sort({ createdAt: -1 });
+
+    group.updatedAt = new Date();
+    await group.save();
+
+    res.status(200).json({
+      message: "Message deleted successfully",
+      deletedMessageId: messageId,
+      lastMessageText: lastMessage
+        ? lastMessage.type === "text"
+          ? lastMessage.text
+          : `${lastMessage.type} shared`
+        : "No messages yet",
+    });
+  } catch (error) {
+    console.error("deleteGroupMessage error:", error);
+    res.status(500).json({ message: "Failed to delete message" });
+  }
+};
+
 module.exports = {
   getMyGroups,
   getGroupMessages,
@@ -307,4 +368,5 @@ module.exports = {
   renameGroup,
   addMembersToGroup,
   removeMemberFromGroup,
+  deleteGroupMessage,
 };

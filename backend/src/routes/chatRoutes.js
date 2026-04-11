@@ -10,6 +10,7 @@ const {
   renameGroup,
   addMembersToGroup,
   removeMemberFromGroup,
+  deleteGroupMessage,
 } = require("../controllers/chatController");
 
 const { protect } = require("../middleware/authMiddleware");
@@ -24,5 +25,6 @@ router.delete("/groups/:groupId/members/:userId", protect, removeMemberFromGroup
 
 router.get("/groups/:groupId/messages", protect, getGroupMessages);
 router.post("/groups/:groupId/messages", protect, sendGroupMessage);
+router.delete("/groups/:groupId/messages/:messageId", protect, deleteGroupMessage);
 
 module.exports = router;

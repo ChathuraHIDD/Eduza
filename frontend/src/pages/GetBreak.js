@@ -154,7 +154,12 @@ const GetBreak = () => {
                   key={game.id}
                   className="premium-card"
                   style={{ background: game.gradient }}
-                  onClick={() => alert(`${game.name} coming soon!`)}
+                  onClick={() => {
+                    if (game.id === 1) navigate('/memory-game')
+                    else if (game.id === 2) navigate('/puzzle-game')
+                    else if (game.id === 3) navigate('/2048-game')
+                    else if (game.id === 4) navigate('/word-game')
+                  }}
                 >
                   <div className="card-circle"></div>
                   <div className="card-text">

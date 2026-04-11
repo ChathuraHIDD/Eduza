@@ -125,6 +125,11 @@ function SidebarContent({ onClose }) {
       path: '/gpa-calculator',
       icon: gpaCalculatorIcon,
     },
+    {
+      label: 'Get Break',
+      path: '/get-break',
+      icon: breakIcon,
+    },
 
   ]
 
@@ -610,6 +615,15 @@ const gpaCalculatorIcon = (
     <line x1="8" y1="11" x2="16" y2="11" />
     <line x1="8" y1="15" x2="16" y2="15" />
     <line x1="8" y1="19" x2="16" y2="19" />
+  </svg>
+)
+
+const breakIcon = (
+  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="1" />
+    <path d="M12 7v5" />
+    <path d="M12 17v.01" />
+    <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
   </svg>
 )
 

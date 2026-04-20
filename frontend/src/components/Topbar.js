@@ -19,7 +19,9 @@ const pageTitles = {
   "/lecture-profile": "Lecture Profile",
   "/software-hub": "Software Hub",
   "/lecturer/module-quiz": "Module Quiz Manager",
+  "/lecturer/module-selfcheck": "Module Self Check",
   "/progress-tracker": "Progress Tracker",
+  "/mbti-measure": "MBTI Measure",
 };
 
 function Topbar({ onMenuClick }) {

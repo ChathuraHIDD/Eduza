@@ -77,7 +77,7 @@ function SidebarContent({ onClose }) {
       ? '/coordinator'
       : user?.role === 'coordinator'
       ? '/coordinator'
-      : '/'
+      : '/dashboard'
 
   const studentNavItems = [
     {
@@ -111,6 +111,11 @@ function SidebarContent({ onClose }) {
       icon: aiNotesIcon,
     },
     {
+      label: 'MBTI Measure',
+      path: '/mbti-measure',
+      icon: mbtiIcon,
+    },
+    {
       label: 'Progress Tracker',
       path: '/progress-tracker',
       icon: aiNotesIcon,
@@ -119,6 +124,11 @@ function SidebarContent({ onClose }) {
       label: 'GPA Calculator',
       path: '/gpa-calculator',
       icon: gpaCalculatorIcon,
+    },
+    {
+      label: 'Get Break',
+      path: '/get-break',
+      icon: breakIcon,
     },
 
   ]
@@ -137,6 +147,11 @@ function SidebarContent({ onClose }) {
     {
       label: 'Module Quiz Manager',
       path: '/lecturer/module-quiz',
+      icon: moduleQuizIcon,
+    },
+    {
+      label: 'Module Self Check',
+      path: '/lecturer/module-selfcheck',
       icon: moduleQuizIcon,
     },
   ]
@@ -185,6 +200,11 @@ function SidebarContent({ onClose }) {
       label: 'AI Notes',
       path: '/ai-notes',
       icon: aiNotesIcon,
+    },
+    {
+      label: 'MBTI Measure',
+      path: '/mbti-measure',
+      icon: mbtiIcon,
     },
   ]
 
@@ -250,8 +270,25 @@ function SidebarContent({ onClose }) {
           justifyContent: 'space-between',
         }}
       >
-        <NavLink to={homePath} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <BrandLogo width={128} height={44} rounded={12} scale={1.08} />
+        <NavLink to={homePath} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <BrandLogo
+            width={60}
+            height={60}
+            rounded={18}
+            scale={1}
+            showWordmark={false}
+            bg="#ffffff"
+            padding={10}
+            imageStyle={{ borderRadius: 16 }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: '#111827', letterSpacing: '-0.4px' }}>
+              EDUZA
+            </span>
+            <span style={{ fontSize: 12, color: '#6b7280' }}>
+              Student Dashboard
+            </span>
+          </div>
         </NavLink>
 
         <button
@@ -496,6 +533,16 @@ const calendarIcon = (
   </svg>
 )
 
+const mbtiIcon = (
+  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+    <path d="M12 3a3 3 0 0 1 3 3c0 .74-.27 1.41-.72 1.92A4.5 4.5 0 0 1 18.5 12v1.5" />
+    <path d="M12 3a3 3 0 0 0-3 3c0 .74.27 1.41.72 1.92A4.5 4.5 0 0 0 5.5 12v1.5" />
+    <path d="M8 21v-2.5A2.5 2.5 0 0 1 10.5 16H12" />
+    <path d="M16 21v-2.5a2.5 2.5 0 0 0-2.5-2.5H12" />
+    <circle cx="12" cy="12" r="2.25" />
+  </svg>
+)
+
 const stressIcon = (
   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
     <path d="M12 21s-7-4.35-7-10a7 7 0 0 1 14 0c0 5.65-7 10-7 10z" />
@@ -568,6 +615,15 @@ const gpaCalculatorIcon = (
     <line x1="8" y1="11" x2="16" y2="11" />
     <line x1="8" y1="15" x2="16" y2="15" />
     <line x1="8" y1="19" x2="16" y2="19" />
+  </svg>
+)
+
+const breakIcon = (
+  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="1" />
+    <path d="M12 7v5" />
+    <path d="M12 17v.01" />
+    <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
   </svg>
 )
 

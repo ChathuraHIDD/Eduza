@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import StudySessionTracker from '../study/StudySessionTracker'
 
 const ACCENT      = '#06b6d4'
 const ACCENT_DARK = '#0891b2'
@@ -63,6 +64,7 @@ function OtherActivityResult({ data, onBack }) {
 
   const doneWeeks = weeks.filter((w) => new Date(w.weekEnd) < new Date()).length
   const progressPct = Math.min(100, currentStatus + Math.round((doneWeeks / totalWeeks) * (100 - currentStatus)))
+  const plannedMinutesToday = Math.max(0, Math.round(((hoursPerWeek || 0) / Math.max(1, data?.weeklyCommitmentDays?.length || 3)) * 60))
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
@@ -87,6 +89,14 @@ function OtherActivityResult({ data, onBack }) {
           {goalName}
         </div>
       </div>
+
+      <StudySessionTracker
+        label={goalName || 'Other Activity'}
+        moduleName={goalName || 'Other Activity'}
+        sessionType="learn"
+        studyPlanId={data?.studyPlanId || null}
+        plannedMinutesToday={plannedMinutesToday}
+      />
 
       {/* ── Summary banner ── */}
       <div style={{ background: 'linear-gradient(135deg, #0a1419 0%, #0c1618 100%)', border: '1px solid #0f2027', borderRadius: 18, padding: '1.5rem 2rem', marginBottom: '1.25rem', position: 'relative', overflow: 'hidden' }}>

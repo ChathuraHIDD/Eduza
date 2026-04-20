@@ -1,95 +1,394 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import EmojiPicker from "emoji-picker-react";
 import "./GroupChat.css";
+import {
+  getMyGroups,
+  getGroupMessages,
+  sendGroupMessage,
+  createGroupWithMembers,
+  renameGroupRequest,
+  addGroupMembersRequest,
+  removeGroupMemberRequest,
+  deleteGroupMessageRequest,
+} from "../../utils/chatApi";
+import {
+  searchChatUsers,
+  createOrOpenDirectChat,
+} from "../../utils/chatUserApi";
+import socket from "../../utils/socket";
 
 function GroupChat() {
   const storedUser = JSON.parse(localStorage.getItem("user")) || {};
 
   const currentUser = {
-    id: storedUser._id || storedUser.id || 1,
-    name: storedUser.name || storedUser.fullName || storedUser.username || "Saumya",
-    avatar:
-      (storedUser.name || storedUser.fullName || storedUser.username || "S")
-        .charAt(0)
-        .toUpperCase(),
-    status: "available",
+    id: storedUser._id || storedUser.id || "",
+    name:
+      storedUser.name ||
+      storedUser.fullName ||
+      storedUser.username ||
+      "Saumya",
+    avatar: (
+      storedUser.name ||
+      storedUser.fullName ||
+      storedUser.username ||
+      "S"
+    )
+      .charAt(0)
+      .toUpperCase(),
+    email: storedUser.email || "",
   };
 
-  const chats = [
-    {
-      id: 1,
-      name: "Real estate deals",
-      lastMessage: "Hmm...",
-      time: "11:15",
-      unread: 2,
-      avatar: "R",
-    },
-    {
-      id: 2,
-      name: "Kate Johnson",
-      lastMessage: "I will send the document...",
-      time: "11:35",
-      unread: 0,
-      avatar: "K",
-    },
-  ];
-
-  const members = [
-    { id: 1, name: currentUser.name, role: "Admin", status: "online", avatar: currentUser.avatar },
-    { id: 2, name: "Kate Johnson", role: "Member", status: "online", avatar: "K" },
-    { id: 3, name: "Eva Scott", role: "Member", status: "away", avatar: "E" },
-    { id: 4, name: "Robert", role: "Member", status: "offline", avatar: "R" },
-  ];
-
-  const initialMessages = [
-    {
-      id: 1,
-      senderId: 2,
-      senderName: "Kate Johnson",
-      text: "Hi everyone, let’s start the real estate discussion 😊",
-      time: "11:24 AM",
-      type: "text",
-    },
-    {
-      id: 2,
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      text: "He creates an atmosphere of mystery 😉",
-      time: "11:26 AM",
-      type: "text",
-    },
-  ];
-
-  const [selectedChat, setSelectedChat] = useState(chats[0]);
-  const [messages, setMessages] = useState(initialMessages);
+  const [groups, setGroups] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [members, setMembers] = useState([]);
   const [messageInput, setMessageInput] = useState("");
-  const [activeTab, setActiveTab] = useState("messages");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [typingUser, setTypingUser] = useState("");
+  const [onlineUserIds, setOnlineUserIds] = useState([]);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchedUsers, setSearchedUsers] = useState([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+
+  const [chatFilter, setChatFilter] = useState("all");
+  const [showInfoPanel, setShowInfoPanel] = useState(true);
+
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [groupUserSearch, setGroupUserSearch] = useState("");
+  const [groupSearchResults, setGroupSearchResults] = useState([]);
+  const [selectedGroupUsers, setSelectedGroupUsers] = useState([]);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameGroupName, setRenameGroupName] = useState("");
+  const [renamingGroup, setRenamingGroup] = useState(false);
+
+  const [showAddMembersModal, setShowAddMembersModal] = useState(false);
+  const [addMemberSearch, setAddMemberSearch] = useState("");
+  const [addMemberResults, setAddMemberResults] = useState([]);
+  const [selectedNewMembers, setSelectedNewMembers] = useState([]);
+  const [addingMembers, setAddingMembers] = useState(false);
 
   const fileInputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
+  const groupSearchTimeoutRef = useRef(null);
+  const addMemberSearchTimeoutRef = useRef(null);
+  const messageEndRef = useRef(null);
 
-  const typingText = useMemo(() => {
-    return "Robert is typing...";
+  useEffect(() => {
+    loadGroups();
   }, []);
 
-  const handleSendMessage = () => {
-    if (!messageInput.trim()) return;
+  useEffect(() => {
+    if (!currentUser.id) return;
 
-    const newMessage = {
-      id: Date.now(),
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      text: messageInput,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      type: "text",
+    socket.emit("user_online", { userId: currentUser.id });
+
+    const handleOnlineUsers = (userIds) => {
+      setOnlineUserIds(userIds || []);
     };
 
-    setMessages((prev) => [...prev, newMessage]);
-    setMessageInput("");
-    setShowEmojiPicker(false);
+    socket.on("online_users", handleOnlineUsers);
+
+    return () => {
+      socket.off("online_users", handleOnlineUsers);
+    };
+  }, [currentUser.id]);
+
+  useEffect(() => {
+    if (selectedChat?._id) {
+      loadMessages(selectedChat._id);
+    }
+  }, [selectedChat]);
+
+  useEffect(() => {
+    if (!selectedChat?.members) return;
+
+    const updatedMembers = selectedChat.members.map((member) => ({
+      ...member,
+      status: onlineUserIds.includes(member._id || member.id)
+        ? "online"
+        : "offline",
+    }));
+
+    setMembers(updatedMembers);
+  }, [onlineUserIds, selectedChat]);
+
+  useEffect(() => {
+    if (!selectedChat?._id) return;
+
+    socket.emit("join_group", selectedChat._id);
+
+    const handleReceiveMessage = (message) => {
+      if (message.groupId !== selectedChat._id) return;
+
+      setMessages((prev) => {
+        const exists = prev.some(
+          (item) => (item._id || item.id) === (message._id || message.id)
+        );
+        if (exists) return prev;
+        return [...prev, message];
+      });
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group._id === selectedChat._id
+            ? {
+                ...group,
+                lastMessage:
+                  message.type === "image"
+                    ? "📷 Photo"
+                    : message.type === "file"
+                    ? "📎 File"
+                    : message.text || "New message",
+                updatedAt: message.createdAt || new Date().toISOString(),
+              }
+            : group
+        )
+      );
+    };
+
+    const handleUserTyping = (data) => {
+      if (
+        data.groupId === selectedChat._id &&
+        data.userId !== currentUser.id &&
+        data.userName
+      ) {
+        setTypingUser(`${data.userName} is typing...`);
+      }
+    };
+
+    const handleUserStopTyping = (data) => {
+      if (data.groupId === selectedChat._id) {
+        setTypingUser("");
+      }
+    };
+
+    socket.on("receive_message", handleReceiveMessage);
+    socket.on("user_typing", handleUserTyping);
+    socket.on("user_stop_typing", handleUserStopTyping);
+
+    return () => {
+      socket.off("receive_message", handleReceiveMessage);
+      socket.off("user_typing", handleUserTyping);
+      socket.off("user_stop_typing", handleUserStopTyping);
+    };
+  }, [selectedChat?._id, currentUser.id]);
+
+  useEffect(() => {
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, typingUser]);
+
+  const loadGroups = async () => {
+    try {
+      setLoadingGroups(true);
+      const data = await getMyGroups();
+      const groupList = Array.isArray(data) ? data : data.groups || [];
+      setGroups(groupList);
+
+      if (groupList.length > 0) {
+        setSelectedChat((prev) => prev || groupList[0]);
+      }
+    } catch (error) {
+      console.error("Failed to load groups:", error);
+      setGroups([]);
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  const loadMessages = async (groupId) => {
+    try {
+      setLoadingMessages(true);
+      const data = await getGroupMessages(groupId);
+      const messageList = Array.isArray(data) ? data : data.messages || [];
+      setMessages(messageList);
+    } catch (error) {
+      console.error("Failed to load messages:", error);
+      setMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const emitStopTyping = () => {
+    if (!selectedChat?._id) return;
+
+    socket.emit("stop_typing", {
+      groupId: selectedChat._id,
+      userId: currentUser.id,
+      userName: currentUser.name,
+    });
+  };
+
+  const isDirectChat = (chat) => chat?.members && chat.members.length === 2;
+
+  const isCurrentUserAdmin = (chat) => {
+    if (!chat?.admins) return false;
+    return chat.admins.some(
+      (admin) =>
+        (admin._id || admin.id || admin).toString() === currentUser.id.toString()
+    );
+  };
+
+  const getDirectChatOtherUser = (chat) => {
+    if (!isDirectChat(chat)) return null;
+    return chat.members.find(
+      (member) => (member._id || member.id) !== currentUser.id
+    );
+  };
+
+  const getChatDisplayName = (chat) => {
+    if (!chat) return "Select a chat";
+
+    if (isDirectChat(chat)) {
+      const otherUser = getDirectChatOtherUser(chat);
+      return otherUser?.name || chat.name || "Direct Chat";
+    }
+
+    return chat.name || "Group Chat";
+  };
+
+  const getChatSubtitle = (chat) => {
+    if (!chat) return "";
+
+    if (isDirectChat(chat)) {
+      const otherUser = getDirectChatOtherUser(chat);
+      const isOnline = onlineUserIds.includes(otherUser?._id || otherUser?.id);
+      return isOnline ? "online" : "offline";
+    }
+
+    return `${chat.members?.length || 0} members`;
+  };
+
+  const getChatDisplayAvatar = (chat) => {
+    if (isDirectChat(chat)) {
+      const otherUser = getDirectChatOtherUser(chat);
+      return (otherUser?.name || "U").charAt(0).toUpperCase();
+    }
+    return (chat?.name || "G").charAt(0).toUpperCase();
+  };
+
+  const filteredGroups = useMemo(() => {
+    if (chatFilter === "direct") {
+      return groups.filter((chat) => isDirectChat(chat));
+    }
+    if (chatFilter === "groups") {
+      return groups.filter((chat) => !isDirectChat(chat));
+    }
+    return groups;
+  }, [groups, chatFilter]);
+
+  const formatMessageTime = (dateValue) => {
+    return new Date(dateValue || Date.now()).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatChatListTime = (dateValue) => {
+    if (!dateValue) return "";
+    const date = new Date(dateValue);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+
+    if (isToday) {
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    return date.toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !selectedChat?._id) return;
+
+    try {
+      const payload = {
+        text: messageInput.trim(),
+        type: "text",
+      };
+
+      const savedMessage = await sendGroupMessage(selectedChat._id, payload);
+
+      socket.emit("send_message", {
+        ...savedMessage,
+        groupId: selectedChat._id,
+      });
+
+      setMessages((prev) => {
+        const exists = prev.some(
+          (item) =>
+            (item._id || item.id) === (savedMessage._id || savedMessage.id)
+        );
+        if (exists) return prev;
+        return [...prev, savedMessage];
+      });
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group._id === selectedChat._id
+            ? {
+                ...group,
+                lastMessage: savedMessage.text || "New message",
+                updatedAt: savedMessage.createdAt || new Date().toISOString(),
+              }
+            : group
+        )
+      );
+
+      setMessageInput("");
+      setShowEmojiPicker(false);
+      setTypingUser("");
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      emitStopTyping();
+    } catch (error) {
+      console.error("Failed to send message:", error);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    if (!selectedChat?._id || !messageId) return;
+
+    const confirmed = window.confirm("Delete this message?");
+    if (!confirmed) return;
+
+    try {
+      const result = await deleteGroupMessageRequest(selectedChat._id, messageId);
+
+      setMessages((prev) =>
+        prev.filter((msg) => (msg._id || msg.id) !== messageId)
+      );
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group._id === selectedChat._id
+            ? {
+                ...group,
+                lastMessage: result.lastMessageText || "No messages yet",
+                updatedAt: new Date().toISOString(),
+              }
+            : group
+        )
+      );
+    } catch (error) {
+      console.error("Failed to delete message:", error);
+      alert(error?.message || "Failed to delete message");
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -103,45 +402,355 @@ function GroupChat() {
     setMessageInput((prev) => prev + emojiData.emoji);
   };
 
+  const handleTextareaChange = (e) => {
+    const value = e.target.value;
+    setMessageInput(value);
+
+    if (!selectedChat?._id) return;
+
+    if (value.trim()) {
+      socket.emit("typing", {
+        groupId: selectedChat._id,
+        userId: currentUser.id,
+        userName: currentUser.name,
+      });
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(() => {
+        emitStopTyping();
+      }, 1200);
+    } else {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      emitStopTyping();
+    }
+  };
+
   const handleFileButtonClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file || !selectedChat?._id) return;
 
     const isImage = file.type.startsWith("image/");
     const fileUrl = URL.createObjectURL(file);
 
-    const newFileMessage = {
-      id: Date.now(),
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+    const previewMessage = {
+      _id: Date.now().toString(),
+      groupId: selectedChat._id,
+      sender: {
+        _id: currentUser.id,
+        name: currentUser.name,
+      },
+      createdAt: new Date().toISOString(),
       type: isImage ? "image" : "file",
       fileName: file.name,
       fileSize: `${(file.size / 1024).toFixed(1)} KB`,
       fileUrl,
     };
 
-    setMessages((prev) => [...prev, newFileMessage]);
+    setMessages((prev) => [...prev, previewMessage]);
+
+    setGroups((prev) =>
+      prev.map((group) =>
+        group._id === selectedChat._id
+          ? {
+              ...group,
+              lastMessage: isImage ? "📷 Photo" : "📎 File",
+              updatedAt: previewMessage.createdAt,
+            }
+          : group
+      )
+    );
 
     e.target.value = "";
+  };
+
+  const handleUserSearch = async (value) => {
+    setSearchTerm(value);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (!value.trim()) {
+      setSearchedUsers([]);
+      setSearchingUsers(false);
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        setSearchingUsers(true);
+        const users = await searchChatUsers(value.trim());
+        setSearchedUsers(Array.isArray(users) ? users : []);
+      } catch (error) {
+        console.error("Failed to search users:", error);
+        setSearchedUsers([]);
+      } finally {
+        setSearchingUsers(false);
+      }
+    }, 350);
+  };
+
+  const handleGroupUserSearch = async (value) => {
+    setGroupUserSearch(value);
+
+    if (groupSearchTimeoutRef.current) {
+      clearTimeout(groupSearchTimeoutRef.current);
+    }
+
+    if (!value.trim()) {
+      setGroupSearchResults([]);
+      return;
+    }
+
+    groupSearchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const users = await searchChatUsers(value.trim());
+        const filtered = (Array.isArray(users) ? users : []).filter(
+          (user) =>
+            !selectedGroupUsers.some((selected) => selected._id === user._id)
+        );
+        setGroupSearchResults(filtered);
+      } catch (error) {
+        console.error("Failed to search group users:", error);
+        setGroupSearchResults([]);
+      }
+    }, 300);
+  };
+
+  const handleAddMemberSearch = async (value) => {
+    setAddMemberSearch(value);
+
+    if (addMemberSearchTimeoutRef.current) {
+      clearTimeout(addMemberSearchTimeoutRef.current);
+    }
+
+    if (!value.trim() || !selectedChat) {
+      setAddMemberResults([]);
+      return;
+    }
+
+    addMemberSearchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const users = await searchChatUsers(value.trim());
+        const existingIds = (selectedChat.members || []).map((member) => member._id);
+        const filtered = (Array.isArray(users) ? users : []).filter(
+          (user) =>
+            !existingIds.includes(user._id) &&
+            !selectedNewMembers.some((selected) => selected._id === user._id)
+        );
+        setAddMemberResults(filtered);
+      } catch (error) {
+        console.error("Failed to search new members:", error);
+        setAddMemberResults([]);
+      }
+    }, 300);
+  };
+
+  const addUserToNewGroup = (user) => {
+    setSelectedGroupUsers((prev) => [...prev, user]);
+    setGroupUserSearch("");
+    setGroupSearchResults([]);
+  };
+
+  const removeUserFromNewGroup = (userId) => {
+    setSelectedGroupUsers((prev) => prev.filter((user) => user._id !== userId));
+  };
+
+  const addUserToExistingGroup = (user) => {
+    setSelectedNewMembers((prev) => [...prev, user]);
+    setAddMemberSearch("");
+    setAddMemberResults([]);
+  };
+
+  const removeSelectedNewMember = (userId) => {
+    setSelectedNewMembers((prev) => prev.filter((user) => user._id !== userId));
+  };
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim()) {
+      alert("Please enter a group name");
+      return;
+    }
+
+    if (selectedGroupUsers.length === 0) {
+      alert("Please add at least one member");
+      return;
+    }
+
+    try {
+      setCreatingGroup(true);
+
+      const newGroup = await createGroupWithMembers({
+        name: groupName.trim(),
+        memberIds: selectedGroupUsers.map((user) => user._id),
+      });
+
+      setGroups((prev) => [newGroup, ...prev]);
+      setSelectedChat(newGroup);
+      setShowCreateGroupModal(false);
+      setGroupName("");
+      setGroupUserSearch("");
+      setGroupSearchResults([]);
+      setSelectedGroupUsers([]);
+    } catch (error) {
+      console.error("Failed to create group:", error);
+      alert("Failed to create group");
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  const handleStartDirectChat = async (user) => {
+    try {
+      const chat = await createOrOpenDirectChat(user._id);
+
+      const chatWithStatus = {
+        ...chat,
+        members: (chat.members || []).map((member) => ({
+          ...member,
+          status: onlineUserIds.includes(member._id || member.id)
+            ? "online"
+            : "offline",
+        })),
+      };
+
+      setGroups((prev) => {
+        const exists = prev.some((group) => group._id === chatWithStatus._id);
+        if (exists) return prev;
+        return [chatWithStatus, ...prev];
+      });
+
+      setSelectedChat(chatWithStatus);
+      setMembers(chatWithStatus.members || []);
+      setSearchTerm("");
+      setSearchedUsers([]);
+    } catch (error) {
+      console.error("Failed to start direct chat:", error);
+    }
+  };
+
+  const openRenameModal = () => {
+    setRenameGroupName(selectedChat?.name || "");
+    setShowRenameModal(true);
+  };
+
+  const handleRenameGroup = async () => {
+    if (!selectedChat?._id || !renameGroupName.trim()) {
+      alert("Please enter a group name");
+      return;
+    }
+
+    try {
+      setRenamingGroup(true);
+      const updatedGroup = await renameGroupRequest(selectedChat._id, {
+        name: renameGroupName.trim(),
+      });
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group._id === updatedGroup._id
+            ? { ...group, ...updatedGroup }
+            : group
+        )
+      );
+
+      setSelectedChat(updatedGroup);
+      setShowRenameModal(false);
+    } catch (error) {
+      console.error("Failed to rename group:", error);
+      alert("Failed to rename group");
+    } finally {
+      setRenamingGroup(false);
+    }
+  };
+
+  const handleAddMembersToGroup = async () => {
+    if (!selectedChat?._id || selectedNewMembers.length === 0) {
+      alert("Please select members to add");
+      return;
+    }
+
+    try {
+      setAddingMembers(true);
+
+      const updatedGroup = await addGroupMembersRequest(
+        selectedChat._id,
+        selectedNewMembers.map((user) => user._id)
+      );
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group._id === updatedGroup._id
+            ? { ...group, ...updatedGroup }
+            : group
+        )
+      );
+
+      setSelectedChat(updatedGroup);
+      setMembers(updatedGroup.members || []);
+      setShowAddMembersModal(false);
+      setAddMemberSearch("");
+      setAddMemberResults([]);
+      setSelectedNewMembers([]);
+    } catch (error) {
+      console.error("Failed to add members:", error);
+      alert("Failed to add members");
+    } finally {
+      setAddingMembers(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!selectedChat?._id) return;
+
+    const confirmed = window.confirm("Remove this member from the group?");
+    if (!confirmed) return;
+
+    try {
+      const updatedGroup = await removeGroupMemberRequest(
+        selectedChat._id,
+        memberId
+      );
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group._id === updatedGroup._id
+            ? { ...group, ...updatedGroup }
+            : group
+        )
+      );
+
+      setSelectedChat(updatedGroup);
+      setMembers(updatedGroup.members || []);
+    } catch (error) {
+      console.error("Failed to remove member:", error);
+      alert(error?.message || "Failed to remove member");
+    }
   };
 
   const renderMessageContent = (msg, isOwn) => {
     if (msg.type === "image") {
       return (
-        <div className={`message-bubble ${isOwn ? "own" : "other"} file-bubble`}>
-          <img src={msg.fileUrl} alt={msg.fileName} className="chat-image-preview" />
+        <div className={`messenger-bubble ${isOwn ? "own" : "other"} file-bubble`}>
+          <img
+            src={msg.fileUrl}
+            alt={msg.fileName || "image"}
+            className="chat-image-preview"
+          />
           <div className="file-details">
-            <strong>{msg.fileName}</strong>
-            <span>{msg.fileSize}</span>
+            <strong>{msg.fileName || "Image"}</strong>
+            <span>{msg.fileSize || ""}</span>
           </div>
+          <span className="bubble-time">{formatMessageTime(msg.createdAt)}</span>
         </div>
       );
     }
@@ -151,206 +760,556 @@ function GroupChat() {
         <a
           href={msg.fileUrl}
           download={msg.fileName}
-          className={`message-bubble ${isOwn ? "own" : "other"} file-bubble file-link`}
+          className={`messenger-bubble ${isOwn ? "own" : "other"} file-bubble file-link`}
         >
           <div className="file-icon">📎</div>
           <div className="file-details">
-            <strong>{msg.fileName}</strong>
-            <span>{msg.fileSize}</span>
+            <strong>{msg.fileName || "File"}</strong>
+            <span>{msg.fileSize || ""}</span>
           </div>
+          <span className="bubble-time">{formatMessageTime(msg.createdAt)}</span>
         </a>
       );
     }
 
     return (
-      <div className={`message-bubble ${isOwn ? "own" : "other"}`}>
-        {msg.text}
+      <div className={`messenger-bubble ${isOwn ? "own" : "other"}`}>
+        <div className="bubble-text">{msg.text}</div>
+        <span className="bubble-time">{formatMessageTime(msg.createdAt)}</span>
       </div>
     );
   };
 
+  const teamBadges = ["A", "C", "N", "I", "P"];
+
   return (
-    <div className="groupchat-page">
-      <div className="groupchat-header-card">
-        <div className="header-circle header-circle-one"></div>
-        <div className="header-circle header-circle-two"></div>
-
-        <div className="groupchat-badge">
-          <span className="groupchat-badge-icon">💬</span>
-          <span>Collaborative</span>
-        </div>
-
-        <h1>Group Chat</h1>
-        <p>
-          Connect with classmates, discuss lessons, share updates, and work
-          together in real time through your EDUZA group conversations.
-        </p>
-      </div>
-
-      <div className="groupchat-main">
-        <aside className="chat-sidebar">
-          <div className="sidebar-top">
-            <div className="sidebar-title">Chat</div>
-          </div>
-
-          <div className="profile-card">
-            <div className="profile-avatar large-avatar">{currentUser.avatar}</div>
+    <div className="messenger-page">
+      <div className="messenger-shell">
+        <aside className="messenger-left-panel">
+          <div className="profile-card-soft">
+            <div className="profile-photo-soft">{currentUser.avatar}</div>
             <h3>{currentUser.name}</h3>
-            <span className="online-pill">{currentUser.status}</span>
+            <span>@{currentUser.email ? currentUser.email.split("@")[0] : "eduza_user"}</span>
           </div>
 
-          <div className="chat-search-box">
-            <input type="text" placeholder="Search" />
-          </div>
+          <div className="soft-divider" />
 
-          <div className="chat-list-title">Last chats</div>
-
-          <div className="chat-list">
-            {chats.map((chat) => (
-              <div
-                key={chat.id}
-                className={`chat-list-item ${selectedChat.id === chat.id ? "active" : ""}`}
-                onClick={() => setSelectedChat(chat)}
+          <div className="side-section">
+            <div className="teams-header-row">
+              <h4>Teams</h4>
+              <button
+                className="create-group-icon-btn"
+                onClick={() => setShowCreateGroupModal(true)}
+                title="Create Group"
               >
-                <div className="chat-avatar">{chat.avatar}</div>
+                ＋
+              </button>
+            </div>
 
-                <div className="chat-item-content">
-                  <div className="chat-item-top">
-                    <h4>{chat.name}</h4>
-                    <span>{chat.time}</span>
-                  </div>
-                  <p>{chat.lastMessage}</p>
+            <div className="team-badges">
+              {teamBadges.map((item, index) => (
+                <div key={index} className="team-badge">
+                  {item}
                 </div>
+              ))}
+            </div>
+          </div>
 
-                {chat.unread > 0 && <div className="chat-unread">{chat.unread}</div>}
+          <div className="side-section chats-section">
+            <div className="chat-section-title">
+              <h4>Chats</h4>
+              <div className="chat-filter-tabs">
+                <button
+                  className={chatFilter === "all" ? "active" : ""}
+                  onClick={() => setChatFilter("all")}
+                >
+                  All
+                </button>
+                <button
+                  className={chatFilter === "direct" ? "active" : ""}
+                  onClick={() => setChatFilter("direct")}
+                >
+                  New
+                </button>
+                <button
+                  className={chatFilter === "groups" ? "active" : ""}
+                  onClick={() => setChatFilter("groups")}
+                >
+                  Groups
+                </button>
               </div>
-            ))}
+            </div>
+
+            <div className="search-box-soft">
+              <input
+                type="text"
+                placeholder="Search student by name or email"
+                value={searchTerm}
+                onChange={(e) => handleUserSearch(e.target.value)}
+              />
+
+              {searchTerm && (
+                <div className="user-search-results">
+                  {searchingUsers ? (
+                    <div className="user-search-item">Searching...</div>
+                  ) : searchedUsers.length === 0 ? (
+                    <div className="user-search-item">No students found</div>
+                  ) : (
+                    searchedUsers.map((user) => (
+                      <div
+                        key={user._id}
+                        className="user-search-item"
+                        onClick={() => handleStartDirectChat(user)}
+                      >
+                        <div className="user-search-avatar">
+                          {(user.name || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="user-search-info">
+                          <strong>{user.name}</strong>
+                          <span>{user.email}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="chat-list-soft">
+              {loadingGroups ? (
+                <div className="empty-soft">Loading chats...</div>
+              ) : filteredGroups.length === 0 ? (
+                <div className="empty-soft">No chats found.</div>
+              ) : (
+                filteredGroups.map((chat) => (
+                  <div
+                    key={chat._id}
+                    className={`chat-item-soft ${selectedChat?._id === chat._id ? "active" : ""}`}
+                    onClick={() => setSelectedChat(chat)}
+                  >
+                    <div className="chat-avatar-soft-wrap">
+                      <div className="chat-avatar-soft">
+                        {getChatDisplayAvatar(chat)}
+                      </div>
+                      {isDirectChat(chat) && (
+                        <span
+                          className={`chat-status-dot ${
+                            onlineUserIds.includes(getDirectChatOtherUser(chat)?._id)
+                              ? "online"
+                              : "offline"
+                          }`}
+                        />
+                      )}
+                    </div>
+
+                    <div className="chat-item-soft-main">
+                      <div className="chat-item-soft-top">
+                        <h5>{getChatDisplayName(chat)}</h5>
+                        <span>{formatChatListTime(chat.updatedAt)}</span>
+                      </div>
+                      <p>{chat.lastMessage || "No messages yet"}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </aside>
 
-        <section className="chat-center">
-          <div className="chat-center-top">
-            <div>
-              <h2>{selectedChat.name}</h2>
-              <p>{members.length} participants</p>
-            </div>
-
-            <div className="top-tabs">
-              <button
-                className={activeTab === "messages" ? "active" : ""}
-                onClick={() => setActiveTab("messages")}
-              >
-                Messages
-              </button>
-              <button
-                className={activeTab === "participants" ? "active" : ""}
-                onClick={() => setActiveTab("participants")}
-              >
-                Participants
-              </button>
-            </div>
-          </div>
-
-          <div className="chat-messages-area">
-            {messages.map((msg) => {
-              const isOwn = msg.senderId === currentUser.id;
-
-              return (
-                <div
-                  key={msg.id}
-                  className={`message-row ${isOwn ? "own-message" : "other-message"}`}
-                >
-                  {!isOwn && (
-                    <div className="message-avatar">{msg.senderName.charAt(0)}</div>
-                  )}
-
-                  <div className="message-bubble-wrap">
-                    {!isOwn && (
-                      <div className="message-meta">
-                        <span className="sender-name">{msg.senderName}</span>
-                        <span className="message-time">{msg.time}</span>
-                      </div>
-                    )}
-
-                    {renderMessageContent(msg, isOwn)}
-
-                    {isOwn && (
-                      <div className="message-meta own-meta">
-                        <span className="message-time">{msg.time}</span>
-                      </div>
-                    )}
+        <main className="messenger-center-panel">
+          {selectedChat ? (
+            <>
+              <div className="conversation-header-soft">
+                <div className="conversation-user-soft">
+                  <div className="conversation-avatar-soft">
+                    {getChatDisplayAvatar(selectedChat)}
+                  </div>
+                  <div>
+                    <h3>{getChatDisplayName(selectedChat)}</h3>
+                    <span>{typingUser || getChatSubtitle(selectedChat)}</span>
                   </div>
                 </div>
-              );
-            })}
 
-            <div className="typing-text">{typingText}</div>
-          </div>
+                <div className="conversation-tools-soft">
+                  <button>🔍</button>
+                  <button>📞</button>
+                  <button>🎥</button>
+                  <button onClick={() => setShowInfoPanel((prev) => !prev)}>⋯</button>
+                </div>
+              </div>
 
-          <div className="chat-input-wrapper">
-            {showEmojiPicker && (
-              <div className="emoji-picker-box">
-                <EmojiPicker onEmojiClick={onEmojiClick} />
+              <div className="messages-area-soft">
+                {loadingMessages ? (
+                  <div className="empty-soft">Loading messages...</div>
+                ) : messages.length === 0 ? (
+                  <div className="empty-soft">No messages yet.</div>
+                ) : (
+                  messages.map((msg) => {
+                    const isOwn =
+                      msg.sender?._id === currentUser.id ||
+                      msg.senderId === currentUser.id;
+
+                    const canDelete =
+                      isOwn || (!isDirectChat(selectedChat) && isCurrentUserAdmin(selectedChat));
+
+                    return (
+                      <div
+                        key={msg._id || msg.id}
+                        className={`message-row-soft ${isOwn ? "own" : "other"}`}
+                      >
+                        {!isOwn && (
+                          <div className="message-avatar-soft">
+                            {(msg.sender?.name || msg.senderName || "U")
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                        )}
+
+                        <div className="message-wrap-soft">
+                          {!isOwn && (
+                            <div className="message-sender-soft">
+                              {msg.sender?.name || msg.senderName || "User"}
+                            </div>
+                          )}
+
+                          <div className="message-bubble-row">
+                            {renderMessageContent(msg, isOwn)}
+
+                            {canDelete && (
+                              <button
+                                className="delete-message-btn"
+                                onClick={() => handleDeleteMessage(msg._id || msg.id)}
+                                title="Delete message"
+                              >
+                                🗑️
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+
+                <div ref={messageEndRef} />
+              </div>
+
+              <div className="composer-soft-wrap">
+                {showEmojiPicker && (
+                  <div className="emoji-picker-box soft-style">
+                    <EmojiPicker onEmojiClick={onEmojiClick} />
+                  </div>
+                )}
+
+                <div className="composer-soft">
+                  <button
+                    className="composer-icon-soft"
+                    onClick={() => setShowEmojiPicker((prev) => !prev)}
+                  >
+                    😊
+                  </button>
+
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    style={{ display: "none" }}
+                  />
+
+                  <button className="composer-icon-soft" onClick={handleFileButtonClick}>
+                    📎
+                  </button>
+
+                  <textarea
+                    placeholder="Type here"
+                    value={messageInput}
+                    onChange={handleTextareaChange}
+                    onKeyDown={handleKeyDown}
+                    rows={1}
+                  />
+
+                  <button className="send-soft-btn" onClick={handleSendMessage}>
+                    Send ➤
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="no-chat-soft">
+              <div className="no-chat-soft-inner">
+                <div className="no-chat-badge">💬</div>
+                <h3>Welcome to EDUZA Chat</h3>
+                <p>Select a conversation to start messaging.</p>
+              </div>
+            </div>
+          )}
+        </main>
+
+        {showInfoPanel && selectedChat && (
+          <aside className="messenger-right-panel">
+            <div className="info-profile-soft">
+              <div className="info-photo-soft">{getChatDisplayAvatar(selectedChat)}</div>
+              <h2>{getChatDisplayName(selectedChat)}</h2>
+              <p>{getChatSubtitle(selectedChat)}</p>
+            </div>
+
+            {!isDirectChat(selectedChat) && isCurrentUserAdmin(selectedChat) && (
+              <div className="group-admin-actions">
+                <button onClick={openRenameModal}>✏️ Rename Group</button>
+                <button onClick={() => setShowAddMembersModal(true)}>➕ Add Members</button>
               </div>
             )}
 
-            <div className="chat-input-area">
-              <button
-                className="icon-btn"
-                onClick={() => setShowEmojiPicker((prev) => !prev)}
-              >
-                😊
-              </button>
+            <div className="members-section-soft">
+              <h4>Members</h4>
 
-              <textarea
-                placeholder="Write your message..."
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                rows={1}
-              />
+              <div className="member-list-soft">
+                {members.map((member, index) => {
+                  const memberId = member._id || member.id;
+                  const isAdmin = selectedChat?.admins?.some(
+                    (admin) =>
+                      (admin._id || admin.id || admin).toString() === memberId.toString()
+                  );
 
+                  const canRemove =
+                    !isDirectChat(selectedChat) &&
+                    isCurrentUserAdmin(selectedChat) &&
+                    memberId.toString() !== currentUser.id.toString() &&
+                    memberId.toString() !==
+                      (
+                        selectedChat?.createdBy?._id ||
+                        selectedChat?.createdBy ||
+                        ""
+                      ).toString();
+
+                  return (
+                    <div key={memberId || index} className="member-item-soft admin-layout">
+                      <div className="member-item-soft-left">
+                        <div className="member-avatar-soft">
+                          {(member.name || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <strong>{member.name || "Unknown User"}</strong>
+                          <div className="member-meta-row">
+                            <span>{member.role || "Member"}</span>
+                            {isAdmin && <span className="admin-badge-soft">Admin</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="member-action-side">
+                        <div className={`member-status-soft ${member.status || "offline"}`} />
+                        {canRemove && (
+                          <button
+                            className="remove-member-btn"
+                            onClick={() => handleRemoveMember(memberId)}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </aside>
+        )}
+      </div>
+
+      {showCreateGroupModal && (
+        <div
+          className="group-modal-overlay"
+          onClick={() => setShowCreateGroupModal(false)}
+        >
+          <div className="group-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="group-modal-header">
+              <h3>Create Group</h3>
+              <button onClick={() => setShowCreateGroupModal(false)}>✕</button>
+            </div>
+
+            <div className="group-modal-body">
+              <label>Group Name</label>
               <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                style={{ display: "none" }}
+                type="text"
+                placeholder="Enter group name"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
               />
 
-              <button className="icon-btn" onClick={handleFileButtonClick}>
-                📎
-              </button>
+              <label>Add Members</label>
+              <input
+                type="text"
+                placeholder="Search users by name or email"
+                value={groupUserSearch}
+                onChange={(e) => handleGroupUserSearch(e.target.value)}
+              />
 
-              <button className="send-btn" onClick={handleSendMessage}>
-                ➤
+              {groupUserSearch && (
+                <div className="group-user-search-results">
+                  {groupSearchResults.length === 0 ? (
+                    <div className="group-user-search-item">No users found</div>
+                  ) : (
+                    groupSearchResults.map((user) => (
+                      <div
+                        key={user._id}
+                        className="group-user-search-item"
+                        onClick={() => addUserToNewGroup(user)}
+                      >
+                        <div className="group-user-avatar">
+                          {(user.name || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="group-user-info">
+                          <strong>{user.name}</strong>
+                          <span>{user.email}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              <div className="selected-group-users">
+                {selectedGroupUsers.map((user) => (
+                  <div key={user._id} className="selected-group-user-chip">
+                    <span>{user.name}</span>
+                    <button onClick={() => removeUserFromNewGroup(user._id)}>✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="group-modal-footer">
+              <button
+                className="group-cancel-btn"
+                onClick={() => setShowCreateGroupModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="group-create-btn"
+                onClick={handleCreateGroup}
+                disabled={creatingGroup}
+              >
+                {creatingGroup ? "Creating..." : "Create Group"}
               </button>
             </div>
           </div>
-        </section>
+        </div>
+      )}
 
-        <aside className="chat-rightbar">
-          <div className="rightbar-header">
-            <h3>Members</h3>
-            <p>{members.length} people</p>
+      {showRenameModal && (
+        <div
+          className="group-modal-overlay"
+          onClick={() => setShowRenameModal(false)}
+        >
+          <div className="group-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="group-modal-header">
+              <h3>Rename Group</h3>
+              <button onClick={() => setShowRenameModal(false)}>✕</button>
+            </div>
+
+            <div className="group-modal-body">
+              <label>New Group Name</label>
+              <input
+                type="text"
+                placeholder="Enter new group name"
+                value={renameGroupName}
+                onChange={(e) => setRenameGroupName(e.target.value)}
+              />
+            </div>
+
+            <div className="group-modal-footer">
+              <button
+                className="group-cancel-btn"
+                onClick={() => setShowRenameModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="group-create-btn"
+                onClick={handleRenameGroup}
+                disabled={renamingGroup}
+              >
+                {renamingGroup ? "Saving..." : "Save"}
+              </button>
+            </div>
           </div>
+        </div>
+      )}
 
-          <div className="members-list">
-            {members.map((member) => (
-              <div key={member.id} className="member-item">
-                <div className="member-left">
-                  <div className="member-avatar">{member.avatar}</div>
-                  <div>
-                    <h4>{member.name}</h4>
-                    <span>{member.role}</span>
-                  </div>
+      {showAddMembersModal && (
+        <div
+          className="group-modal-overlay"
+          onClick={() => setShowAddMembersModal(false)}
+        >
+          <div className="group-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="group-modal-header">
+              <h3>Add Members</h3>
+              <button onClick={() => setShowAddMembersModal(false)}>✕</button>
+            </div>
+
+            <div className="group-modal-body">
+              <label>Search Users</label>
+              <input
+                type="text"
+                placeholder="Search users by name or email"
+                value={addMemberSearch}
+                onChange={(e) => handleAddMemberSearch(e.target.value)}
+              />
+
+              {addMemberSearch && (
+                <div className="group-user-search-results">
+                  {addMemberResults.length === 0 ? (
+                    <div className="group-user-search-item">No users found</div>
+                  ) : (
+                    addMemberResults.map((user) => (
+                      <div
+                        key={user._id}
+                        className="group-user-search-item"
+                        onClick={() => addUserToExistingGroup(user)}
+                      >
+                        <div className="group-user-avatar">
+                          {(user.name || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="group-user-info">
+                          <strong>{user.name}</strong>
+                          <span>{user.email}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
+              )}
 
-                <div className={`status-dot ${member.status}`}></div>
+              <div className="selected-group-users">
+                {selectedNewMembers.map((user) => (
+                  <div key={user._id} className="selected-group-user-chip">
+                    <span>{user.name}</span>
+                    <button onClick={() => removeSelectedNewMember(user._id)}>✕</button>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            <div className="group-modal-footer">
+              <button
+                className="group-cancel-btn"
+                onClick={() => setShowAddMembersModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="group-create-btn"
+                onClick={handleAddMembersToGroup}
+                disabled={addingMembers}
+              >
+                {addingMembers ? "Adding..." : "Add Members"}
+              </button>
+            </div>
           </div>
-        </aside>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

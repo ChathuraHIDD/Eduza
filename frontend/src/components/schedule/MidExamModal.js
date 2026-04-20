@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react'
 import { generateMidExamSchedule } from '../../utils/midExamEngine'
+import ExcelJS from 'exceljs'
+import Papa from 'papaparse'
 
 const GRADES = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D', 'F']
 const gradeColors = {
@@ -25,6 +27,148 @@ const SPECIAL_CHAR_ERROR = 'Special characters ! @ # $ % ^ & * ( ) are not allow
 
 function sanitizeTextValue(value) {
   return value.replace(/[!@#$%^&*()]/g, '')
+}
+
+function normalizeHeader(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+}
+
+function excelSerialToDate(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return ''
+  const base = Date.UTC(1899, 11, 30)
+  const millis = Math.round(value * 24 * 60 * 60 * 1000)
+  const dt = new Date(base + millis)
+  if (Number.isNaN(dt.getTime())) return ''
+  return dt.toISOString().split('T')[0]
+}
+
+function toInputDate(value) {
+  if (!value && value !== 0) return ''
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().split('T')[0]
+  }
+
+  if (typeof value === 'number') {
+    return excelSerialToDate(value)
+  }
+
+  const text = String(value).trim()
+  if (!text) return ''
+
+  const yyyymmdd = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (yyyymmdd) {
+    const year = Number(yyyymmdd[1])
+    const month = Number(yyyymmdd[2])
+    const day = Number(yyyymmdd[3])
+    const dt = new Date(Date.UTC(year, month - 1, day))
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString().split('T')[0]
+  }
+
+  const ddmmyyyy = text.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/)
+  if (ddmmyyyy) {
+    const day = Number(ddmmyyyy[1])
+    const month = Number(ddmmyyyy[2])
+    const year = Number(ddmmyyyy[3])
+    const dt = new Date(Date.UTC(year, month - 1, day))
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString().split('T')[0]
+  }
+
+  const parsed = new Date(text)
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().split('T')[0]
+  }
+
+  return ''
+}
+
+function parseExamRowsFromMatrix(matrix) {
+  if (!matrix.length) return []
+
+  const subjectCandidates = [
+    'module',
+    'module name',
+    'module subject',
+    'module subject name',
+    'subject',
+    'subject name',
+    'paper',
+    'course',
+    'unit',
+  ]
+
+  const dateCandidates = [
+    'date',
+    'due date',
+    'exam date',
+    'mid exam date',
+    'examdate',
+    'date exam',
+    'date due',
+  ]
+
+  let headerRowIndex = -1
+  let subjectIndex = -1
+  let dateIndex = -1
+
+  // Detect the real header row from top rows (supports title rows before headers)
+  for (let i = 0; i < Math.min(matrix.length, 15); i += 1) {
+    const row = Array.isArray(matrix[i]) ? matrix[i] : []
+    const cells = row.map((cell) => normalizeHeader(cell))
+
+    const foundSubject = cells.findIndex((cell) => {
+      return subjectCandidates.some((candidate) => {
+        const normalizedCandidate = normalizeHeader(candidate)
+        return cell === normalizedCandidate || cell.includes(normalizedCandidate) || normalizedCandidate.includes(cell)
+      })
+    })
+
+    const foundDate = cells.findIndex((cell) => {
+      return dateCandidates.some((candidate) => {
+        const normalizedCandidate = normalizeHeader(candidate)
+        return cell === normalizedCandidate || cell.includes(normalizedCandidate) || normalizedCandidate.includes(cell)
+      })
+    })
+
+    if (foundSubject !== -1 && foundDate !== -1) {
+      headerRowIndex = i
+      subjectIndex = foundSubject
+      dateIndex = foundDate
+      break
+    }
+  }
+
+  if (headerRowIndex === -1) return []
+
+  const parsed = []
+  for (let i = headerRowIndex + 1; i < matrix.length; i += 1) {
+    const row = Array.isArray(matrix[i]) ? matrix[i] : []
+    const subject = sanitizeTextValue(String(row[subjectIndex] || '').trim())
+    const date = toInputDate(row[dateIndex])
+
+    if (!subject && !date) continue
+    if (!subject || !date) continue
+
+    parsed.push({ id: nextId++, subject, date })
+  }
+
+  return parsed
+}
+
+function parseExamRowsFromWorkbook(workbook) {
+  const worksheet = workbook.worksheets?.[0]
+  if (!worksheet) return []
+
+  const matrix = []
+  worksheet.eachRow({ includeEmpty: false }, (row) => {
+    matrix.push(row.values.slice(1))
+  })
+
+  return parseExamRowsFromMatrix(matrix)
 }
 
 let nextId = 1
@@ -89,6 +233,8 @@ function MidExamModal({ onClose, onGenerate }) {
   const [grade, setGrade] = useState('')
   const [mark, setMark] = useState(70)
   const [errors, setErrors] = useState({})
+  const [uploadInfo, setUploadInfo] = useState('')
+  const [uploadError, setUploadError] = useState('')
   const fileRef = useRef()
   const today = new Date().toISOString().split('T')[0]
 
@@ -129,14 +275,54 @@ function MidExamModal({ onClose, onGenerate }) {
   }
 
   // ── File upload ──
-  const handleFile = (file) => {
+  const handleFile = async (file) => {
     if (!file) return
+    setUploadInfo('')
+    setUploadError('')
+
+    const allowed = /\.(xlsx|csv)$/i.test(file.name)
+    if (!allowed) {
+      setUploadError('Please upload an Excel or CSV file (.xlsx, .csv).')
+      return
+    }
+
+    try {
+      let imported = []
+      if (/\.csv$/i.test(file.name)) {
+        const text = await file.text()
+        const csv = Papa.parse(text, { skipEmptyLines: true })
+        if (csv.errors?.length) {
+          setUploadError('Failed to parse CSV. Please check file format and try again.')
+          return
+        }
+        imported = parseExamRowsFromMatrix(csv.data || [])
+      } else {
+        const buffer = await file.arrayBuffer()
+        const workbook = new ExcelJS.Workbook()
+        await workbook.xlsx.load(buffer)
+        imported = parseExamRowsFromWorkbook(workbook)
+      }
+
+      if (!imported.length) {
+        setUploadError('Could not detect module and date columns. Use columns like Module/Subject and Date/Exam Date.')
+        return
+      }
+
+      setExams(imported)
+      setSubjectDetails({})
+      setErrors((prev) => ({ ...prev, exams: '', file: '' }))
+      setUploadInfo(`${imported.length} exam item${imported.length > 1 ? 's' : ''} imported from file.`)
+    } catch {
+      setUploadError('Failed to read file. Please check format and try again.')
+      return
+    }
+
     setUploadedFile(file)
   }
   const onDrop = (e) => {
     e.preventDefault()
     setDragOver(false)
-    handleFile(e.dataTransfer.files[0])
+    void handleFile(e.dataTransfer.files[0])
   }
 
   // ── Days remaining utility ──
@@ -285,9 +471,9 @@ function MidExamModal({ onClose, onGenerate }) {
             {timetableMode === 'upload' && (
               <div>
                 <input
-                  ref={fileRef} type="file" accept="image/*,.pdf"
+                  ref={fileRef} type="file" accept=".xlsx,.csv"
                   style={{ display: 'none' }}
-                  onChange={(e) => handleFile(e.target.files[0])}
+                  onChange={(e) => { void handleFile(e.target.files[0]) }}
                 />
                 <div
                   onClick={() => fileRef.current.click()}
@@ -319,12 +505,18 @@ function MidExamModal({ onClose, onGenerate }) {
                         Drop your timetable here
                       </div>
                       <div style={{ fontSize: 12, color: '#555' }}>
-                        Supports JPG, PNG, PDF · Click to browse
+                        Supports Excel and CSV files · Click to browse
                       </div>
                     </>
                   )}
                 </div>
                 {errors.file && <div style={errStyle}>{errors.file}</div>}
+                {uploadError && <div style={errStyle}>{uploadError}</div>}
+                {uploadInfo && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#22c55e' }}>
+                    {uploadInfo}
+                  </div>
+                )}
                 {uploadedFile && (
                   <div style={{
                     marginTop: 10, background: ACCENT_RGBA(0.08),
@@ -336,7 +528,7 @@ function MidExamModal({ onClose, onGenerate }) {
                     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0, marginTop: 1 }}>
                       <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
-                    Please enter your exam dates below to confirm — auto-parsing from image will be available soon.
+                    Parsed from upload. Review and edit module names or dates below if needed.
                   </div>
                 )}
               </div>

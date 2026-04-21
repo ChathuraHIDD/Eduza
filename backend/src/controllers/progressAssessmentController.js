@@ -3,6 +3,7 @@ const ProgressAssessment = require("../models/ProgressAssessment");
 const ProgressAssessmentAttempt = require("../models/ProgressAssessmentAttempt");
 
 const STAFF_ROLES = ["lecturer", "coordinator", "admin"];
+const MAX_QUIZ_ATTEMPTS = 5;
 
 const canManageAssessment = (assessment, user) => {
   if (!assessment || !user) return false;
@@ -151,6 +152,11 @@ const createAttempt = asyncHandler(async (req, res) => {
       user: String(req.user._id),
       assessmentId: assessment._id,
     })) + 1;
+
+  if ((payload.assessmentType || assessment.type) === "quiz" && attemptNumber > MAX_QUIZ_ATTEMPTS) {
+    res.status(400);
+    throw new Error(`Quiz attempt limit reached. Maximum ${MAX_QUIZ_ATTEMPTS} attempts allowed.`);
+  }
 
   const attempt = await ProgressAssessmentAttempt.create({
     ...payload,

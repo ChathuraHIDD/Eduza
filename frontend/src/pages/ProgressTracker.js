@@ -13,6 +13,7 @@ const SELF_CHECK_STORAGE_KEY = "moduleSelfChecks";
 const QUIZ_ATTEMPTS_STORAGE_KEY = "quizAttempts";
 const OPTION_LABELS = ["A", "B", "C", "D"];
 const QUIZ_DURATION_SECONDS = 15 * 60;
+const MAX_QUIZ_ATTEMPTS = 5;
 const GRADING_SCALE = [
   { grade: "A+", gpa: 4.0, marks: "90-100" },
   { grade: "A", gpa: 4.0, marks: "80-89" },
@@ -64,6 +65,7 @@ const loadStoredQuizAttempts = () => {
     return [];
   }
 };
+
 
 const generateAIRecommendations = (quizResult, selectedQuiz) => {
   if (!quizResult || !selectedQuiz) return [];
@@ -208,18 +210,303 @@ function ProgressTracker() {
   const [confidenceLevel, setConfidenceLevel] = useState("");
   const [reflection, setReflection] = useState("");
   const [quizAttempts, setQuizAttempts] = useState(loadStoredQuizAttempts);
-  const [selfCheckQuizFilter, setSelfCheckQuizFilter] = useState("all");
+  const [selfCheckQuizFilter, setSelfCheckQuizFilter] = useState("");
   const [quizTimeLeft, setQuizTimeLeft] = useState(QUIZ_DURATION_SECONDS);
   const [isQuizTimerRunning, setIsQuizTimerRunning] = useState(false);
   const [quizTimeoutMessage, setQuizTimeoutMessage] = useState("");
   const [reportGenerated, setReportGenerated] = useState(false);
 
-  const [streakData] = useState({
-    currentStreak: 9,
-    bestStreak: 21,
-    studyDays: 46,
-    level: "Gold Badge",
-  });
+  const toLocalDayKey = useCallback((value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const dayKeyToIndex = useCallback((dayKey) => {
+    const [year, month, day] = dayKey.split("-").map(Number);
+    return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+  }, []);
+
+  const formatMinutes = useCallback((totalMinutes) => {
+    const safe = Math.max(0, Number(totalMinutes || 0));
+    const hours = Math.floor(safe / 60);
+    const minutes = safe % 60;
+    return `${hours}h ${minutes}m`;
+  }, []);
+
+  const to12HourLabel = useCallback((hour24) => {
+    const normalized = ((Number(hour24) % 24) + 24) % 24;
+    const suffix = normalized >= 12 ? "PM" : "AM";
+    const hour12 = normalized % 12 || 12;
+    return `${hour12} ${suffix}`;
+  }, []);
+
+  const streakData = useMemo(() => {
+    const dayKeys = new Set(
+      quizAttempts
+        .map((attempt) => toLocalDayKey(attempt?.submittedAt))
+        .filter(Boolean)
+    );
+
+    if (dayKeys.size === 0) {
+      return {
+        currentStreak: 0,
+        bestStreak: 0,
+        studyDays: 0,
+        level: "Starter Badge",
+      };
+    }
+
+    const dayIndexes = Array.from(dayKeys)
+      .map(dayKeyToIndex)
+      .sort((a, b) => a - b);
+
+    let bestStreak = 1;
+    let running = 1;
+    for (let i = 1; i < dayIndexes.length; i += 1) {
+      if (dayIndexes[i] === dayIndexes[i - 1] + 1) {
+        running += 1;
+      } else {
+        running = 1;
+      }
+      if (running > bestStreak) {
+        bestStreak = running;
+      }
+    }
+
+    const latestIndex = dayIndexes[dayIndexes.length - 1];
+    const now = new Date();
+    const todayIndex = Math.floor(
+      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000
+    );
+
+    let currentStreak = 0;
+    if (todayIndex - latestIndex <= 1) {
+      currentStreak = 1;
+      for (let i = dayIndexes.length - 2; i >= 0; i -= 1) {
+        if (dayIndexes[i] === latestIndex - currentStreak) {
+          currentStreak += 1;
+        } else {
+          break;
+        }
+      }
+    }
+
+    let level = "Starter Badge";
+    if (currentStreak >= 30) level = "Diamond Badge";
+    else if (currentStreak >= 14) level = "Gold Badge";
+    else if (currentStreak >= 7) level = "Silver Badge";
+    else if (currentStreak >= 3) level = "Bronze Badge";
+
+    return {
+      currentStreak,
+      bestStreak,
+      studyDays: dayIndexes.length,
+      level,
+    };
+  }, [dayKeyToIndex, quizAttempts, toLocalDayKey]);
+
+  const weeklyActivity = useMemo(() => {
+    const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const now = new Date();
+    const dayOffset = (now.getDay() + 6) % 7; // convert Sun=0..Sat=6 to Mon=0..Sun=6
+    const monday = new Date(now);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(now.getDate() - dayOffset);
+
+    const attemptCountByDay = new Map();
+    quizAttempts.forEach((attempt) => {
+      const dayKey = toLocalDayKey(attempt?.submittedAt);
+      if (!dayKey) return;
+      attemptCountByDay.set(dayKey, (attemptCountByDay.get(dayKey) || 0) + 1);
+    });
+
+    return labels.map((label, index) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + index);
+      const dayKey = toLocalDayKey(date);
+      const attempts = attemptCountByDay.get(dayKey) || 0;
+      return {
+        label,
+        attempts,
+        intensity: Math.min(attempts, 4),
+      };
+    });
+  }, [quizAttempts, toLocalDayKey]);
+
+  const weeklyTimeStats = useMemo(() => {
+    const now = new Date();
+    const dayOffset = (now.getDay() + 6) % 7;
+    const weekStart = new Date(now);
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(now.getDate() - dayOffset);
+
+    const weekAttempts = quizAttempts.filter((attempt) => {
+      const submitted = new Date(attempt?.submittedAt || "");
+      if (Number.isNaN(submitted.getTime())) return false;
+      return submitted >= weekStart;
+    });
+
+    const quizCount = weekAttempts.filter(
+      (attempt) => (attempt.assessmentType || "quiz") === "quiz"
+    ).length;
+    const selfCheckCount = weekAttempts.filter(
+      (attempt) => (attempt.assessmentType || "quiz") === "selfcheck"
+    ).length;
+
+    const quizMinutes = quizCount * 15;
+    const selfCheckMinutes = selfCheckCount * 10;
+    const totalMinutes = quizMinutes + selfCheckMinutes;
+
+    return {
+      quizCount,
+      selfCheckCount,
+      quizMinutes,
+      selfCheckMinutes,
+      totalMinutes,
+      quizPct: totalMinutes > 0 ? Math.round((quizMinutes / totalMinutes) * 100) : 0,
+      selfCheckPct: totalMinutes > 0 ? Math.round((selfCheckMinutes / totalMinutes) * 100) : 0,
+    };
+  }, [quizAttempts]);
+
+  const modulePerformance = useMemo(() => {
+    const moduleStats = new Map();
+
+    quizAttempts.forEach((attempt) => {
+      if (!attempt) return;
+      const name = attempt.moduleCode
+        ? `${attempt.moduleCode} - ${attempt.moduleName || "Unnamed Module"}`
+        : attempt.moduleName || "";
+      if (!name) return;
+
+      const current = moduleStats.get(name) || { name, total: 0, count: 0 };
+      current.total += Number(attempt.score100 || 0);
+      current.count += 1;
+      moduleStats.set(name, current);
+    });
+
+    return Array.from(moduleStats.values())
+      .map((item) => ({
+        name: item.name,
+        average: Math.max(0, Math.min(100, Math.round(item.total / Math.max(item.count, 1)))),
+        attempts: item.count,
+      }))
+      .sort((a, b) => b.average - a.average);
+  }, [quizAttempts]);
+
+  const topSubjects = useMemo(() => {
+    if (modulePerformance.length > 0) {
+      return modulePerformance.slice(0, 3).map((item) => ({
+        name: item.name,
+        pct: item.average,
+      }));
+    }
+
+    const fallbackModules = [
+      ...quizModules.map((item) => ({
+        name: item.moduleCode
+          ? `${item.moduleCode} - ${item.moduleName || "Unnamed Module"}`
+          : item.moduleName || "",
+      })),
+      ...selfCheckModules.map((item) => ({
+        name: item.moduleCode
+          ? `${item.moduleCode} - ${item.moduleName || "Unnamed Module"}`
+          : item.moduleName || "",
+      })),
+    ]
+      .filter((item) => item.name)
+      .reduce((acc, item) => {
+        if (!acc.some((entry) => entry.name === item.name)) {
+          acc.push({ name: item.name, pct: 0 });
+        }
+        return acc;
+      }, [])
+      .slice(0, 3);
+
+    return fallbackModules;
+  }, [modulePerformance, quizModules, selfCheckModules]);
+
+  const aiInsights = useMemo(() => {
+    const activeDaysInWeek = weeklyActivity.filter((day) => day.attempts > 0).length;
+    const streakLikelihood = Math.min(
+      98,
+      Math.max(
+        20,
+        Math.round(
+          (activeDaysInWeek / 7) * 65 +
+            Math.min(streakData.currentStreak, 14) * 2.2
+        )
+      )
+    );
+
+    const hourFrequency = new Map();
+    quizAttempts.forEach((attempt) => {
+      const date = new Date(attempt?.submittedAt || "");
+      if (Number.isNaN(date.getTime())) return;
+      const hour = date.getHours();
+      hourFrequency.set(hour, (hourFrequency.get(hour) || 0) + 1);
+    });
+
+    let peakHour = null;
+    let peakCount = 0;
+    hourFrequency.forEach((count, hour) => {
+      if (count > peakCount) {
+        peakCount = count;
+        peakHour = hour;
+      }
+    });
+
+    const bestStudyTime =
+      peakHour === null
+        ? "No activity data yet"
+        : `${to12HourLabel(peakHour)} - ${to12HourLabel((peakHour + 2) % 24)}`;
+
+    const weakestModule =
+      modulePerformance.length > 0
+        ? [...modulePerformance].sort((a, b) => a.average - b.average)[0]
+        : null;
+
+    const now = new Date();
+    const startOfCurrentWeek = new Date(now);
+    const currentOffset = (now.getDay() + 6) % 7;
+    startOfCurrentWeek.setHours(0, 0, 0, 0);
+    startOfCurrentWeek.setDate(now.getDate() - currentOffset);
+
+    const startOfPreviousWeek = new Date(startOfCurrentWeek);
+    startOfPreviousWeek.setDate(startOfCurrentWeek.getDate() - 7);
+
+    const currentWeekScores = [];
+    const previousWeekScores = [];
+
+    quizAttempts.forEach((attempt) => {
+      const submitted = new Date(attempt?.submittedAt || "");
+      if (Number.isNaN(submitted.getTime())) return;
+      const score = Number(attempt.score100 || 0);
+      if (submitted >= startOfCurrentWeek) {
+        currentWeekScores.push(score);
+      } else if (submitted >= startOfPreviousWeek && submitted < startOfCurrentWeek) {
+        previousWeekScores.push(score);
+      }
+    });
+
+    const currentAvg = currentWeekScores.length
+      ? currentWeekScores.reduce((sum, score) => sum + score, 0) / currentWeekScores.length
+      : 0;
+    const previousAvg = previousWeekScores.length
+      ? previousWeekScores.reduce((sum, score) => sum + score, 0) / previousWeekScores.length
+      : 0;
+    const growthRate = Math.round(currentAvg - previousAvg);
+
+    return {
+      streakLikelihood,
+      bestStudyTime,
+      weakestModule,
+      growthRate,
+    };
+  }, [modulePerformance, quizAttempts, streakData.currentStreak, to12HourLabel, weeklyActivity]);
 
   useEffect(() => {
     let isMounted = true;
@@ -309,6 +596,18 @@ function ProgressTracker() {
     );
   }, [allAssessments, selectedQuizId]);
 
+  const getAssessmentAttemptCount = useCallback(
+    (assessmentId, assessmentType) => {
+      return quizAttempts.filter((attempt) => {
+        return (
+          String(attempt.quizId) === String(assessmentId) &&
+          (attempt.assessmentType || "quiz") === assessmentType
+        );
+      }).length;
+    },
+    [quizAttempts]
+  );
+
   const getCorrectOptionLabel = (question) => {
     if (OPTION_LABELS.includes(question?.correctOption)) {
       return question.correctOption;
@@ -328,6 +627,221 @@ function ProgressTracker() {
     return Array.isArray(question?.options) ? question.options[index] || "" : "";
   };
 
+  const quizAttemptsOnly = useMemo(() => {
+    return quizAttempts
+      .filter((attempt) => {
+        if ((attempt.assessmentType || "quiz") !== "quiz") return false;
+        const attemptNumber = Number(attempt.attemptNumber || 0);
+        if (!Number.isFinite(attemptNumber) || attemptNumber <= 0) return true;
+        return attemptNumber <= MAX_QUIZ_ATTEMPTS;
+      })
+      .sort(
+        (a, b) => new Date(a.submittedAt || 0).getTime() - new Date(b.submittedAt || 0).getTime()
+      );
+  }, [quizAttempts]);
+
+  const quizAttemptsByAssessment = useMemo(() => {
+    const map = new Map();
+
+    quizAttemptsOnly.forEach((attempt) => {
+      const assessmentId = String(attempt.quizId || "");
+      if (!assessmentId) return;
+
+      if (!map.has(assessmentId)) {
+        map.set(assessmentId, []);
+      }
+
+      map.get(assessmentId).push(attempt);
+    });
+
+    return map;
+  }, [quizAttemptsOnly]);
+
+  const quizProgressOptions = useMemo(() => {
+    const options = Array.from(quizAttemptsByAssessment.entries()).map(([id, attempts]) => {
+      const latestAttempt = attempts[attempts.length - 1];
+      const label = latestAttempt?.moduleCode
+        ? `${latestAttempt.moduleCode} - ${latestAttempt.moduleName}`
+        : latestAttempt?.moduleName || "Unnamed Quiz";
+
+      return { id, label };
+    });
+
+    return options.sort((a, b) => a.label.localeCompare(b.label));
+  }, [quizAttemptsByAssessment]);
+
+  useEffect(() => {
+    if (!selfCheckQuizFilter && quizProgressOptions.length > 0) {
+      setSelfCheckQuizFilter(quizProgressOptions[0].id);
+    }
+  }, [quizProgressOptions, selfCheckQuizFilter]);
+
+  const effectiveQuizFilter = useMemo(() => {
+    if (selfCheckQuizFilter === "all") return "all";
+    if (selfCheckQuizFilter) return selfCheckQuizFilter;
+    return quizProgressOptions[0]?.id || "all";
+  }, [quizProgressOptions, selfCheckQuizFilter]);
+
+  const quizProgressSeries = useMemo(() => {
+    const source =
+      effectiveQuizFilter === "all"
+        ? quizAttemptsOnly
+        : quizAttemptsOnly.filter((attempt) => String(attempt.quizId) === String(effectiveQuizFilter));
+
+    return source.slice(-12).map((attempt) => ({
+      ...attempt,
+      label:
+        effectiveQuizFilter === "all"
+          ? `${attempt.moduleCode || attempt.moduleName || "Quiz"} R${attempt.attemptNumber || 1}`
+          : `R${attempt.attemptNumber || 1}`,
+      value: Number(attempt.score100 || 0),
+    }));
+  }, [effectiveQuizFilter, quizAttemptsOnly]);
+
+  const quizProgressModuleSeries = useMemo(() => {
+    if (effectiveQuizFilter !== "all") {
+      return [];
+    }
+
+    const moduleSeries = new Map();
+
+    quizAttemptsOnly.forEach((attempt) => {
+      const moduleKey = String(attempt.moduleCode || attempt.moduleName || attempt.quizId || "module");
+      if (!moduleSeries.has(moduleKey)) {
+        moduleSeries.set(moduleKey, []);
+      }
+      moduleSeries.get(moduleKey).push(attempt);
+    });
+
+    return Array.from(moduleSeries.entries()).map(([moduleKey, attempts]) => ({
+      key: moduleKey,
+      label: attempts[0]?.moduleCode
+        ? `${attempts[0].moduleCode} - ${attempts[0].moduleName}`
+        : attempts[0]?.moduleName || moduleKey,
+      values: attempts.slice(-8).map((attempt) => ({
+        id: attempt.id,
+        value: Number(attempt.score100 || 0),
+        label: `R${attempt.attemptNumber || 1}`,
+      })),
+    }));
+  }, [effectiveQuizFilter, quizAttemptsOnly]);
+
+  const analyticsAttempts = useMemo(() => {
+    if (effectiveQuizFilter === "all") return quizAttemptsOnly;
+    return quizAttemptsOnly.filter((attempt) => String(attempt.quizId) === String(effectiveQuizFilter));
+  }, [effectiveQuizFilter, quizAttemptsOnly]);
+
+  const analyticsAttemptsByAssessment = useMemo(() => {
+    const map = new Map();
+    analyticsAttempts.forEach((attempt) => {
+      const key = String(attempt.quizId || "");
+      if (!key) return;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(attempt);
+    });
+    return map;
+  }, [analyticsAttempts]);
+
+  const quizRepeatAnalytics = useMemo(() => {
+    const attemptedQuizzes = Array.from(analyticsAttemptsByAssessment.entries());
+
+    if (attemptedQuizzes.length === 0) {
+      return {
+        totalAttempts: 0,
+        repeatQuizzes: 0,
+        improvingQuizzes: 0,
+        averageRepeatGain: 0,
+        latestScore: 0,
+        averageScore: 0,
+        bestScore: 0,
+        recommendation: "Start repeating quizzes to see progress trends here.",
+      };
+    }
+
+    const allScores = analyticsAttempts.map((attempt) => Number(attempt.score100 || 0));
+    const repeatAnalyses = attemptedQuizzes.map(([, attempts]) => {
+      const firstScore = Number(attempts[0]?.score100 || 0);
+      const latestScore = Number(attempts[attempts.length - 1]?.score100 || 0);
+      return {
+        firstScore,
+        latestScore,
+        gain: latestScore - firstScore,
+        attemptsCount: attempts.length,
+      };
+    });
+
+    const improvingQuizzes = repeatAnalyses.filter((item) => item.gain > 0).length;
+    const repeatQuizzes = repeatAnalyses.filter((item) => item.attemptsCount > 1).length;
+    const averageRepeatGain = repeatAnalyses.length
+      ? Math.round(
+          repeatAnalyses.reduce((sum, item) => sum + item.gain, 0) / repeatAnalyses.length
+        )
+      : 0;
+    const latestScore = allScores[allScores.length - 1] || 0;
+    const averageScore = Math.round(
+      allScores.reduce((sum, score) => sum + score, 0) / allScores.length
+    );
+    const bestScore = Math.max(...allScores);
+
+    let recommendation = "Repeat quizzes regularly to strengthen mastery.";
+    if (improvingQuizzes === 0 && repeatQuizzes > 0) {
+      recommendation = "Some repeated quizzes are not improving yet. Review weak topics and try again.";
+    } else if (averageRepeatGain > 0) {
+      recommendation = "Your repeat attempts are improving. Keep revising and use the next attempts strategically.";
+    } else if (averageRepeatGain < 0) {
+      recommendation = "Scores are slipping across repeats. Focus on the topics you are missing before reattempting.";
+    }
+
+    return {
+      totalAttempts: analyticsAttempts.length,
+      repeatQuizzes,
+      improvingQuizzes,
+      averageRepeatGain,
+      latestScore,
+      averageScore,
+      bestScore,
+      recommendation,
+    };
+  }, [analyticsAttempts, analyticsAttemptsByAssessment]);
+
+  const measureProgressDelta = useMemo(() => {
+    if (quizProgressSeries.length < 2) return 0;
+    const first = Number(quizProgressSeries[0].value || 0);
+    const latest = Number(quizProgressSeries[quizProgressSeries.length - 1].value || 0);
+    return latest - first;
+  }, [quizProgressSeries]);
+
+  const quizModuleSummaries = useMemo(() => {
+    return Array.from(analyticsAttemptsByAssessment.entries()).map(([quizId, attempts]) => {
+      const firstAttempt = attempts[0] || {};
+      const latestAttempt = attempts[attempts.length - 1] || {};
+      const moduleName = latestAttempt.moduleCode
+        ? `${latestAttempt.moduleCode} - ${latestAttempt.moduleName}`
+        : latestAttempt.moduleName || firstAttempt.moduleName || "Unnamed Quiz";
+      const firstScore = Number(firstAttempt.score100 || 0);
+      const latestScore = Number(latestAttempt.score100 || 0);
+      const gain = latestScore - firstScore;
+
+      return {
+        quizId,
+        moduleName,
+        attemptsCount: attempts.length,
+        firstScore,
+        latestScore,
+        gain,
+        isImproving: gain > 0,
+      };
+    });
+  }, [analyticsAttemptsByAssessment]);
+
+  const selectedQuizAttemptCount = useMemo(() => {
+    if (!selectedQuiz || selectedQuiz.type !== "quiz") return 0;
+    return getAssessmentAttemptCount(selectedQuiz.id, "quiz");
+  }, [getAssessmentAttemptCount, selectedQuiz]);
+
+  const selectedQuizIsLocked =
+    selectedQuiz && selectedQuiz.type === "quiz" && selectedQuizAttemptCount >= MAX_QUIZ_ATTEMPTS;
+
   const handleStartQuiz = (quizId) => {
     if (String(selectedQuizId) === String(quizId)) {
       setSelectedQuizId(null);
@@ -335,11 +849,17 @@ function ProgressTracker() {
       setQuizValidationError("");
       setQuizResult(null);
       setWrongAnswerSearchQuery("");
-      setSelfCheckQuizFilter("all");
       setIsQuizTimerRunning(false);
       setQuizTimeLeft(QUIZ_DURATION_SECONDS);
       setConfidenceLevel("");
       setReflection("");
+      return;
+    }
+
+    const attemptCount = getAssessmentAttemptCount(quizId, "quiz");
+    if (attemptCount >= MAX_QUIZ_ATTEMPTS) {
+      setQuizTimeoutMessage(`This quiz is locked after ${MAX_QUIZ_ATTEMPTS} attempts.`);
+      setQuizValidationError(`You have already used all ${MAX_QUIZ_ATTEMPTS} quiz attempts.`);
       return;
     }
 
@@ -402,6 +922,15 @@ function ProgressTracker() {
     if (!selectedQuiz) {
       setQuizValidationError("No assessment selected.");
       return;
+    }
+
+    if (selectedQuiz.type === "quiz") {
+      const attemptCount = getAssessmentAttemptCount(selectedQuiz.id, "quiz");
+      if (attemptCount >= MAX_QUIZ_ATTEMPTS) {
+        setQuizValidationError(`This quiz is locked after ${MAX_QUIZ_ATTEMPTS} attempts.`);
+        setIsQuizTimerRunning(false);
+        return;
+      }
     }
 
     if (selectedQuiz.type === "selfcheck") {
@@ -873,9 +1402,14 @@ function ProgressTracker() {
   }, [gradingScale]);
 
   const handleModuleChange = (id, field, value) => {
+    const normalizedValue =
+      field === "credits"
+        ? Math.max(0, Number(value) || 0)
+        : value;
+
     setModules((prev) =>
       prev.map((module) =>
-        module.id === id ? { ...module, [field]: value } : module
+        module.id === id ? { ...module, [field]: normalizedValue } : module
       )
     );
     setReportGenerated(false);
@@ -1071,28 +1605,23 @@ Suggestions:
     const padding = 40;
     const bottomPadding = 64;
     const maxValue = 100;
+    const moduleColors = ["#f97316", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444", "#14b8a6"];
 
-    if (displayedSelfCheckSeries.length === 0) {
+    if (quizProgressSeries.length === 0) {
       return (
         <div className="progress-measure-chart rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
-          <div className="mb-2 text-2xl font-bold text-slate-900">Assessment Progress</div>
+          <div className="mb-2 text-2xl font-bold text-slate-900">Quiz Progress Trend</div>
           <p className="text-sm text-slate-500">
-            No assessment attempts yet. Complete quizzes and self-checks to track marks
-            progress here.
+            No quiz attempts yet. Complete a quiz to track repeat progress here.
           </p>
         </div>
       );
     }
 
-    const xDivider = Math.max(1, displayedSelfCheckSeries.length - 1);
-
-    const points = displayedSelfCheckSeries
+    const singleSeriesPoints = quizProgressSeries
       .map((item, index) => {
-        const x =
-          padding +
-          (index * (width - padding * 2)) / xDivider;
-        const y =
-          height - bottomPadding - (item.value / maxValue) * (height - padding - bottomPadding);
+        const x = padding + (index * (width - padding * 2)) / Math.max(1, quizProgressSeries.length - 1);
+        const y = height - bottomPadding - (item.value / maxValue) * (height - padding - bottomPadding);
         return `${x},${y}`;
       })
       .join(" ");
@@ -1101,15 +1630,37 @@ Suggestions:
       <div className="progress-measure-chart rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
         <div className="progress-measure-chart-header mb-5 flex items-center justify-between">
           <div>
-            <h3 className="text-2xl font-bold text-slate-900">Assessment Progress</h3>
+            <h3 className="text-2xl font-bold text-slate-900">Quiz Progress Trend</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Quiz and self-check marks progress trend
+              Quiz repeat scores and improvement trend over attempts
             </p>
           </div>
           <div className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-orange-600">
             Updated
           </div>
         </div>
+
+        {effectiveQuizFilter === "all" && quizProgressModuleSeries.length > 0 ? (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {quizProgressModuleSeries.map((series, index) => (
+              <div
+                key={series.key}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700"
+              >
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 999,
+                    background: moduleColors[index % moduleColors.length],
+                    display: "inline-block",
+                  }}
+                />
+                {series.label}
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <div className="progress-measure-chart-body">
           <div className="progress-measure-chart-scroll overflow-x-auto">
@@ -1144,63 +1695,104 @@ Suggestions:
               );
             })}
 
-            {displayedSelfCheckSeries.map((item, index) => {
-              const x =
-                padding +
-                (index * (width - padding * 2)) / xDivider;
-              const shortLabel =
-                item.label.length > 18 ? `${item.label.slice(0, 18)}...` : item.label;
-              return (
-                <text
-                  key={item.id || `${item.quizId}-${item.attemptNumber}-${index}`}
-                  x={x}
-                  y={height - 18}
-                  textAnchor="middle"
-                  fontSize="12"
-                  fill="#64748b"
-                >
-                  {shortLabel}
-                </text>
-              );
-            })}
+            {effectiveQuizFilter === "all" && quizProgressModuleSeries.length > 0 ? (
+              quizProgressModuleSeries.map((series, seriesIndex) => {
+                const seriesPoints = series.values
+                  .map((item, index) => {
+                    const x = padding + (index * (width - padding * 2)) / Math.max(1, series.values.length - 1);
+                    const y = height - bottomPadding - (item.value / maxValue) * (height - padding - bottomPadding);
+                    return `${x},${y}`;
+                  })
+                  .join(" ");
 
-            <polyline
-              fill="none"
-              stroke="#f97316"
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              points={points}
-            />
+                return (
+                  <g key={series.key}>
+                    <polyline
+                      fill="none"
+                      stroke={moduleColors[seriesIndex % moduleColors.length]}
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      points={seriesPoints}
+                    />
+                    {series.values.map((item, index) => {
+                      const x = padding + (index * (width - padding * 2)) / Math.max(1, series.values.length - 1);
+                      const y = height - bottomPadding - (item.value / maxValue) * (height - padding - bottomPadding);
 
-            <polygon
-              fill="url(#lineFill)"
-              points={`${padding},${height - bottomPadding} ${points} ${width - padding},${height - bottomPadding}`}
-            />
+                      return (
+                        <g key={`${series.key}-${item.id || index}`}>
+                          <circle cx={x} cy={y} r="6" fill="#fff" stroke={moduleColors[seriesIndex % moduleColors.length]} strokeWidth="3" />
+                          <text
+                            x={x}
+                            y={y - 14}
+                            textAnchor="middle"
+                            fontSize="12"
+                            fill={moduleColors[seriesIndex % moduleColors.length]}
+                            fontWeight="700"
+                          >
+                            {item.value}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              })
+            ) : (
+              <>
+                {quizProgressSeries.map((item, index) => {
+                  const x = padding + (index * (width - padding * 2)) / Math.max(1, quizProgressSeries.length - 1);
+                  const shortLabel = item.label.length > 18 ? `${item.label.slice(0, 18)}...` : item.label;
+                  return (
+                    <text
+                      key={item.id || `${item.quizId}-${item.attemptNumber}-${index}`}
+                      x={x}
+                      y={height - 18}
+                      textAnchor="middle"
+                      fontSize="12"
+                      fill="#64748b"
+                    >
+                      {shortLabel}
+                    </text>
+                  );
+                })}
 
-            {displayedSelfCheckSeries.map((item, index) => {
-              const x =
-                padding +
-                (index * (width - padding * 2)) / xDivider;
-              const y =
-                height - bottomPadding - (item.value / maxValue) * (height - padding - bottomPadding);
+                <polyline
+                  fill="none"
+                  stroke="#f97316"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  points={singleSeriesPoints}
+                />
 
-              return (
-                <g key={item.id || `${item.quizId}-${item.attemptNumber}-${index}`}>
-                  <circle cx={x} cy={y} r="6" fill="#fff" stroke="#f97316" strokeWidth="3" />
-                  <text
-                    x={x}
-                    y={y - 14}
-                    textAnchor="middle"
-                    fontSize="12"
-                    fill="#ea580c"
-                    fontWeight="700"
-                  >
-                    {item.value}
-                  </text>
-                </g>
-              );
-            })}
+                <polygon
+                  fill="url(#lineFill)"
+                  points={`${padding},${height - bottomPadding} ${singleSeriesPoints} ${width - padding},${height - bottomPadding}`}
+                />
+
+                {quizProgressSeries.map((item, index) => {
+                  const x = padding + (index * (width - padding * 2)) / Math.max(1, quizProgressSeries.length - 1);
+                  const y = height - bottomPadding - (item.value / maxValue) * (height - padding - bottomPadding);
+
+                  return (
+                    <g key={item.id || `${item.quizId}-${item.attemptNumber}-${index}`}>
+                      <circle cx={x} cy={y} r="6" fill="#fff" stroke="#f97316" strokeWidth="3" />
+                      <text
+                        x={x}
+                        y={y - 14}
+                        textAnchor="middle"
+                        fontSize="12"
+                        fill="#ea580c"
+                        fontWeight="700"
+                      >
+                        {item.value}
+                      </text>
+                    </g>
+                  );
+                })}
+              </>
+            )}
           </svg>
           </div>
         </div>
@@ -1479,21 +2071,40 @@ Suggestions:
                       Score: {item.score}%
                     </p>
 
+                    <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6b7280" }}>
+                      Attempts: {getAssessmentAttemptCount(item.id, "quiz")}/{MAX_QUIZ_ATTEMPTS}
+                    </p>
+
                     <button
                       onClick={() => handleStartQuiz(item.id)}
+                      disabled={getAssessmentAttemptCount(item.id, "quiz") >= MAX_QUIZ_ATTEMPTS && String(selectedQuizId) !== String(item.id)}
                       style={{
                         borderRadius: 14,
                         border: "none",
-                        background: "#3b82f6",
-                        color: "#fff",
+                        background:
+                          getAssessmentAttemptCount(item.id, "quiz") >= MAX_QUIZ_ATTEMPTS &&
+                          String(selectedQuizId) !== String(item.id)
+                            ? "#cbd5e1"
+                            : "#3b82f6",
+                        color:
+                          getAssessmentAttemptCount(item.id, "quiz") >= MAX_QUIZ_ATTEMPTS &&
+                          String(selectedQuizId) !== String(item.id)
+                            ? "#64748b"
+                            : "#fff",
                         padding: "12px 18px",
                         fontSize: 14,
                         fontWeight: 700,
-                        cursor: "pointer",
+                        cursor:
+                          getAssessmentAttemptCount(item.id, "quiz") >= MAX_QUIZ_ATTEMPTS &&
+                          String(selectedQuizId) !== String(item.id)
+                            ? "not-allowed"
+                            : "pointer",
                       }}
                     >
                       {String(selectedQuizId) === String(item.id)
                         ? "Close Quiz Paper"
+                        : getAssessmentAttemptCount(item.id, "quiz") >= MAX_QUIZ_ATTEMPTS
+                        ? "Locked after 5 attempts"
                         : "Open Quiz Paper"}
                     </button>
                   </div>
@@ -2528,9 +3139,9 @@ Suggestions:
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h4 className="text-lg font-bold text-slate-900">🔍 Assessment Filter</h4>
+                  <h4 className="text-lg font-bold text-slate-900">🔍 Quiz Filter</h4>
                   <p className="text-sm text-slate-600">
-                    Select an assessment to see repeat attempts and marks progress.
+                    Select a quiz to see repeat attempts, score changes, and improvement trends.
                   </p>
                 </div>
                 <select
@@ -2547,8 +3158,8 @@ Suggestions:
                     outline: "none",
                   }}
                 >
-                  <option value="all">All Quizzes</option>
-                  {selfCheckQuizOptions.map((option) => (
+                  <option value="all">All Modules (Compare)</option>
+                  {quizProgressOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.label}
                     </option>
@@ -2568,10 +3179,10 @@ Suggestions:
                   <span className="text-2xl">📊</span>
                 </div>
                 <h4 className="text-3xl font-extrabold text-purple-600 mb-2">
-                  {selfCheckStats.latest}%
+                  {quizRepeatAnalytics.latestScore}%
                 </h4>
                 <div className="h-2 bg-purple-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-purple-500 rounded-full" style={{ width: `${selfCheckStats.latest}%` }}></div>
+                  <div className="h-full bg-purple-500 rounded-full" style={{ width: `${quizRepeatAnalytics.latestScore}%` }}></div>
                 </div>
               </div>
 
@@ -2581,10 +3192,10 @@ Suggestions:
                   <span className="text-2xl">📈</span>
                 </div>
                 <h4 className="text-3xl font-extrabold text-blue-600 mb-2">
-                  {selfCheckStats.average}%
+                  {quizRepeatAnalytics.averageScore}%
                 </h4>
                 <div className="h-2 bg-blue-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${selfCheckStats.average}%` }}></div>
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${quizRepeatAnalytics.averageScore}%` }}></div>
                 </div>
               </div>
 
@@ -2592,26 +3203,26 @@ Suggestions:
                 className="progress-measure-card"
                 style={{
                   borderRadius: 20,
-                  border: selfCheckStats.progress >= 0 ? "1px solid #86efac" : "1px solid #fca5a5",
-                  background: selfCheckStats.progress >= 0 ? "#f0fdf4" : "#fef2f2",
+                  border: measureProgressDelta >= 0 ? "1px solid #86efac" : "1px solid #fca5a5",
+                  background: measureProgressDelta >= 0 ? "#f0fdf4" : "#fef2f2",
                   padding: 20,
                   boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
                 }}
               >
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-slate-600">Progress</p>
-                  <span className="text-2xl">{selfCheckStats.progress >= 0 ? '📈' : '📉'}</span>
+                  <span className="text-2xl">{measureProgressDelta >= 0 ? '📈' : '📉'}</span>
                 </div>
-                <h4 className={`text-3xl font-extrabold mb-2 ${selfCheckStats.progress >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {selfCheckStats.progress >= 0 ? "+" : ""}
-                  {selfCheckStats.progress}%
+                <h4 className={`text-3xl font-extrabold mb-2 ${measureProgressDelta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {measureProgressDelta >= 0 ? "+" : ""}
+                  {measureProgressDelta}%
                 </h4>
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full"
                     style={{
-                      width: `${Math.min(Math.abs(selfCheckStats.progress), 100)}%`,
-                      background: selfCheckStats.progress >= 0 ? "#22c55e" : "#ef4444",
+                      width: `${Math.min(Math.abs(measureProgressDelta), 100)}%`,
+                      background: measureProgressDelta >= 0 ? "#22c55e" : "#ef4444",
                     }}
                   ></div>
                 </div>
@@ -2623,136 +3234,202 @@ Suggestions:
                   <span className="text-2xl">⭐</span>
                 </div>
                 <h4 className="text-3xl font-extrabold text-amber-600 mb-2">
-                  {selfCheckStats.best}%
+                  {quizRepeatAnalytics.bestScore}%
                 </h4>
                 <div className="h-2 bg-amber-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-500 rounded-full" style={{ width: `${selfCheckStats.best}%` }}></div>
+                  <div className="h-full bg-amber-500 rounded-full" style={{ width: `${quizRepeatAnalytics.bestScore}%` }}></div>
                 </div>
               </div>
             </div>
 
-            {/* Learning Analytics */}
+            {/* Quiz Repeat Analytics */}
             <div className="progress-measure-section progress-measure-analytics-shell" style={{ borderRadius: 24, border: "1px solid #bfdbfe", background: "#f8fbff", padding: 28, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-              <h4 className="text-2xl font-bold text-slate-900 mb-2">📊 Learning Analytics</h4>
+              <h4 className="text-2xl font-bold text-slate-900 mb-2">📊 Quiz Repeat Analytics</h4>
               <p className="text-sm text-slate-600 mb-8">
-                Comprehensive analysis of your learning progress and recommendations.
+                Analysis of repeat quiz attempts, improvement across repeats, and locked attempt counts.
               </p>
 
               <div className="progress-measure-analytics space-y-6">
                 <div className="progress-measure-analytics-grid grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-                <div className="progress-measure-card flex h-full flex-col rounded-[20px] border-2 border-blue-300 bg-white/80 p-6 backdrop-blur transition hover:shadow-lg">
                   <style>{`
                     @keyframes countUp {
                       from { opacity: 0; transform: scale(0.5); }
                       to { opacity: 1; transform: scale(1); }
                     }
-                    .metric-circle {
-                      animation: countUp 0.8s ease-out;
-                    }
+                    .metric-circle { animation: countUp 0.8s ease-out; }
                   `}</style>
-                  <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-3xl font-bold text-white metric-circle shadow-lg">
-                    {learningAnalytics.overallProgress}%
+
+                  <div className="progress-measure-card flex h-full flex-col rounded-[20px] border-2 border-blue-300 bg-white/80 p-6 backdrop-blur transition hover:shadow-lg">
+                    <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-3xl font-bold text-white metric-circle shadow-lg">
+                      {quizRepeatAnalytics.latestScore}%
+                    </div>
+                    <p className="text-center text-sm font-bold text-slate-900">Latest Score</p>
+                    <p className="mt-2 text-center text-xs leading-5 text-slate-600">Most recent quiz result</p>
                   </div>
-                  <p className="text-center text-sm font-bold text-slate-900">Overall Progress</p>
-                  <p className="mt-2 text-center text-xs leading-5 text-slate-600">Combined score & confidence</p>
+
+                  <div className="progress-measure-card flex h-full flex-col rounded-[20px] border-2 border-green-300 bg-white/80 p-6 backdrop-blur transition hover:shadow-lg">
+                    <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-emerald-600 text-3xl font-bold text-white metric-circle shadow-lg">
+                      {quizRepeatAnalytics.averageScore}%
+                    </div>
+                    <p className="text-center text-sm font-bold text-slate-900">Average Score</p>
+                    <p className="mt-2 text-center text-xs leading-5 text-slate-600">Across quiz attempts</p>
+                  </div>
+
+                  <div className="progress-measure-card flex h-full flex-col rounded-[20px] border-2 border-yellow-300 bg-white/80 p-6 backdrop-blur transition hover:shadow-lg">
+                    <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 text-3xl font-bold text-white metric-circle shadow-lg">
+                      {quizRepeatAnalytics.averageRepeatGain >= 0 ? "+" : ""}{quizRepeatAnalytics.averageRepeatGain}%
+                    </div>
+                    <p className="text-center text-sm font-bold text-slate-900">Avg Repeat Gain</p>
+                    <p className="mt-2 text-center text-xs leading-5 text-slate-600">Growth from first to latest attempt</p>
+                  </div>
+
+                  <div className="progress-measure-card flex h-full flex-col rounded-[20px] border-2 border-purple-300 bg-white/80 p-6 backdrop-blur transition hover:shadow-lg">
+                    <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-pink-600 text-3xl font-bold text-white metric-circle shadow-lg">
+                      {quizRepeatAnalytics.improvingQuizzes}/{quizRepeatAnalytics.repeatQuizzes || quizRepeatAnalytics.totalAttempts}
+                    </div>
+                    <p className="text-center text-sm font-bold text-slate-900">Improving Quizzes</p>
+                    <p className="mt-2 text-center text-xs leading-5 text-slate-600">Repeats showing upward progress</p>
+                  </div>
                 </div>
 
-                <div className="progress-measure-card flex h-full flex-col rounded-[20px] border-2 border-green-300 bg-white/80 p-6 backdrop-blur transition hover:shadow-lg">
-                  <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-emerald-600 text-3xl font-bold text-white metric-circle shadow-lg">
-                    {learningAnalytics.averageScore}%
-                  </div>
-                  <p className="text-center text-sm font-bold text-slate-900">Avg Score</p>
-                  <p className="mt-2 text-center text-xs leading-5 text-slate-600">Across all attempts</p>
-                </div>
-
-                <div className="progress-measure-card flex h-full flex-col rounded-[20px] border-2 border-yellow-300 bg-white/80 p-6 backdrop-blur transition hover:shadow-lg">
-                  <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 text-3xl font-bold text-white metric-circle shadow-lg">
-                    {learningAnalytics.averageConfidence}%
-                  </div>
-                  <p className="text-center text-sm font-bold text-slate-900">Confidence</p>
-                  <p className="mt-2 text-center text-xs leading-5 text-slate-600">Self-assessed level</p>
-                </div>
-
-                <div className="progress-measure-card flex h-full flex-col rounded-[20px] border-2 border-purple-300 bg-white/80 p-6 backdrop-blur transition hover:shadow-lg">
-                  <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-pink-600 text-3xl font-bold text-white metric-circle shadow-lg">
-                    {learningAnalytics.totalAttempts}
-                  </div>
-                  <p className="text-center text-sm font-bold text-slate-900">Total Attempts</p>
-                  <p className="mt-2 text-center text-xs leading-5 text-slate-600">Quizzes & self-checks</p>
-                </div>
-                </div>
-
-                {/* Weak and Strong Areas */}
                 <div className="progress-measure-area-grid grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="progress-measure-card h-full rounded-[20px] border-2 border-red-300 bg-gradient-to-br from-red-50 to-pink-50 p-6 transition hover:shadow-lg">
-                  <h5 className="text-sm font-bold text-red-800 mb-1">🔴 Weak Areas</h5>
-                  <p className="text-xs text-red-600 mb-4 leading-5">Focus on improving these modules</p>
-                  {learningAnalytics.weakAreas.length === 0 ? (
-                    <p className="text-sm text-red-700 font-semibold">✅ No weak areas identified!</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {learningAnalytics.weakAreas.map((area) => (
-                        <div key={area.module}>
-                          <div className="flex justify-between mb-2">
-                            <p className="text-xs font-semibold text-red-800">{area.module}</p>
-                            <p className="text-xs font-bold text-red-600">{Math.round(area.average)}%</p>
-                          </div>
-                          <div className="h-2 bg-red-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-red-500" style={{ width: `${Math.round(area.average)}%` }}></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="progress-measure-card h-full rounded-[20px] border-2 border-red-300 bg-gradient-to-br from-red-50 to-pink-50 p-6 transition hover:shadow-lg">
+                    <h5 className="text-sm font-bold text-red-800 mb-1">🔴 Slipping Repeats</h5>
+                    <p className="text-xs text-red-600 mb-4 leading-5">Quizzes that are not improving across repeats</p>
+                    {Array.from(quizAttemptsByAssessment.entries()).filter(([, attempts]) => attempts.length > 1 && (attempts[attempts.length - 1].score100 || 0) <= (attempts[0].score100 || 0)).length === 0 ? (
+                      <p className="text-sm text-red-700 font-semibold">No slipping quizzes found.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {Array.from(quizAttemptsByAssessment.entries())
+                          .filter(([, attempts]) => attempts.length > 1 && (attempts[attempts.length - 1].score100 || 0) <= (attempts[0].score100 || 0))
+                          .map(([quizId, attempts]) => {
+                            const latestAttempt = attempts[attempts.length - 1];
+                            const firstAttempt = attempts[0];
+                            const gain = Number(latestAttempt.score100 || 0) - Number(firstAttempt.score100 || 0);
+
+                            return (
+                              <div key={quizId}>
+                                <div className="flex justify-between mb-2">
+                                  <p className="text-xs font-semibold text-red-800">
+                                    {latestAttempt.moduleCode ? `${latestAttempt.moduleCode} - ${latestAttempt.moduleName}` : latestAttempt.moduleName}
+                                  </p>
+                                  <p className="text-xs font-bold text-red-600">{gain >= 0 ? "+" : ""}{gain}%</p>
+                                </div>
+                                <div className="h-2 bg-red-200 rounded-full overflow-hidden">
+                                  <div className="h-full bg-red-500" style={{ width: `${Math.max(Math.min(Number(latestAttempt.score100 || 0), 100), 0)}%` }}></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="progress-measure-card h-full rounded-[20px] border-2 border-green-300 bg-gradient-to-br from-green-50 to-emerald-50 p-6 transition hover:shadow-lg">
+                    <h5 className="text-sm font-bold text-green-800 mb-1">🟢 Improving Repeats</h5>
+                    <p className="text-xs text-green-600 mb-4 leading-5">Quizzes where later attempts beat earlier ones</p>
+                    {Array.from(quizAttemptsByAssessment.entries()).filter(([, attempts]) => attempts.length > 1 && (attempts[attempts.length - 1].score100 || 0) > (attempts[0].score100 || 0)).length === 0 ? (
+                      <p className="text-sm text-green-700 font-semibold">Start repeating quizzes to identify improvement.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {Array.from(quizAttemptsByAssessment.entries())
+                          .filter(([, attempts]) => attempts.length > 1 && (attempts[attempts.length - 1].score100 || 0) > (attempts[0].score100 || 0))
+                          .map(([quizId, attempts]) => {
+                            const latestAttempt = attempts[attempts.length - 1];
+                            const firstAttempt = attempts[0];
+                            const gain = Number(latestAttempt.score100 || 0) - Number(firstAttempt.score100 || 0);
+
+                            return (
+                              <div key={quizId}>
+                                <div className="flex justify-between mb-2">
+                                  <p className="text-xs font-semibold text-green-800">
+                                    {latestAttempt.moduleCode ? `${latestAttempt.moduleCode} - ${latestAttempt.moduleName}` : latestAttempt.moduleName}
+                                  </p>
+                                  <p className="text-xs font-bold text-green-600">+{gain}%</p>
+                                </div>
+                                <div className="h-2 bg-green-200 rounded-full overflow-hidden">
+                                  <div className="h-full bg-green-500" style={{ width: `${Math.max(Math.min(Number(latestAttempt.score100 || 0), 100), 0)}%` }}></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="progress-measure-card h-full rounded-[20px] border-2 border-green-300 bg-gradient-to-br from-green-50 to-emerald-50 p-6 transition hover:shadow-lg">
-                  <h5 className="text-sm font-bold text-green-800 mb-1">🟢 Strong Areas</h5>
-                  <p className="text-xs text-green-600 mb-4 leading-5">Maintain excellence in these modules</p>
-                  {learningAnalytics.strongAreas.length === 0 ? (
-                    <p className="text-sm text-green-700 font-semibold">Start taking assessments to identify strengths!</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {learningAnalytics.strongAreas.map((area) => (
-                        <div key={area.module}>
-                          <div className="flex justify-between mb-2">
-                            <p className="text-xs font-semibold text-green-800">{area.module}</p>
-                            <p className="text-xs font-bold text-green-600">{Math.round(area.average)}%</p>
-                          </div>
-                          <div className="h-2 bg-green-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-green-500" style={{ width: `${Math.round(area.average)}%` }}></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                </div>
-
-                {/* Recommendation */}
                 <div className="progress-measure-card progress-measure-recommendation rounded-[20px] border-2 border-cyan-300 bg-gradient-to-br from-cyan-50 to-blue-50 p-6">
-                <h5 className="text-sm font-bold text-cyan-800 mb-2">💡 AI Recommendation</h5>
-                <p className="mt-1 text-sm leading-relaxed text-cyan-700">{learningAnalytics.recommendation}</p>
+                  <h5 className="text-sm font-bold text-cyan-800 mb-2">💡 Repeat Analysis</h5>
+                  <p className="mt-1 text-sm leading-relaxed text-cyan-700">{quizRepeatAnalytics.recommendation}</p>
+                </div>
+
+                <div className="progress-measure-card progress-measure-module-summary rounded-[20px] border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-6">
+                  <h5 className="progress-measure-module-summary-title text-sm font-bold text-indigo-800 mb-2">📘 Module-by-Module Summary</h5>
+                  <p className="progress-measure-module-summary-subtitle text-xs text-indigo-600 mb-4 leading-5">
+                    Each module is tracked separately so you can compare repeat performance module to module.
+                  </p>
+                  {quizModuleSummaries.length === 0 ? (
+                    <p className="text-sm font-semibold text-indigo-700">No module summaries available yet.</p>
+                  ) : (
+                    <div className="progress-measure-module-summary-grid grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {quizModuleSummaries.map((summary) => (
+                        <div
+                          key={summary.quizId}
+                          className="progress-measure-module-summary-card rounded-2xl border border-indigo-200 bg-white p-4 shadow-sm"
+                        >
+                          <div className="progress-measure-module-summary-head flex items-start justify-between gap-3">
+                            <div className="progress-measure-module-summary-copy">
+                              <p className="progress-measure-module-summary-name text-sm font-bold text-slate-900">{summary.moduleName}</p>
+                              <p className="progress-measure-module-summary-attempts mt-1 text-xs text-slate-500">{summary.attemptsCount} attempt{summary.attemptsCount === 1 ? "" : "s"}</p>
+                            </div>
+                            <span
+                              className="progress-measure-module-summary-badge rounded-full px-2.5 py-1 text-[11px] font-bold"
+                              style={{
+                                background: summary.isImproving ? "#dcfce7" : "#fee2e2",
+                                color: summary.isImproving ? "#166534" : "#b91c1c",
+                              }}
+                            >
+                              {summary.gain >= 0 ? "+" : ""}{summary.gain}%
+                            </span>
+                          </div>
+                          <div className="progress-measure-module-summary-stats mt-3 grid grid-cols-3 gap-2 text-xs text-slate-600">
+                            <div className="progress-measure-module-summary-stat">
+                              <p className="font-semibold text-slate-500">First</p>
+                              <p className="mt-1 font-bold text-slate-900">{summary.firstScore}%</p>
+                            </div>
+                            <div className="progress-measure-module-summary-stat">
+                              <p className="font-semibold text-slate-500">Latest</p>
+                              <p className="mt-1 font-bold text-slate-900">{summary.latestScore}%</p>
+                            </div>
+                            <div className="progress-measure-module-summary-stat">
+                              <p className="font-semibold text-slate-500">Gain</p>
+                              <p className="mt-1 font-bold text-slate-900">{summary.gain >= 0 ? "+" : ""}{summary.gain}%</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Assessment History */}
             <div className="progress-measure-section progress-measure-history rounded-[24px] border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-7 shadow-sm">
-              <h4 className="text-2xl font-bold text-slate-900 mb-2">📋 Assessment Repeat History</h4>
+              <h4 className="text-2xl font-bold text-slate-900 mb-2">📋 Quiz Repeat History</h4>
               <p className="progress-measure-history-subtitle text-sm text-slate-600 mb-6">
-                All assessment repeats are stored with marks and timestamps.
+                Quiz repeats are stored with marks and timestamps.
               </p>
 
-              {selfCheckAttemptSeries.length === 0 ? (
+              {quizAttemptsOnly.length === 0 ? (
                 <div className="rounded-xl border-2 border-dashed border-orange-300 bg-orange-50 p-6 text-center">
-                  <p className="text-sm text-orange-700 font-semibold">No attempts recorded yet. Start with a quiz or self-check!</p>
+                  <p className="text-sm text-orange-700 font-semibold">No quiz attempts recorded yet. Start with a quiz!</p>
                 </div>
               ) : (
                 <div className="progress-measure-history-list grid gap-4">
-                  {[...selfCheckAttemptSeries].reverse().map((attempt, idx) => (
+                  {[...quizAttemptsOnly].reverse().map((attempt, idx) => (
                     <div
-                      key={attempt.id}
+                      key={attempt.id || `${attempt.quizId}-${attempt.attemptNumber}-${idx}`}
                       className="progress-measure-history-item rounded-[18px] border-2 border-orange-200 bg-white p-5 hover:shadow-md transition hover:border-orange-300"
                       style={{ animation: `slideInUp 0.3s ease-out ${idx * 0.05}s backwards` }}
                     >
@@ -2770,7 +3447,7 @@ Suggestions:
                               : attempt.moduleName}
                           </p>
                           <p className="progress-measure-history-meta text-xs text-slate-500 mt-2">
-                            Repeat {attempt.attemptNumber} • {new Date(attempt.submittedAt).toLocaleString()}
+                            Attempt {attempt.attemptNumber} • {new Date(attempt.submittedAt).toLocaleString()}
                           </p>
                         </div>
                         <div className="progress-measure-history-stats flex items-center gap-4">
@@ -2781,21 +3458,13 @@ Suggestions:
                           </div>
                           <div className="progress-measure-history-correct text-right text-xs">
                             <p className="font-semibold text-slate-700">
-                              {Number.isFinite(attempt.correctCount) &&
-                              Number.isFinite(attempt.totalQuestions)
+                              {Number.isFinite(attempt.correctCount) && Number.isFinite(attempt.totalQuestions)
                                 ? `${attempt.correctCount}/${attempt.totalQuestions}`
-                                : Number.isFinite(attempt.checkedOutcomes) &&
-                                  Number.isFinite(attempt.totalOutcomes)
-                                ? `${attempt.checkedOutcomes}/${attempt.totalOutcomes}`
                                 : "Progress"}
                             </p>
                             <p className="text-slate-500">
-                              {Number.isFinite(attempt.correctCount) &&
-                              Number.isFinite(attempt.totalQuestions)
+                              {Number.isFinite(attempt.correctCount) && Number.isFinite(attempt.totalQuestions)
                                 ? "correct"
-                                : Number.isFinite(attempt.checkedOutcomes) &&
-                                  Number.isFinite(attempt.totalOutcomes)
-                                ? "outcomes"
                                 : "tracked"}
                             </p>
                           </div>
@@ -2853,19 +3522,13 @@ Suggestions:
             <div className="progress-streak-panel rounded-[28px] border border-orange-100 bg-white p-6 shadow-sm">
               <h3 className="text-xl font-bold text-slate-900 mb-4">📊 Weekly Activity</h3>
               <div className="grid grid-cols-7 gap-2">
-                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, idx) => {
-                  const activity = Math.floor(Math.random() * 5);
-                  const colors = [
-                    "bg-slate-100",
-                    "bg-green-200",
-                    "bg-green-400",
-                    "bg-green-500",
-                    "bg-green-600",
-                  ];
+                {weeklyActivity.map((day) => {
+                  const colors = ["bg-slate-100", "bg-green-200", "bg-green-400", "bg-green-500", "bg-green-600"];
                   return (
-                    <div key={day} className="text-center">
-                      <div className={`rounded-lg h-12 w-full mb-2 ${colors[activity]} hover:scale-110 transition`}></div>
-                      <p className="text-xs font-semibold text-slate-600">{day}</p>
+                    <div key={day.label} className="text-center">
+                      <div className={`rounded-lg h-12 w-full mb-2 ${colors[day.intensity]} hover:scale-110 transition`}></div>
+                      <p className="text-xs font-semibold text-slate-600">{day.label}</p>
+                      <p className="text-[10px] text-slate-500 mt-1">{day.attempts}</p>
                     </div>
                   );
                 })}
@@ -2881,33 +3544,31 @@ Suggestions:
                   <div>
                     <div className="flex justify-between mb-1">
                       <p className="text-sm font-semibold text-slate-700">Self Checks</p>
-                      <p className="text-sm font-bold text-blue-600">4h 30m</p>
+                      <p className="text-sm font-bold text-blue-600">{formatMinutes(weeklyTimeStats.selfCheckMinutes)}</p>
                     </div>
                     <div className="h-2 bg-blue-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500" style={{ width: "65%" }}></div>
+                      <div className="h-full bg-blue-500" style={{ width: `${weeklyTimeStats.selfCheckPct}%` }}></div>
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between mb-1">
                       <p className="text-sm font-semibold text-slate-700">Quizzes</p>
-                      <p className="text-sm font-bold text-purple-600">2h 15m</p>
+                      <p className="text-sm font-bold text-purple-600">{formatMinutes(weeklyTimeStats.quizMinutes)}</p>
                     </div>
                     <div className="h-2 bg-purple-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-purple-500" style={{ width: "35%" }}></div>
+                      <div className="h-full bg-purple-500" style={{ width: `${weeklyTimeStats.quizPct}%` }}></div>
                     </div>
                   </div>
                 </div>
-                <p className="mt-4 text-sm font-semibold text-amber-600">Total: 6h 45m</p>
+                <p className="mt-4 text-sm font-semibold text-amber-600">Total: {formatMinutes(weeklyTimeStats.totalMinutes)}</p>
               </div>
 
               <div className="progress-streak-panel rounded-[28px] border border-green-100 bg-white p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-slate-900 mb-4">🎯 Top Subjects</h3>
                 <div className="space-y-3">
-                  {[
-                    { name: "Database Design", pct: 85 },
-                    { name: "SQL Queries", pct: 72 },
-                    { name: "Normalization", pct: 68 },
-                  ].map((subject, idx) => (
+                  {topSubjects.length === 0 ? (
+                    <p className="text-sm text-slate-600">No module activity yet.</p>
+                  ) : topSubjects.map((subject, idx) => (
                     <div key={idx}>
                       <div className="flex justify-between mb-1">
                         <p className="text-sm font-semibold text-slate-700">{subject.name}</p>
@@ -2981,19 +3642,19 @@ Suggestions:
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="rounded-xl bg-white/60 backdrop-blur p-4">
                   <p className="text-sm font-semibold text-slate-900 mb-2">📈 Streak Prediction</p>
-                  <p className="text-xs text-slate-600">Based on current patterns, you're <span className="font-bold text-green-600">87% likely</span> to maintain your streak this week.</p>
+                  <p className="text-xs text-slate-600">Based on current patterns, you're <span className="font-bold text-green-600">{aiInsights.streakLikelihood}% likely</span> to maintain your streak this week.</p>
                 </div>
                 <div className="rounded-xl bg-white/60 backdrop-blur p-4">
                   <p className="text-sm font-semibold text-slate-900 mb-2">⏰ Best Study Time</p>
-                  <p className="text-xs text-slate-600">You're most productive between <span className="font-bold">7-9 PM</span>. Peak focus of the day!</p>
+                  <p className="text-xs text-slate-600">You're most productive between <span className="font-bold">{aiInsights.bestStudyTime}</span>. Peak focus from your attempt history.</p>
                 </div>
                 <div className="rounded-xl bg-white/60 backdrop-blur p-4">
                   <p className="text-sm font-semibold text-slate-900 mb-2">📚 Recommended Module</p>
-                  <p className="text-xs text-slate-600">Focus on <span className="font-bold">SQL Optimization</span> next. Your confidence is low here.</p>
+                  <p className="text-xs text-slate-600">Focus on <span className="font-bold">{aiInsights.weakestModule ? aiInsights.weakestModule.name : "your next active module"}</span> next. This is currently your lowest-scoring module.</p>
                 </div>
                 <div className="rounded-xl bg-white/60 backdrop-blur p-4">
                   <p className="text-sm font-semibold text-slate-900 mb-2">🚀 Growth Rate</p>
-                  <p className="text-xs text-slate-600">You're improving at <span className="font-bold">+15% per week</span>. Excellent progress!</p>
+                  <p className="text-xs text-slate-600">You're improving at <span className="font-bold">{aiInsights.growthRate >= 0 ? "+" : ""}{aiInsights.growthRate}% per week</span> based on this week's vs last week's attempts.</p>
                 </div>
               </div>
             </div>

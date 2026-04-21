@@ -81,3 +81,42 @@ export async function updateProgressAttempt(id, payload) {
 
   return normalizeAttempt(data || {});
 }
+
+export async function getGpaProfile() {
+  const data = await apiFetch("/api/gpa", {
+    method: "GET",
+    headers: authHeaders(),
+  });
+
+  return {
+    selectedMode: String(data?.selectedMode || "Custom-Add your own"),
+    modules: Array.isArray(data?.modules)
+      ? data.modules.map((module, index) => ({
+          id: String(module?.id || module?._id || Date.now() + index),
+          moduleName: String(module?.moduleName || ""),
+          credits: Number(module?.credits || 0),
+          grade: String(module?.grade || "A"),
+        }))
+      : [],
+  };
+}
+
+export async function saveGpaProfile(payload) {
+  const data = await apiFetch("/api/gpa", {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  return {
+    selectedMode: String(data?.selectedMode || "Custom-Add your own"),
+    modules: Array.isArray(data?.modules)
+      ? data.modules.map((module, index) => ({
+          id: String(module?.id || module?._id || Date.now() + index),
+          moduleName: String(module?.moduleName || ""),
+          credits: Number(module?.credits || 0),
+          grade: String(module?.grade || "A"),
+        }))
+      : [],
+  };
+}

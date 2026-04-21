@@ -1057,7 +1057,7 @@ Suggestions:
                 (index * (width - padding * 2)) / xDivider;
               return (
                 <text
-                  key={`${item.label}-${index}`}
+                  key={item.id || `${item.quizId}-${item.attemptNumber}-${index}`}
                   x={x}
                   y={height - 10}
                   textAnchor="middle"
@@ -1091,7 +1091,7 @@ Suggestions:
                 height - padding - (item.value / maxValue) * (height - padding * 2);
 
               return (
-                <g key={item.label}>
+                <g key={item.id || `${item.quizId}-${item.attemptNumber}-${index}`}>
                   <circle cx={x} cy={y} r="6" fill="#fff" stroke="#f97316" strokeWidth="3" />
                   <text
                     x={x}
@@ -1113,112 +1113,288 @@ Suggestions:
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f4f5] p-4 md:p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="relative mb-8 overflow-hidden rounded-[24px] bg-gradient-to-r from-[#ff6a00] via-[#f25c05] to-[#d5541b] px-8 py-8 shadow-[0_18px_40px_rgba(249,115,22,0.25)]">
-          <div className="absolute right-[-40px] top-[-40px] h-52 w-52 rounded-full bg-white/10"></div>
-          <div className="absolute bottom-[-55px] right-20 h-44 w-44 rounded-full bg-white/10"></div>
+    <div style={{ padding: 24, maxWidth: 1040, margin: "0 auto" }}>
+      <div
+        style={{
+          background: "linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)",
+          borderRadius: "24px",
+          padding: "28px 32px",
+          position: "relative",
+          overflow: "hidden",
+          minHeight: "165px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          marginBottom: "30px",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: -40,
+            right: -40,
+            width: "220px",
+            height: "220px",
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.10)",
+          }}
+        />
 
-          <div className="relative z-10">
-            <div className="mb-4 inline-flex items-center gap-3 rounded-[14px] bg-white/15 px-4 py-3 text-white">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 text-lg">
-                📊
-              </span>
-              <span className="text-xs font-black uppercase tracking-[0.16em]">
-                Progress Tracker
-              </span>
-            </div>
+        <div
+          style={{
+            position: "absolute",
+            bottom: -55,
+            right: 100,
+            width: "160px",
+            height: "160px",
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.08)",
+          }}
+        />
 
-            <h1 className="mb-3 text-3xl font-extrabold text-white">
-              Track Your Academic Progress
-            </h1>
-            <p className="max-w-3xl text-sm leading-7 text-white/90">
-              Monitor your GPA, test your module knowledge, review your weekly self-check
-              growth, and stay motivated with study streak badges.
-            </p>
-          </div>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "10px",
+            background: "rgba(255,255,255,0.14)",
+            color: "#fff",
+            padding: "10px 14px",
+            borderRadius: "14px",
+            width: "fit-content",
+            marginBottom: "14px",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <span
+            style={{
+              width: "24px",
+              height: "24px",
+              borderRadius: "8px",
+              background: "rgba(255,255,255,0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "14px",
+            }}
+          >
+            📊
+          </span>
+          <span
+            style={{
+              fontSize: "13px",
+              fontWeight: "800",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Progress Tracker
+          </span>
         </div>
 
-        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <h1
+          style={{
+            margin: "0 0 10px 0",
+            color: "#fff",
+            fontSize: "28px",
+            fontWeight: "800",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          Track Your Academic Progress
+        </h1>
+
+        <p
+          style={{
+            margin: 0,
+            color: "rgba(255,255,255,0.92)",
+            fontSize: "14px",
+            lineHeight: "1.7",
+            maxWidth: "760px",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          Monitor your GPA, test your module knowledge, review your weekly self-check
+          growth, and stay motivated with study streak badges.
+        </p>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "16px",
+          marginBottom: 24,
+        }}
+      >
           {categories.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveCategory(item.id)}
-              className={`rounded-[24px] border p-6 text-left shadow-sm transition-all duration-200 ${getCardStyles(
+              className={`flex h-full min-h-[190px] flex-col rounded-[18px] border text-left transition-all duration-200 hover:-translate-y-0.5 ${getCardStyles(
                 item.accent,
                 activeCategory === item.id
               )}`}
+              style={{
+                padding: "18px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+              }}
             >
-              <div className="mb-4 flex items-start justify-between">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 text-3xl shadow-sm">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div
+                  className="flex items-center justify-center bg-slate-50 text-3xl"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                  }}
+                >
                   {item.icon}
                 </div>
-                <div className="rounded-full bg-orange-100 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-orange-600">
+                <div
+                  className="shrink-0 bg-orange-100 text-orange-600"
+                  style={{
+                    borderRadius: 20,
+                    padding: "3px 10px",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  }}
+                >
                   Available
                 </div>
               </div>
 
-              <h2 className="mb-2 text-xl font-bold text-slate-900">{item.title}</h2>
+              <h2 className="mb-2 text-xl font-bold leading-7 text-slate-900">{item.title}</h2>
               <p className="mb-4 text-sm leading-7 text-slate-500">
                 {item.description}
               </p>
 
-              <div className="text-sm font-bold text-orange-600">
+              <div className="mt-auto pt-3 text-sm font-bold text-orange-600">
                 Open Category →
               </div>
             </button>
           ))}
-        </div>
+      </div>
 
 
         {activeCategory === "quiz" && (
-          <div className="rounded-[28px] border border-orange-100 bg-white p-5 shadow-sm md:p-6">
-            <div className="mb-6 flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-2xl">
+          <div
+            style={{
+              borderRadius: 24,
+              border: "1px solid #f5d0fe",
+              background: "#fff",
+              padding: 24,
+              marginBottom: 24,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 16,
+                  background: "#dbeafe",
+                  display: "grid",
+                  placeItems: "center",
+                  fontSize: 20,
+                }}
+              >
                 📝
               </div>
               <div>
-                <h3 className="text-2xl font-extrabold text-slate-900">Module Quiz</h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827" }}>Module Quiz</h3>
+                <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: 14 }}>
                   Quizzes created by lecturers for each database module.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: 16,
+              }}
+            >
               {normalizedQuizModules.length === 0 ? (
                 <div className="text-slate-500">No quizzes available</div>
               ) : (
                 normalizedQuizModules.map((item) => (
                   <div
                     key={item.id}
-                    className="rounded-[24px] border border-blue-100 bg-blue-50/40 p-5"
+                    style={{
+                      borderRadius: 20,
+                      border: "1px solid #dbeafe",
+                      background: "#f8fbff",
+                      padding: 20,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                    }}
                   >
-                    <div className="mb-3 flex items-center justify-between">
-                      <h4 className="text-lg font-bold text-slate-900">
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: 12,
+                        marginBottom: 12,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <h4 className="text-base font-bold leading-6 text-slate-900 sm:text-lg">
                         {item.moduleCode
                           ? `${item.moduleCode} - ${item.moduleName}`
                           : item.moduleName}
                       </h4>
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold shadow-sm ${
-                          item.status === "Completed"
-                            ? "bg-blue-100 text-blue-600"
-                            : item.status === "In Progress"
-                            ? "bg-indigo-100 text-indigo-600"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
+                        style={{
+                          alignSelf: "flex-start",
+                          borderRadius: 20,
+                          padding: "3px 10px",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          background:
+                            item.status === "Completed"
+                              ? "#dbeafe"
+                              : item.status === "In Progress"
+                              ? "#e0e7ff"
+                              : "#f3f4f6",
+                          color:
+                            item.status === "Completed"
+                              ? "#2563eb"
+                              : item.status === "In Progress"
+                              ? "#4f46e5"
+                              : "#6b7280",
+                        }}
                       >
                         {item.status}
                       </span>
                     </div>
 
-                    <p className="mb-2 text-sm text-slate-600">Questions: {item.questionCount}</p>
-                    <p className="mb-5 text-sm text-slate-600">Score: {item.score}%</p>
+                    <p style={{ margin: "0 0 6px", fontSize: 14, color: "#475569" }}>
+                      Questions: {item.questionCount}
+                    </p>
+                    <p style={{ margin: "0 0 18px", fontSize: 14, color: "#475569" }}>
+                      Score: {item.score}%
+                    </p>
 
                     <button
                       onClick={() => handleStartQuiz(item.id)}
-                      className="rounded-2xl bg-blue-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-600"
+                      style={{
+                        borderRadius: 14,
+                        border: "none",
+                        background: "#3b82f6",
+                        color: "#fff",
+                        padding: "12px 18px",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
                     >
                       {String(selectedQuizId) === String(item.id)
                         ? "Close Quiz Paper"
@@ -1236,28 +1412,71 @@ Suggestions:
             ) : null}
 
             {selectedQuiz && selectedQuiz.type !== "selfcheck" ? (
-              <div className="mt-6 rounded-[24px] border border-orange-100 bg-orange-50/50 p-5">
-                <div className="mb-4 flex items-center justify-between gap-3">
+              <div
+                style={{
+                  marginTop: 24,
+                  borderRadius: 24,
+                  border: "1px solid #e2e8f0",
+                  background: "#ffffff",
+                  padding: 24,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    marginBottom: 16,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <h4 className="text-xl font-extrabold text-slate-900">
                     {selectedQuiz.moduleCode
                       ? `${selectedQuiz.moduleCode} - ${selectedQuiz.moduleName}`
                       : selectedQuiz.moduleName}
                   </h4>
-                  <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
+                  <span
+                    style={{
+                      borderRadius: 20,
+                      background: "#fff7ed",
+                      color: "#ea580c",
+                      padding: "4px 12px",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
                     {selectedQuiz.questionCount} Questions
                   </span>
                 </div>
 
-                <div className="mb-4 flex items-center justify-between rounded-xl border border-orange-200 bg-white px-4 py-3">
+                <div
+                  style={{
+                    marginBottom: 20,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    borderRadius: 16,
+                    border: "1px solid #e2e8f0",
+                    background: "#f8fafc",
+                    padding: "14px 16px",
+                    flexWrap: "wrap",
+                  }}
+                >
                   <p className="text-sm font-semibold text-slate-700">
                     Timer starts when you open the quiz.
                   </p>
                   <span
-                    className={`rounded-full px-3 py-1 text-sm font-extrabold ${
-                      quizTimeLeft <= 60
-                        ? "bg-red-100 text-red-600"
-                        : "bg-orange-100 text-orange-700"
-                    }`}
+                    style={{
+                      borderRadius: 999,
+                      padding: "6px 12px",
+                      fontSize: 14,
+                      fontWeight: 800,
+                      background: quizTimeLeft <= 60 ? "#fee2e2" : "#fff7ed",
+                      color: quizTimeLeft <= 60 ? "#dc2626" : "#ea580c",
+                    }}
                   >
                     {timerDisplay}
                   </span>
@@ -1345,17 +1564,22 @@ Suggestions:
                     </div>
                   </div>
                 ) : (
-                  <div className="grid gap-3">
+                  <div style={{ display: "grid", gap: 14 }}>
                     {selectedQuiz.questions.map((question, index) => (
                       <div
                         key={`${selectedQuiz.id}-${question.id || index}`}
-                        className="rounded-2xl border border-orange-100 bg-white p-4"
+                        style={{
+                          borderRadius: 18,
+                          border: "1px solid #e2e8f0",
+                          background: "#f8fafc",
+                          padding: 18,
+                        }}
                       >
-                        <p className="mb-3 text-sm font-semibold text-slate-900">
+                        <p className="mb-4 text-sm font-semibold text-slate-900">
                           {index + 1}. {question.text}
                         </p>
 
-                        <div className="grid gap-2 md:grid-cols-2">
+                        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr" }}>
                           {(Array.isArray(question.options) ? question.options : []).map(
                             (option, optionIndex) => {
                               const label = OPTION_LABELS[optionIndex] || "";
@@ -1364,11 +1588,19 @@ Suggestions:
                               return (
                                 <label
                                   key={`${question.id || index}-${label}`}
-                                  className={`rounded-xl border px-3 py-2 text-sm ${
-                                    isSelected
-                                      ? "border-blue-300 bg-blue-50 text-blue-700"
-                                      : "border-slate-200 bg-slate-50 text-slate-600"
-                                  }`}
+                                  style={{
+                                    borderRadius: 14,
+                                    border: isSelected ? "1px solid #93c5fd" : "1px solid #dbe2ea",
+                                    background: isSelected ? "#eff6ff" : "#ffffff",
+                                    color: isSelected ? "#1d4ed8" : "#475569",
+                                    padding: "12px 14px",
+                                    fontSize: 14,
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    gap: 10,
+                                    lineHeight: 1.5,
+                                  }}
                                 >
                                   <input
                                     type="radio"
@@ -1376,9 +1608,15 @@ Suggestions:
                                     value={label}
                                     checked={isSelected}
                                     onChange={() => handleSelectAnswer(index, label)}
-                                    className="mr-2 accent-blue-600"
+                                    className="accent-blue-600"
+                                    style={{ marginTop: 3, flexShrink: 0 }}
                                   />
-                                  <span className="font-bold">{label}.</span> {option}
+                                  <span style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                                    <span className="font-bold" style={{ minWidth: 20 }}>
+                                      {label}.
+                                    </span>
+                                    <span>{option}</span>
+                                  </span>
                                 </label>
                               );
                             }
@@ -1414,7 +1652,16 @@ Suggestions:
 
                     <button
                       onClick={handleSubmitQuiz}
-                      className="rounded-2xl bg-orange-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-600"
+                      style={{
+                        borderRadius: 14,
+                        border: "none",
+                        background: "#f97316",
+                        color: "#ffffff",
+                        padding: "12px 20px",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
                     >
                       Submit Quiz
                     </button>
@@ -1520,14 +1767,32 @@ Suggestions:
         )}
 
         {activeCategory === "selfcheck" && (
-          <div className="rounded-[28px] border border-purple-100 bg-white p-5 shadow-sm md:p-6">
-            <div className="mb-6 flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-100 text-2xl">
+          <div
+            style={{
+              borderRadius: 24,
+              border: "1px solid #f5d0fe",
+              background: "#fff",
+              padding: 24,
+              marginBottom: 24,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 16,
+                  background: "#f3e8ff",
+                  display: "grid",
+                  placeItems: "center",
+                  fontSize: 20,
+                }}
+              >
                 📚
               </div>
               <div>
-                <h3 className="text-2xl font-extrabold text-slate-900">Self Check</h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827" }}>Self Check</h3>
+                <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: 14 }}>
                   Access lecturer-created self-checks and repeat them anytime.
                 </p>
               </div>
@@ -1538,24 +1803,54 @@ Suggestions:
                 No self-checks are available yet. Ask your lecturer to create one, or check back later.
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                  gap: 16,
+                }}
+              >
                 {normalizedSelfCheckModules.map((item) => (
                   <div
                     key={item.id}
-                    className="rounded-[24px] border border-purple-100 bg-purple-50/40 p-5"
+                    style={{
+                      borderRadius: 20,
+                      border: "1px solid #edd5ff",
+                      background: "#fcfaff",
+                      padding: 20,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                    }}
                   >
-                    <div className="mb-3 flex items-center justify-between">
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: 12,
+                        marginBottom: 12,
+                        flexWrap: "wrap",
+                      }}
+                    >
                       <h4 className="text-lg font-bold text-slate-900">
                         {item.moduleCode
                           ? `${item.moduleCode} - ${item.moduleName}`
                           : item.moduleName}
                       </h4>
-                      <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">
+                      <span
+                        style={{
+                          borderRadius: 20,
+                          padding: "3px 10px",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          background: "#f3e8ff",
+                          color: "#9333ea",
+                        }}
+                      >
                         {item.status}
                       </span>
                     </div>
 
-                    <p className="mb-4 text-sm text-slate-600">
+                    <p style={{ margin: "0 0 18px", fontSize: 14, color: "#475569", lineHeight: 1.7 }}>
                       {item.type === "selfcheck"
                         ? `Self-assessment with ${item.learningOutcomes?.length || 0} learning outcomes.`
                         : `Repeatable self-check with ${item.questionCount} questions.`}
@@ -1563,7 +1858,16 @@ Suggestions:
 
                     <button
                       onClick={() => handleStartQuiz(item.id)}
-                      className="rounded-2xl bg-purple-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-purple-600"
+                      style={{
+                        borderRadius: 14,
+                        border: "none",
+                        background: "#a855f7",
+                        color: "#fff",
+                        padding: "12px 18px",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
                     >
                       {String(selectedQuizId) === String(item.id)
                         ? "Close Self Check"
@@ -1575,80 +1879,194 @@ Suggestions:
             )}
 
             {selectedQuiz && selectedQuiz.type === "selfcheck" ? (
-              <div className="mt-6 rounded-[24px] border border-purple-100 bg-purple-50/50 p-5">
-                <div className="mb-4 flex items-center justify-between gap-3">
+              <div
+                style={{
+                  marginTop: 24,
+                  borderRadius: 24,
+                  border: "1px solid #e9d5ff",
+                  background: "#ffffff",
+                  padding: 24,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    marginBottom: 16,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <h4 className="text-xl font-extrabold text-slate-900">
                     {selectedQuiz.moduleCode
                       ? `${selectedQuiz.moduleCode} - ${selectedQuiz.moduleName}`
                       : selectedQuiz.moduleName}
                   </h4>
-                  <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">
+                  <span
+                    style={{
+                      borderRadius: 20,
+                      background: "#faf5ff",
+                      color: "#9333ea",
+                      padding: "4px 12px",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
                     {selectedQuiz.learningOutcomes?.length || selectedQuiz.questionCount} Outcomes
                   </span>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="rounded-xl border border-purple-200 bg-white p-4">
-                    <h4 className="text-lg font-bold text-purple-800 mb-3">Learning Outcomes Assessment</h4>
-                    <p className="text-sm text-purple-700 mb-4">
+                <div style={{ display: "grid", gap: 18 }}>
+                  <div
+                    style={{
+                      borderRadius: 18,
+                      border: "1px solid #e9d5ff",
+                      background: "#fcfaff",
+                      padding: 18,
+                    }}
+                  >
+                    <h4 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 800, color: "#7e22ce" }}>
+                      Learning Outcomes Assessment
+                    </h4>
+                    <p style={{ margin: "0 0 14px", fontSize: 14, color: "#7e22ce", lineHeight: 1.7 }}>
                       Check off the learning outcomes you feel confident about mastering.
                     </p>
-                    <div className="space-y-3">
+                    <div style={{ display: "grid", gap: 10 }}>
                       {(selectedQuiz.learningOutcomes || []).map((outcome, index) => {
                         const outcomeId = outcome.id || index;
                         return (
-                          <div key={`outcome-${index}`} className="flex items-start space-x-3">
+                          <label
+                            key={`outcome-${index}`}
+                            htmlFor={`outcome-${outcomeId}`}
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 12,
+                              borderRadius: 14,
+                              border: "1px solid #e9d5ff",
+                              background: "#ffffff",
+                              padding: "12px 14px",
+                              cursor: "pointer",
+                            }}
+                          >
                             <input
                               type="checkbox"
                               id={`outcome-${outcomeId}`}
                               checked={quizAttemptAnswers[index] || false}
                               onChange={(e) => {
-                                e.stopPropagation();
                                 handleSelectAnswer(index, e.target.checked);
                               }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="mt-1 h-4 w-4 accent-purple-600 cursor-pointer"
+                              className="h-4 w-4 accent-purple-600 cursor-pointer"
+                              style={{ marginTop: 3, flexShrink: 0 }}
                             />
-                            <label
-                              htmlFor={`outcome-${outcomeId}`}
-                              className="text-sm text-slate-700 cursor-pointer"
-                              onClick={() => {
-                                const checkbox = document.getElementById(`outcome-${outcomeId}`);
-                                if (checkbox) {
-                                  checkbox.checked = !checkbox.checked;
-                                  handleSelectAnswer(index, checkbox.checked);
-                                }
+                            <span
+                              style={{
+                                fontSize: 14,
+                                color: "#475569",
+                                lineHeight: 1.6,
                               }}
                             >
                               {outcome.text}
-                            </label>
-                          </div>
+                            </span>
+                          </label>
                         );
                       })}
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-purple-200 bg-white p-4">
-                    <h4 className="text-lg font-bold text-purple-800 mb-3">Confidence Rating</h4>
-                    <p className="text-sm text-purple-700 mb-4">
+                  <div
+                    style={{
+                      borderRadius: 18,
+                      border: "1px solid #e9d5ff",
+                      background: "#fcfaff",
+                      padding: 18,
+                    }}
+                  >
+                    <h4 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 800, color: "#7e22ce" }}>
+                      Confidence Rating
+                    </h4>
+                    <p style={{ margin: "0 0 14px", fontSize: 14, color: "#7e22ce", lineHeight: 1.7 }}>
                       How confident do you feel about this topic after the self-check?
                     </p>
 
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                        gap: 12,
+                      }}
+                    >
                       {[
-                        { value: "1", label: "Very Low", color: "bg-red-100 text-red-700 border-red-300" },
-                        { value: "2", label: "Low", color: "bg-orange-100 text-orange-700 border-orange-300" },
-                        { value: "3", label: "Medium", color: "bg-yellow-100 text-yellow-700 border-yellow-300" },
-                        { value: "4", label: "High", color: "bg-lime-100 text-lime-700 border-lime-300" },
-                        { value: "5", label: "Very High", color: "bg-green-100 text-green-700 border-green-300" },
+                        {
+                          value: "1",
+                          label: "Very Low",
+                          activeStyles: {
+                            border: "1px solid #fca5a5",
+                            background: "#fee2e2",
+                            color: "#b91c1c",
+                          },
+                        },
+                        {
+                          value: "2",
+                          label: "Low",
+                          activeStyles: {
+                            border: "1px solid #fdba74",
+                            background: "#ffedd5",
+                            color: "#c2410c",
+                          },
+                        },
+                        {
+                          value: "3",
+                          label: "Medium",
+                          activeStyles: {
+                            border: "1px solid #fcd34d",
+                            background: "#fef3c7",
+                            color: "#b45309",
+                          },
+                        },
+                        {
+                          value: "4",
+                          label: "High",
+                          activeStyles: {
+                            border: "1px solid #bef264",
+                            background: "#ecfccb",
+                            color: "#4d7c0f",
+                          },
+                        },
+                        {
+                          value: "5",
+                          label: "Very High",
+                          activeStyles: {
+                            border: "1px solid #86efac",
+                            background: "#dcfce7",
+                            color: "#15803d",
+                          },
+                        },
                       ].map((option) => (
                         <label
                           key={option.value}
-                          className={`rounded-xl border px-3 py-3 text-sm font-semibold text-center cursor-pointer transition ${
-                            confidenceLevel === option.value
-                              ? option.color
-                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                          }`}
+                          style={{
+                            borderRadius: 14,
+                            border:
+                              confidenceLevel === option.value
+                                ? option.activeStyles.border
+                                : "1px solid #e5e7eb",
+                            background:
+                              confidenceLevel === option.value
+                                ? option.activeStyles.background
+                                : "#ffffff",
+                            color:
+                              confidenceLevel === option.value
+                                ? option.activeStyles.color
+                                : "#475569",
+                            padding: "12px 14px",
+                            fontSize: 14,
+                            fontWeight: 700,
+                            textAlign: "center",
+                            cursor: "pointer",
+                          }}
                         >
                           <input
                             type="radio"
@@ -1659,15 +2077,24 @@ Suggestions:
                             className="hidden"
                           />
                           <div>{option.label}</div>
-                          <div className="text-xs opacity-75">{option.value}/5</div>
+                          <div style={{ fontSize: 12, opacity: 0.75, marginTop: 2 }}>{option.value}/5</div>
                         </label>
                       ))}
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-purple-200 bg-white p-4">
-                    <h4 className="text-lg font-bold text-purple-800 mb-3">Reflection</h4>
-                    <p className="text-sm text-purple-700 mb-4">
+                  <div
+                    style={{
+                      borderRadius: 18,
+                      border: "1px solid #e9d5ff",
+                      background: "#fcfaff",
+                      padding: 18,
+                    }}
+                  >
+                    <h4 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 800, color: "#7e22ce" }}>
+                      Reflection
+                    </h4>
+                    <p style={{ margin: "0 0 14px", fontSize: 14, color: "#7e22ce", lineHeight: 1.7 }}>
                       Write a brief reflection on what you learned and areas for improvement.
                     </p>
 
@@ -1676,7 +2103,17 @@ Suggestions:
                       onChange={(e) => setReflection(e.target.value)}
                       placeholder="What did you learn? What concepts do you still need to work on?"
                       rows={4}
-                      className="w-full rounded-xl border border-purple-300 bg-white px-4 py-3 text-sm outline-none focus:border-purple-500"
+                      style={{
+                        width: "100%",
+                        borderRadius: 14,
+                        border: "1px solid #d8b4fe",
+                        background: "#ffffff",
+                        padding: "14px 16px",
+                        fontSize: 14,
+                        outline: "none",
+                        color: "#475569",
+                        resize: "vertical",
+                      }}
                     />
                   </div>
 
@@ -1688,79 +2125,85 @@ Suggestions:
 
                   <button
                     onClick={handleSubmitQuiz}
-                    className="rounded-2xl bg-purple-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-purple-600"
+                    style={{
+                      borderRadius: 14,
+                      border: "none",
+                      background: "#a855f7",
+                      color: "#ffffff",
+                      padding: "12px 20px",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
                   >
                     Submit Self Check
                   </button>
 
                   {quizResult ? (
-                    <div className="mt-5 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4">
-                      <style>{`
-                        @keyframes slideInUp {
-                          from {
-                            opacity: 0;
-                            transform: translateY(20px);
-                          }
-                          to {
-                            opacity: 1;
-                            transform: translateY(0);
-                          }
-                        }
-                        @keyframes fadeIn {
-                          from { opacity: 0; }
-                          to { opacity: 1; }
-                        }
-                        @keyframes pulse {
-                          0%, 100% { transform: scale(1); }
-                          50% { transform: scale(1.05); }
-                        }
-                        @keyframes glow {
-                          0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-                          50% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
-                        }
-                        .ai-header {
-                          animation: fadeIn 0.6s ease-out;
-                        }
-                        .ai-suggestion {
-                          animation: slideInUp 0.5s ease-out backwards;
-                        }
-                        .ai-icon {
-                          animation: pulse 2s ease-in-out infinite;
-                        }
-                        .ai-suggestion:hover {
-                          animation: glow 0.6s ease-out;
-                        }
-                      `}</style>
+                    <div
+                      style={{
+                        marginTop: 20,
+                        borderRadius: 18,
+                        border: "1px solid #bbf7d0",
+                        background: "#f0fdf4",
+                        padding: 18,
+                      }}
+                    >
                       {selectedQuiz && selectedQuiz.type === "selfcheck" && quizResult ? (() => {
                         const recommendations = generateAIRecommendations(quizResult, selectedQuiz);
                         return recommendations.length > 0 ? (
                           <div>
-                            <div className="ai-header mb-5 flex items-center gap-3">
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
                               <span className="ai-icon inline-block text-3xl">🤖</span>
                               <div>
-                                <h5 className="text-lg font-bold text-emerald-900">AI-Powered Improvement Suggestions</h5>
-                                <p className="text-xs text-emerald-700">Personalized recommendations based on your performance</p>
+                                <h5 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#14532d" }}>AI-Powered Improvement Suggestions</h5>
+                                <p style={{ margin: "4px 0 0", fontSize: 12, color: "#15803d" }}>Personalized recommendations based on your performance</p>
                               </div>
                             </div>
-                            <div className="space-y-3">
+                            <div style={{ display: "grid", gap: 12 }}>
                               {recommendations.map((rec, idx) => (
                                 <div
                                   key={idx}
-                                  className={`ai-suggestion rounded-xl border-2 p-4 transition-all duration-300 hover:shadow-lg ${
-                                    rec.priority === "high"
-                                      ? "border-red-300 bg-white shadow-sm hover:shadow-red-200/50"
-                                      : rec.priority === "medium"
-                                      ? "border-yellow-300 bg-white shadow-sm hover:shadow-yellow-200/50"
-                                      : "border-blue-300 bg-white shadow-sm hover:shadow-blue-200/50"
-                                  }`}
-                                  style={{ animationDelay: `${idx * 0.1}s` }}
+                                  style={{
+                                    borderRadius: 16,
+                                    border:
+                                      rec.priority === "high"
+                                        ? "1px solid #fca5a5"
+                                        : rec.priority === "medium"
+                                        ? "1px solid #fcd34d"
+                                        : "1px solid #93c5fd",
+                                    background: "#ffffff",
+                                    padding: 16,
+                                    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                                  }}
                                 >
-                                  <div className="flex items-start gap-4">
-                                    <span className="text-2xl">{rec.icon}</span>
-                                    <div className="flex-1">
-                                      <p className="text-sm font-bold text-slate-900">{rec.title}</p>
-                                      <p className="mt-2 text-sm text-slate-600 leading-relaxed">{rec.description}</p>
-                                      <div className="mt-2 inline-block rounded-full px-2 py-1 text-xs font-semibold">
+                                  <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+                                    <span style={{ fontSize: 24 }}>{rec.icon}</span>
+                                    <div style={{ flex: 1 }}>
+                                      <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>{rec.title}</p>
+                                      <p style={{ margin: "8px 0 0", fontSize: 14, lineHeight: 1.7, color: "#475569" }}>{rec.description}</p>
+                                      <div
+                                        style={{
+                                          marginTop: 10,
+                                          display: "inline-block",
+                                          borderRadius: 999,
+                                          padding: "4px 10px",
+                                          fontSize: 12,
+                                          fontWeight: 700,
+                                          background:
+                                            rec.priority === "high"
+                                              ? "#fee2e2"
+                                              : rec.priority === "medium"
+                                              ? "#fef3c7"
+                                              : "#dbeafe",
+                                          color:
+                                            rec.priority === "high"
+                                              ? "#b91c1c"
+                                              : rec.priority === "medium"
+                                              ? "#b45309"
+                                              : "#1d4ed8",
+                                        }}
+                                      >
                                         {rec.priority === "high" && <span className="text-red-600">● High Priority</span>}
                                         {rec.priority === "medium" && <span className="text-yellow-600">● Medium Priority</span>}
                                         {rec.priority === "low" && <span className="text-blue-600">● Low Priority</span>}
@@ -1782,9 +2225,17 @@ Suggestions:
         )}
 
         {activeCategory === "measure" && (
-          <div className="space-y-6">
+          <div className="progress-measure space-y-6">
             {/* Filter Section */}
-            <div className="rounded-[24px] border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 p-5 shadow-sm hover:shadow-md transition">
+            <div
+              style={{
+                borderRadius: 24,
+                border: "1px solid #fed7aa",
+                background: "#fffaf3",
+                padding: 20,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+              }}
+            >
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h4 className="text-lg font-bold text-slate-900">🔍 Assessment Filter</h4>
@@ -1795,7 +2246,16 @@ Suggestions:
                 <select
                   value={selfCheckQuizFilter}
                   onChange={(event) => setSelfCheckQuizFilter(event.target.value)}
-                  className="rounded-xl border-2 border-orange-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-orange-500 focus:shadow-lg transition"
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #fdba74",
+                    background: "#ffffff",
+                    padding: "10px 14px",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "#334155",
+                    outline: "none",
+                  }}
                 >
                   <option value="all">All Quizzes</option>
                   {selfCheckQuizOptions.map((option) => (
@@ -1811,8 +2271,8 @@ Suggestions:
             {renderChart()}
 
             {/* Key Metrics */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-[24px] border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 p-6 shadow-sm hover:shadow-lg transition hover:scale-105">
+            <div className="progress-measure-metrics grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+              <div className="progress-measure-card" style={{ borderRadius: 20, border: "1px solid #e9d5ff", background: "#fcfaff", padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-slate-600">Latest Mark</p>
                   <span className="text-2xl">📊</span>
@@ -1825,7 +2285,7 @@ Suggestions:
                 </div>
               </div>
 
-              <div className="rounded-[24px] border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-6 shadow-sm hover:shadow-lg transition hover:scale-105">
+              <div className="progress-measure-card" style={{ borderRadius: 20, border: "1px solid #bfdbfe", background: "#f8fbff", padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-slate-600">Average Mark</p>
                   <span className="text-2xl">📈</span>
@@ -1838,8 +2298,16 @@ Suggestions:
                 </div>
               </div>
 
-              <div className="rounded-[24px] border-2 bg-gradient-to-br from-green-50 to-emerald-100 p-6 shadow-sm hover:shadow-lg transition hover:scale-105"
-                style={{ borderColor: selfCheckStats.progress >= 0 ? '#22c55e' : '#ef4444' }}>
+              <div
+                className="progress-measure-card"
+                style={{
+                  borderRadius: 20,
+                  border: selfCheckStats.progress >= 0 ? "1px solid #86efac" : "1px solid #fca5a5",
+                  background: selfCheckStats.progress >= 0 ? "#f0fdf4" : "#fef2f2",
+                  padding: 20,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                }}
+              >
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-slate-600">Progress</p>
                   <span className="text-2xl">{selfCheckStats.progress >= 0 ? '📈' : '📉'}</span>
@@ -1849,11 +2317,17 @@ Suggestions:
                   {selfCheckStats.progress}%
                 </h4>
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-green-500 to-emerald-600 rounded-full" style={{ width: `${Math.min(Math.abs(selfCheckStats.progress), 100)}%` }}></div>
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(Math.abs(selfCheckStats.progress), 100)}%`,
+                      background: selfCheckStats.progress >= 0 ? "#22c55e" : "#ef4444",
+                    }}
+                  ></div>
                 </div>
               </div>
 
-              <div className="rounded-[24px] border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-100 p-6 shadow-sm hover:shadow-lg transition hover:scale-105">
+              <div className="progress-measure-card" style={{ borderRadius: 20, border: "1px solid #fde68a", background: "#fffbeb", padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-slate-600">Best Mark</p>
                   <span className="text-2xl">⭐</span>
@@ -1868,14 +2342,15 @@ Suggestions:
             </div>
 
             {/* Learning Analytics */}
-            <div className="rounded-[24px] border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 p-6 shadow-sm">
+            <div className="progress-measure-analytics-shell" style={{ borderRadius: 24, border: "1px solid #bfdbfe", background: "#f8fbff", padding: 28, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
               <h4 className="text-2xl font-bold text-slate-900 mb-2">📊 Learning Analytics</h4>
-              <p className="text-sm text-slate-600 mb-6">
+              <p className="text-sm text-slate-600 mb-8">
                 Comprehensive analysis of your learning progress and recommendations.
               </p>
 
-              <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-[20px] border-2 border-blue-300 bg-white/80 backdrop-blur p-4 hover:shadow-lg transition">
+              <div className="progress-measure-analytics space-y-6">
+                <div className="progress-measure-analytics-grid grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+                <div className="progress-measure-card flex h-full flex-col rounded-[20px] border-2 border-blue-300 bg-white/80 p-6 backdrop-blur transition hover:shadow-lg">
                   <style>{`
                     @keyframes countUp {
                       from { opacity: 0; transform: scale(0.5); }
@@ -1885,50 +2360,50 @@ Suggestions:
                       animation: countUp 0.8s ease-out;
                     }
                   `}</style>
-                  <div className="mx-auto mb-3 h-20 w-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-3xl font-bold metric-circle shadow-lg">
+                  <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-3xl font-bold text-white metric-circle shadow-lg">
                     {learningAnalytics.overallProgress}%
                   </div>
                   <p className="text-center text-sm font-bold text-slate-900">Overall Progress</p>
-                  <p className="text-center text-xs text-slate-600 mt-1">Combined score & confidence</p>
+                  <p className="mt-2 text-center text-xs leading-5 text-slate-600">Combined score & confidence</p>
                 </div>
 
-                <div className="rounded-[20px] border-2 border-green-300 bg-white/80 backdrop-blur p-4 hover:shadow-lg transition">
-                  <div className="mx-auto mb-3 h-20 w-20 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-white text-3xl font-bold metric-circle shadow-lg">
+                <div className="progress-measure-card flex h-full flex-col rounded-[20px] border-2 border-green-300 bg-white/80 p-6 backdrop-blur transition hover:shadow-lg">
+                  <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-emerald-600 text-3xl font-bold text-white metric-circle shadow-lg">
                     {learningAnalytics.averageScore}%
                   </div>
                   <p className="text-center text-sm font-bold text-slate-900">Avg Score</p>
-                  <p className="text-center text-xs text-slate-600 mt-1">Across all attempts</p>
+                  <p className="mt-2 text-center text-xs leading-5 text-slate-600">Across all attempts</p>
                 </div>
 
-                <div className="rounded-[20px] border-2 border-yellow-300 bg-white/80 backdrop-blur p-4 hover:shadow-lg transition">
-                  <div className="mx-auto mb-3 h-20 w-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center text-white text-3xl font-bold metric-circle shadow-lg">
+                <div className="progress-measure-card flex h-full flex-col rounded-[20px] border-2 border-yellow-300 bg-white/80 p-6 backdrop-blur transition hover:shadow-lg">
+                  <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 text-3xl font-bold text-white metric-circle shadow-lg">
                     {learningAnalytics.averageConfidence}%
                   </div>
                   <p className="text-center text-sm font-bold text-slate-900">Confidence</p>
-                  <p className="text-center text-xs text-slate-600 mt-1">Self-assessed level</p>
+                  <p className="mt-2 text-center text-xs leading-5 text-slate-600">Self-assessed level</p>
                 </div>
 
-                <div className="rounded-[20px] border-2 border-purple-300 bg-white/80 backdrop-blur p-4 hover:shadow-lg transition">
-                  <div className="mx-auto mb-3 h-20 w-20 rounded-full bg-gradient-to-br from-purple-400 to-pink-600 flex items-center justify-center text-white text-3xl font-bold metric-circle shadow-lg">
+                <div className="progress-measure-card flex h-full flex-col rounded-[20px] border-2 border-purple-300 bg-white/80 p-6 backdrop-blur transition hover:shadow-lg">
+                  <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-pink-600 text-3xl font-bold text-white metric-circle shadow-lg">
                     {learningAnalytics.totalAttempts}
                   </div>
                   <p className="text-center text-sm font-bold text-slate-900">Total Attempts</p>
-                  <p className="text-center text-xs text-slate-600 mt-1">Quizzes & self-checks</p>
+                  <p className="mt-2 text-center text-xs leading-5 text-slate-600">Quizzes & self-checks</p>
                 </div>
-              </div>
+                </div>
 
-              {/* Weak and Strong Areas */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 mb-6">
-                <div className="rounded-[20px] border-2 border-red-300 bg-gradient-to-br from-red-50 to-pink-50 p-5 hover:shadow-lg transition">
+                {/* Weak and Strong Areas */}
+                <div className="progress-measure-area-grid grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="progress-measure-card h-full rounded-[20px] border-2 border-red-300 bg-gradient-to-br from-red-50 to-pink-50 p-6 transition hover:shadow-lg">
                   <h5 className="text-sm font-bold text-red-800 mb-1">🔴 Weak Areas</h5>
-                  <p className="text-xs text-red-600 mb-3">Focus on improving these modules</p>
+                  <p className="text-xs text-red-600 mb-4 leading-5">Focus on improving these modules</p>
                   {learningAnalytics.weakAreas.length === 0 ? (
                     <p className="text-sm text-red-700 font-semibold">✅ No weak areas identified!</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {learningAnalytics.weakAreas.map((area) => (
                         <div key={area.module}>
-                          <div className="flex justify-between mb-1">
+                          <div className="flex justify-between mb-2">
                             <p className="text-xs font-semibold text-red-800">{area.module}</p>
                             <p className="text-xs font-bold text-red-600">{Math.round(area.average)}%</p>
                           </div>
@@ -1941,16 +2416,16 @@ Suggestions:
                   )}
                 </div>
 
-                <div className="rounded-[20px] border-2 border-green-300 bg-gradient-to-br from-green-50 to-emerald-50 p-5 hover:shadow-lg transition">
+                <div className="progress-measure-card h-full rounded-[20px] border-2 border-green-300 bg-gradient-to-br from-green-50 to-emerald-50 p-6 transition hover:shadow-lg">
                   <h5 className="text-sm font-bold text-green-800 mb-1">🟢 Strong Areas</h5>
-                  <p className="text-xs text-green-600 mb-3">Maintain excellence in these modules</p>
+                  <p className="text-xs text-green-600 mb-4 leading-5">Maintain excellence in these modules</p>
                   {learningAnalytics.strongAreas.length === 0 ? (
                     <p className="text-sm text-green-700 font-semibold">Start taking assessments to identify strengths!</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {learningAnalytics.strongAreas.map((area) => (
                         <div key={area.module}>
-                          <div className="flex justify-between mb-1">
+                          <div className="flex justify-between mb-2">
                             <p className="text-xs font-semibold text-green-800">{area.module}</p>
                             <p className="text-xs font-bold text-green-600">{Math.round(area.average)}%</p>
                           </div>
@@ -1962,19 +2437,20 @@ Suggestions:
                     </div>
                   )}
                 </div>
-              </div>
+                </div>
 
-              {/* Recommendation */}
-              <div className="rounded-[20px] border-2 border-cyan-300 bg-gradient-to-br from-cyan-50 to-blue-50 p-5">
+                {/* Recommendation */}
+                <div className="progress-measure-card progress-measure-recommendation rounded-[20px] border-2 border-cyan-300 bg-gradient-to-br from-cyan-50 to-blue-50 p-6">
                 <h5 className="text-sm font-bold text-cyan-800 mb-2">💡 AI Recommendation</h5>
-                <p className="text-sm text-cyan-700 leading-relaxed">{learningAnalytics.recommendation}</p>
+                <p className="mt-1 text-sm leading-relaxed text-cyan-700">{learningAnalytics.recommendation}</p>
+                </div>
               </div>
             </div>
 
             {/* Assessment History */}
-            <div className="rounded-[24px] border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-6 shadow-sm">
+            <div className="rounded-[24px] border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-7 shadow-sm">
               <h4 className="text-2xl font-bold text-slate-900 mb-2">📋 Assessment Repeat History</h4>
-              <p className="text-sm text-slate-600 mb-4">
+              <p className="text-sm text-slate-600 mb-6">
                 All assessment repeats are stored with marks and timestamps.
               </p>
 
@@ -1983,11 +2459,11 @@ Suggestions:
                   <p className="text-sm text-orange-700 font-semibold">No attempts recorded yet. Start with a quiz or self-check!</p>
                 </div>
               ) : (
-                <div className="grid gap-3">
+                <div className="grid gap-4">
                   {[...selfCheckAttemptSeries].reverse().map((attempt, idx) => (
                     <div
                       key={attempt.id}
-                      className="rounded-[16px] border-2 border-orange-200 bg-white p-4 hover:shadow-md transition hover:border-orange-300"
+                      className="rounded-[18px] border-2 border-orange-200 bg-white p-5 hover:shadow-md transition hover:border-orange-300"
                       style={{ animation: `slideInUp 0.3s ease-out ${idx * 0.05}s backwards` }}
                     >
                       <style>{`
@@ -1996,14 +2472,14 @@ Suggestions:
                           to { opacity: 1; transform: translateY(0); }
                         }
                       `}</style>
-                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
                           <p className="text-sm font-bold text-slate-900">
                             {attempt.moduleCode
                               ? `${attempt.moduleCode} - ${attempt.moduleName}`
                               : attempt.moduleName}
                           </p>
-                          <p className="text-xs text-slate-500 mt-1">
+                          <p className="text-xs text-slate-500 mt-2">
                             Repeat {attempt.attemptNumber} • {new Date(attempt.submittedAt).toLocaleString()}
                           </p>
                         </div>
@@ -2228,7 +2704,6 @@ Suggestions:
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }

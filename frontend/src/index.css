@@ -46,3 +46,42 @@ body {
     display: flex;
   }
 }
+
+.progress-measure {
+  width: 100%;
+}
+
+.progress-measure-metrics,
+.progress-measure-analytics-grid,
+.progress-measure-area-grid {
+  display: grid !important;
+  gap: 24px !important;
+  align-items: stretch;
+}
+
+.progress-measure-card {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+}
+
+.progress-measure-analytics {
+  display: flex !important;
+  flex-direction: column;
+  gap: 24px !important;
+}
+
+.progress-measure-analytics > * + * {
+  margin-top: 0 !important;
+}
+
+.progress-measure-recommendation {
+  margin-top: 0;
+}
+
+@media (max-width: 767px) {
+  .progress-measure-analytics-shell {
+    padding: 20px !important;
+  }
+}

@@ -1514,7 +1514,7 @@ Suggestions:
                   borderRadius: 24,
                   border: "1px solid #e2e8f0",
                   background: "#ffffff",
-                  padding: 24,
+                  padding: 28,
                   boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
                 }}
               >
@@ -1660,7 +1660,7 @@ Suggestions:
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: "grid", gap: 14 }}>
+                  <div style={{ display: "grid", gap: 18, marginBottom: 28 }}>
                     {selectedQuiz.questions.map((question, index) => (
                       <div
                         key={`${selectedQuiz.id}-${question.id || index}`}
@@ -1668,14 +1668,14 @@ Suggestions:
                           borderRadius: 18,
                           border: "1px solid #e2e8f0",
                           background: "#f8fafc",
-                          padding: 18,
+                          padding: 22,
                         }}
                       >
-                        <p className="mb-4 text-sm font-semibold text-slate-900">
+                        <p className="mb-5 text-sm font-semibold text-slate-900">
                           {index + 1}. {question.text}
                         </p>
 
-                        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr" }}>
+                        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr" }}>
                           {(Array.isArray(question.options) ? question.options : []).map(
                             (option, optionIndex) => {
                               const label = OPTION_LABELS[optionIndex] || "";
@@ -1689,7 +1689,7 @@ Suggestions:
                                     border: isSelected ? "1px solid #93c5fd" : "1px solid #dbe2ea",
                                     background: isSelected ? "#eff6ff" : "#ffffff",
                                     color: isSelected ? "#1d4ed8" : "#475569",
-                                    padding: "12px 14px",
+                                    padding: "14px 16px",
                                     fontSize: 14,
                                     cursor: "pointer",
                                     display: "flex",
@@ -1724,7 +1724,7 @@ Suggestions:
                 )}
 
                 {selectedQuiz.type === "selfcheck" ? (
-                  <div className="mt-5">
+                  <div className="mt-8">
                     {quizValidationError ? (
                       <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
                         {quizValidationError}
@@ -1739,7 +1739,14 @@ Suggestions:
                     </button>
                   </div>
                 ) : selectedQuiz.questions.length > 0 ? (
-                  <div className="mt-5">
+                  <div
+                    style={{
+                      marginTop: 8,
+                      marginBottom: 28,
+                      display: "flex",
+                      justifyContent: "flex-start",
+                    }}
+                  >
                     {quizValidationError ? (
                       <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
                         {quizValidationError}
@@ -1753,10 +1760,11 @@ Suggestions:
                         border: "none",
                         background: "#f97316",
                         color: "#ffffff",
-                        padding: "12px 20px",
+                        padding: "13px 22px",
                         fontSize: 14,
                         fontWeight: 700,
                         cursor: "pointer",
+                        minWidth: 132,
                       }}
                     >
                       Submit Quiz
@@ -1765,93 +1773,278 @@ Suggestions:
                 ) : null}
 
                 {quizResult ? (
-                  <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                    <h5 className="text-lg font-extrabold text-emerald-800">
+                  <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-8">
+                    <h5 className="text-lg font-extrabold text-emerald-800" style={{ margin: 0 }}>
                       {selectedQuiz.type === "selfcheck" ? "Self Check Result" : "Quiz Result"}
                     </h5>
-                    <p className="mt-2 text-sm text-emerald-700">
-                      Score: <span className="font-extrabold">{quizResult.score100}/100</span>
-                    </p>
-                    <p className="text-sm text-emerald-700">
-                      Repeat: {quizResult.attemptNumber}
-                    </p>
                     {selectedQuiz.type === "selfcheck" ? (
                       <>
-                        <p className="text-sm text-emerald-700">
-                          Learning Outcomes Mastered: {quizResult.checkedOutcomes} / {quizResult.totalOutcomes}
-                        </p>
-                        <p className="text-sm text-emerald-700">
-                          Confidence Level: {quizResult.confidenceLevel}/5
-                        </p>
-                        <div className="mt-3">
-                          <h6 className="text-sm font-bold text-slate-900">Reflection</h6>
-                          <p className="mt-1 text-sm text-emerald-700 italic">
+                        <div
+                          style={{
+                            marginTop: 20,
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                            gap: 16,
+                          }}
+                        >
+                          <div
+                            style={{
+                              borderRadius: 14,
+                              border: "1px solid #bbf7d0",
+                              background: "rgba(255,255,255,0.72)",
+                              padding: "14px 16px",
+                            }}
+                          >
+                            <p style={{ margin: 0, fontSize: 12, color: "#047857", fontWeight: 700 }}>Score</p>
+                            <p style={{ margin: "6px 0 0", fontSize: 18, color: "#065f46", fontWeight: 800 }}>
+                              {quizResult.score100}/100
+                            </p>
+                          </div>
+                          <div
+                            style={{
+                              borderRadius: 14,
+                              border: "1px solid #bbf7d0",
+                              background: "rgba(255,255,255,0.72)",
+                              padding: "14px 16px",
+                            }}
+                          >
+                            <p style={{ margin: 0, fontSize: 12, color: "#047857", fontWeight: 700 }}>Repeat</p>
+                            <p style={{ margin: "6px 0 0", fontSize: 18, color: "#065f46", fontWeight: 800 }}>
+                              {quizResult.attemptNumber}
+                            </p>
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            marginTop: 20,
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                            gap: 16,
+                          }}
+                        >
+                          <div
+                            style={{
+                              borderRadius: 14,
+                              border: "1px solid #bbf7d0",
+                              background: "rgba(255,255,255,0.72)",
+                              padding: "14px 16px",
+                            }}
+                          >
+                            <p style={{ margin: 0, fontSize: 12, color: "#047857", fontWeight: 700 }}>Outcomes Mastered</p>
+                            <p style={{ margin: "6px 0 0", fontSize: 18, color: "#065f46", fontWeight: 800 }}>
+                              {quizResult.checkedOutcomes} / {quizResult.totalOutcomes}
+                            </p>
+                          </div>
+                          <div
+                            style={{
+                              borderRadius: 14,
+                              border: "1px solid #bbf7d0",
+                              background: "rgba(255,255,255,0.72)",
+                              padding: "14px 16px",
+                            }}
+                          >
+                            <p style={{ margin: 0, fontSize: 12, color: "#047857", fontWeight: 700 }}>Confidence Level</p>
+                            <p style={{ margin: "6px 0 0", fontSize: 18, color: "#065f46", fontWeight: 800 }}>
+                              {quizResult.confidenceLevel}/5
+                            </p>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 28 }}>
+                          <h6 className="text-sm font-bold text-slate-900" style={{ margin: 0 }}>
+                            Reflection
+                          </h6>
+                          <p className="mt-3 text-sm italic leading-6 text-emerald-700">
                             "{quizResult.reflection}"
                           </p>
                         </div>
                       </>
                     ) : (
                       <>
-                        <p className="text-sm text-emerald-700">
-                          Correct: {quizResult.correctCount} / {quizResult.totalQuestions}
-                        </p>
-                        <p className="text-sm text-emerald-700">Wrong: {quizResult.wrongCount}</p>
-
-                        <div className="mt-4">
-                          <h6 className="text-sm font-bold text-slate-900">Wrong Answers</h6>
-                          {quizResult.wrongAnswers.length === 0 ? (
-                            <p className="mt-1 text-sm text-emerald-700">
-                              No wrong answers. Great work!
-                            </p>
-                          ) : (
-                            <div className="mt-2">
-                              <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center">
-                                <input
-                                  type="text"
-                                  value={wrongAnswerSearchQuery}
-                                  onChange={(event) =>
-                                    setWrongAnswerSearchQuery(event.target.value)
-                                  }
-                                  placeholder="Search wrong answers..."
-                                  className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-orange-400 md:max-w-sm"
-                                />
-
-                                <button
-                                  onClick={handleDownloadWrongAnswersPdf}
-                                  className="rounded-xl border border-orange-300 bg-orange-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-600"
-                                >
-                                  Download Wrong Answers PDF
-                                </button>
-                              </div>
-
-                              {filteredWrongAnswers.length === 0 ? (
-                                <p className="text-sm text-slate-600">
-                                  No wrong answers match your search.
-                                </p>
-                              ) : (
-                                <div className="grid gap-3">
-                                  {filteredWrongAnswers.map((item) => (
-                                    <div
-                                      key={`wrong-${item.questionNumber}`}
-                                      className="rounded-xl border border-red-100 bg-white p-3"
-                                    >
-                                      <p className="text-sm font-semibold text-slate-900">
-                                        {item.questionNumber}. {item.questionText}
-                                      </p>
-                                      <p className="mt-1 text-sm text-red-600">
-                                        Your answer: {item.selectedLabel || "Not selected"}
-                                        {item.selectedText ? ` - ${item.selectedText}` : ""}
-                                      </p>
-                                      <p className="text-sm text-emerald-700">
-                                        Correct answer: {item.correctLabel || "N/A"}
-                                        {item.correctText ? ` - ${item.correctText}` : ""}
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
+                        <div
+                          style={{
+                            marginTop: 20,
+                            display: "grid",
+                            gap: 22,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                              gap: 16,
+                              alignItems: "stretch",
+                            }}
+                          >
+                            <div
+                              style={{
+                                borderRadius: 14,
+                                border: "1px solid #a7f3d0",
+                                background: "#ffffff",
+                                padding: "16px 18px",
+                                minHeight: 84,
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <p style={{ margin: 0, fontSize: 12, color: "#047857", fontWeight: 700 }}>Score</p>
+                              <p style={{ margin: "6px 0 0", fontSize: 18, color: "#065f46", fontWeight: 800 }}>
+                                {quizResult.score100}/100
+                              </p>
                             </div>
-                          )}
+                            <div
+                              style={{
+                                borderRadius: 14,
+                                border: "1px solid #a7f3d0",
+                                background: "#ffffff",
+                                padding: "16px 18px",
+                                minHeight: 84,
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <p style={{ margin: 0, fontSize: 12, color: "#047857", fontWeight: 700 }}>Repeat</p>
+                              <p style={{ margin: "6px 0 0", fontSize: 18, color: "#065f46", fontWeight: 800 }}>
+                                {quizResult.attemptNumber}
+                              </p>
+                            </div>
+                            <div
+                              style={{
+                                borderRadius: 14,
+                                border: "1px solid #a7f3d0",
+                                background: "#ffffff",
+                                padding: "16px 18px",
+                                minHeight: 84,
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <p style={{ margin: 0, fontSize: 12, color: "#047857", fontWeight: 700 }}>Correct</p>
+                              <p style={{ margin: "6px 0 0", fontSize: 18, color: "#065f46", fontWeight: 800 }}>
+                                {quizResult.correctCount} / {quizResult.totalQuestions}
+                              </p>
+                            </div>
+                            <div
+                              style={{
+                                borderRadius: 14,
+                                border: "1px solid #fecaca",
+                                background: "#ffffff",
+                                padding: "16px 18px",
+                                minHeight: 84,
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <p style={{ margin: 0, fontSize: 12, color: "#b91c1c", fontWeight: 700 }}>Wrong</p>
+                              <p style={{ margin: "6px 0 0", fontSize: 18, color: "#991b1b", fontWeight: 800 }}>
+                                {quizResult.wrongCount}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              borderRadius: 18,
+                              border: "1px solid #bbf7d0",
+                              background: "rgba(255,255,255,0.72)",
+                              padding: "22px",
+                            }}
+                          >
+                            <h6 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#0f172a" }}>
+                              Wrong Answers Review
+                            </h6>
+                            {quizResult.wrongAnswers.length === 0 ? (
+                              <p style={{ marginTop: 12, fontSize: 14, color: "#15803d", fontWeight: 600 }}>
+                                No wrong answers. Great work!
+                              </p>
+                            ) : (
+                              <div style={{ marginTop: 18, display: "grid", gap: 20 }}>
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gap: 16,
+                                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                                    alignItems: "center",
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  <input
+                                    type="text"
+                                    value={wrongAnswerSearchQuery}
+                                    onChange={(event) =>
+                                      setWrongAnswerSearchQuery(event.target.value)
+                                    }
+                                    placeholder="Search wrong answers..."
+                                    style={{
+                                      width: "100%",
+                                      borderRadius: 12,
+                                      border: "1px solid #fdba74",
+                                      background: "#ffffff",
+                                      padding: "13px 15px",
+                                      fontSize: 14,
+                                      color: "#334155",
+                                      outline: "none",
+                                      minHeight: 48,
+                                    }}
+                                  />
+
+                                  <button
+                                    onClick={handleDownloadWrongAnswersPdf}
+                                    style={{
+                                      borderRadius: 12,
+                                      border: "1px solid #fdba74",
+                                      background: "#f97316",
+                                      color: "#ffffff",
+                                      padding: "13px 18px",
+                                      fontSize: 14,
+                                      fontWeight: 700,
+                                      cursor: "pointer",
+                                      minHeight: 48,
+                                      width: "100%",
+                                      justifySelf: "stretch",
+                                    }}
+                                  >
+                                    Download Wrong Answers PDF
+                                  </button>
+                                </div>
+
+                                {filteredWrongAnswers.length === 0 ? (
+                                  <p style={{ margin: 0, fontSize: 14, color: "#64748b" }}>
+                                    No wrong answers match your search.
+                                  </p>
+                                ) : (
+                                  <div style={{ display: "grid", gap: 18 }}>
+                                    {filteredWrongAnswers.map((item) => (
+                                      <div
+                                        key={`wrong-${item.questionNumber}`}
+                                        style={{
+                                          borderRadius: 14,
+                                          border: "1px solid #fecaca",
+                                          background: "#ffffff",
+                                          padding: "18px 18px 20px",
+                                        }}
+                                      >
+                                        <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+                                          {item.questionNumber}. {item.questionText}
+                                        </p>
+                                        <p style={{ margin: "12px 0 0", fontSize: 14, color: "#dc2626", lineHeight: 1.7 }}>
+                                          Your answer: {item.selectedLabel || "Not selected"}
+                                          {item.selectedText ? ` - ${item.selectedText}` : ""}
+                                        </p>
+                                        <p style={{ margin: "8px 0 0", fontSize: 14, color: "#047857", lineHeight: 1.7 }}>
+                                          Correct answer: {item.correctLabel || "N/A"}
+                                          {item.correctText ? ` - ${item.correctText}` : ""}
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </>
                     )}

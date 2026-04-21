@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchModules } from "../utils/moduleApi";
+import {
+  createProgressAssessment,
+  deleteProgressAssessment,
+  listProgressAssessments,
+} from "../utils/progressTrackerApi";
 
 const SELF_CHECK_STORAGE_KEY = "moduleSelfChecks";
 const OUTCOME_COUNT = 5; // Number of learning outcomes per self-check
@@ -76,6 +81,37 @@ function LecturerModuleSelfCheck() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSelfChecksFromDb = async () => {
+      try {
+        const data = await listProgressAssessments("selfcheck");
+        if (!isMounted) return;
+
+        const normalized = data.map((item) => ({
+          ...item,
+          id: item.id,
+          type: "selfcheck",
+          learningOutcomes: Array.isArray(item.learningOutcomes)
+            ? item.learningOutcomes
+            : [],
+        }));
+
+        setSelfChecks(normalized);
+        localStorage.setItem(SELF_CHECK_STORAGE_KEY, JSON.stringify(normalized));
+      } catch {
+        // Keep local fallback when API is unavailable.
+      }
+    };
+
+    loadSelfChecksFromDb();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const moduleOptions = useMemo(() => {
     return modules
       .filter((module) => {
@@ -145,7 +181,7 @@ function LecturerModuleSelfCheck() {
     return "";
   };
 
-  const handleAddSelfCheck = () => {
+  const handleAddSelfCheck = async () => {
     const validationMessage = validateSelfCheck();
     if (validationMessage) {
       setFormError(validationMessage);
@@ -167,7 +203,6 @@ function LecturerModuleSelfCheck() {
     }));
 
     const newSelfCheck = {
-      id: Date.now(),
       moduleId: selectedModule.id,
       moduleName: selectedModule.name,
       moduleCode: selectedModule.code,
@@ -177,21 +212,43 @@ function LecturerModuleSelfCheck() {
       type: "selfcheck",
     };
 
-    persistSelfChecks([newSelfCheck, ...selfChecks]);
-    setForm(createInitialForm());
-    setFormError("");
+    try {
+      const created = await createProgressAssessment(newSelfCheck);
+      const next = [created, ...selfChecks];
+      persistSelfChecks(next);
+      setForm(createInitialForm());
+      setFormError("");
+    } catch (error) {
+      setFormError(error?.message || "Failed to save self-check in database.");
+    }
   };
 
-  const handleDeleteSelfCheck = (id) => {
-    const updated = selfChecks.filter((item) => item.id !== id);
+  const handleDeleteSelfCheck = async (id) => {
+    try {
+      if (typeof id === "string") {
+        await deleteProgressAssessment(id);
+      }
+    } catch {
+      // Continue local removal to avoid blocking UI when API fails.
+    }
+
+    const updated = selfChecks.filter((item) => String(item.id) !== String(id));
     persistSelfChecks(updated);
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     const confirmed = window.confirm(
       "Are you sure you want to delete all self-check entries?"
     );
     if (!confirmed) return;
+
+    await Promise.all(
+      selfChecks
+        .map((item) => item.id)
+        .filter((id) => typeof id === "string")
+        .map((id) => deleteProgressAssessment(id).catch(() => null))
+    );
+
     setSelfChecks([]);
     localStorage.removeItem(SELF_CHECK_STORAGE_KEY);
   };

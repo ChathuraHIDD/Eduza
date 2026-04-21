@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 import { drawEduzaLogo } from "../utils/pdfBranding";
+import {
+  createProgressAttempt,
+  listProgressAssessments,
+  listProgressAttempts,
+  updateProgressAttempt,
+} from "../utils/progressTrackerApi";
 
 const QUIZ_STORAGE_KEY = "moduleQuizzes";
 const SELF_CHECK_STORAGE_KEY = "moduleSelfChecks";
@@ -192,8 +198,8 @@ function ProgressTracker() {
   const [modules, setModules] = useState([
     { id: 1, moduleName: "", credits: 3, grade: "A" },
   ]);
-  const [quizModules] = useState(loadStoredQuizzes);
-  const [selfCheckModules] = useState(loadStoredSelfChecks);
+  const [quizModules, setQuizModules] = useState(loadStoredQuizzes);
+  const [selfCheckModules, setSelfCheckModules] = useState(loadStoredSelfChecks);
   const [selectedQuizId, setSelectedQuizId] = useState(null);
   const [quizAttemptAnswers, setQuizAttemptAnswers] = useState({});
   const [quizValidationError, setQuizValidationError] = useState("");
@@ -214,6 +220,54 @@ function ProgressTracker() {
     studyDays: 46,
     level: "Gold Badge",
   });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadFromDatabase = async () => {
+      try {
+        const [quizData, selfCheckData, attemptData] = await Promise.all([
+          listProgressAssessments("quiz"),
+          listProgressAssessments("selfcheck"),
+          listProgressAttempts(),
+        ]);
+
+        if (!isMounted) return;
+
+        const normalizedQuiz = quizData.map((item) => ({
+          ...item,
+          id: String(item.id || item._id),
+          type: "quiz",
+          questions: Array.isArray(item.questions) ? item.questions : [],
+        }));
+
+        const normalizedSelfCheck = selfCheckData.map((item) => ({
+          ...item,
+          id: String(item.id || item._id),
+          type: "selfcheck",
+          learningOutcomes: Array.isArray(item.learningOutcomes)
+            ? item.learningOutcomes
+            : [],
+        }));
+
+        setQuizModules(normalizedQuiz);
+        setSelfCheckModules(normalizedSelfCheck);
+        setQuizAttempts(attemptData);
+
+        localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(normalizedQuiz));
+        localStorage.setItem(SELF_CHECK_STORAGE_KEY, JSON.stringify(normalizedSelfCheck));
+        localStorage.setItem(QUIZ_ATTEMPTS_STORAGE_KEY, JSON.stringify(attemptData));
+      } catch {
+        // Keep local fallback data when API is unavailable.
+      }
+    };
+
+    loadFromDatabase();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const normalizedQuizModules = useMemo(() => {
     return quizModules.map((quiz) => {
@@ -344,7 +398,7 @@ function ProgressTracker() {
     setQuizValidationError("");
   };
 
-  const handleSubmitQuiz = () => {
+  const handleSubmitQuiz = async () => {
     if (!selectedQuiz) {
       setQuizValidationError("No assessment selected.");
       return;
@@ -389,7 +443,19 @@ function ProgressTracker() {
         submittedAt,
       };
 
-      const nextAttempts = [...quizAttempts, newAttempt];
+      let storedAttempt = newAttempt;
+      try {
+        storedAttempt = await createProgressAttempt({
+          ...newAttempt,
+          assessmentId: selectedQuiz.id,
+          quizId: quizId,
+          moduleId: selectedQuiz.moduleId || "",
+        });
+      } catch {
+        // Keep local fallback if API call fails.
+      }
+
+      const nextAttempts = [...quizAttempts, storedAttempt];
       setQuizAttempts(nextAttempts);
       localStorage.setItem(QUIZ_ATTEMPTS_STORAGE_KEY, JSON.stringify(nextAttempts));
 
@@ -471,7 +537,19 @@ function ProgressTracker() {
       submittedAt,
     };
 
-    const nextAttempts = [...quizAttempts, newAttempt];
+    let storedAttempt = newAttempt;
+    try {
+      storedAttempt = await createProgressAttempt({
+        ...newAttempt,
+        assessmentId: selectedQuiz.id,
+        quizId,
+        moduleId: selectedQuiz.moduleId || "",
+      });
+    } catch {
+      // Keep local fallback if API call fails.
+    }
+
+    const nextAttempts = [...quizAttempts, storedAttempt];
     setQuizAttempts(nextAttempts);
     localStorage.setItem(QUIZ_ATTEMPTS_STORAGE_KEY, JSON.stringify(nextAttempts));
 
@@ -489,18 +567,28 @@ function ProgressTracker() {
     setIsQuizTimerRunning(false);
   };
 
-  const handleSubmitConfidence = (level) => {
+  const handleSubmitConfidence = async (level) => {
     if (!selectedQuiz || !quizResult) return;
 
+    let updatedAttemptId = "";
     const updatedAttempts = quizAttempts.map((attempt) => {
       if (
         String(attempt.quizId) === String(selectedQuiz.id) &&
         attempt.attemptNumber === quizResult.attemptNumber
       ) {
+        updatedAttemptId = attempt.id || attempt._id || "";
         return { ...attempt, confidenceLevel: level };
       }
       return attempt;
     });
+
+    if (updatedAttemptId) {
+      try {
+        await updateProgressAttempt(updatedAttemptId, { confidenceLevel: level });
+      } catch {
+        // Keep local state update if API call fails.
+      }
+    }
 
     setQuizAttempts(updatedAttempts);
     localStorage.setItem(QUIZ_ATTEMPTS_STORAGE_KEY, JSON.stringify(updatedAttempts));

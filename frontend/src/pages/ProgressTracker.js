@@ -561,10 +561,13 @@ function ProgressTracker() {
   const displayedSelfCheckSeries = useMemo(() => {
     return selfCheckAttemptSeries.slice(-12).map((attempt) => ({
       ...attempt,
-      label: `R${attempt.attemptNumber || 1}`,
+      label:
+        selfCheckQuizFilter === "all"
+          ? `${attempt.moduleCode || attempt.moduleName || "Assessment"} R${attempt.attemptNumber || 1}`
+          : `R${attempt.attemptNumber || 1}`,
       value: Number(attempt.score100 || 0),
     }));
-  }, [selfCheckAttemptSeries]);
+  }, [selfCheckAttemptSeries, selfCheckQuizFilter]);
 
   const selfCheckStats = useMemo(() => {
     if (selfCheckAttemptSeries.length === 0) {
@@ -976,13 +979,14 @@ Suggestions:
 
   const renderChart = () => {
     const width = 700;
-    const height = 260;
+    const height = 300;
     const padding = 40;
+    const bottomPadding = 64;
     const maxValue = 100;
 
     if (displayedSelfCheckSeries.length === 0) {
       return (
-        <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
+        <div className="progress-measure-chart rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
           <div className="mb-2 text-2xl font-bold text-slate-900">Assessment Progress</div>
           <p className="text-sm text-slate-500">
             No assessment attempts yet. Complete quizzes and self-checks to track marks
@@ -1000,14 +1004,14 @@ Suggestions:
           padding +
           (index * (width - padding * 2)) / xDivider;
         const y =
-          height - padding - (item.value / maxValue) * (height - padding * 2);
+          height - bottomPadding - (item.value / maxValue) * (height - padding - bottomPadding);
         return `${x},${y}`;
       })
       .join(" ");
 
     return (
-      <div className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
-        <div className="mb-5 flex items-center justify-between">
+      <div className="progress-measure-chart rounded-[24px] border border-orange-100 bg-white p-5 shadow-sm">
+        <div className="progress-measure-chart-header mb-5 flex items-center justify-between">
           <div>
             <h3 className="text-2xl font-bold text-slate-900">Assessment Progress</h3>
             <p className="mt-1 text-sm text-slate-500">
@@ -1019,10 +1023,11 @@ Suggestions:
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="progress-measure-chart-body">
+          <div className="progress-measure-chart-scroll overflow-x-auto">
           <svg
             viewBox={`0 0 ${width} ${height}`}
-            className="h-[280px] min-w-[680px] w-full"
+            className="progress-measure-chart-svg h-[320px] min-w-[680px] w-full"
           >
             <defs>
               <linearGradient id="lineFill" x1="0" x2="0" y1="0" y2="1">
@@ -1033,7 +1038,7 @@ Suggestions:
 
             {[0, 25, 50, 75, 100].map((value) => {
               const y =
-                height - padding - (value / maxValue) * (height - padding * 2);
+                height - bottomPadding - (value / maxValue) * (height - padding - bottomPadding);
               return (
                 <g key={value}>
                   <line
@@ -1055,16 +1060,18 @@ Suggestions:
               const x =
                 padding +
                 (index * (width - padding * 2)) / xDivider;
+              const shortLabel =
+                item.label.length > 18 ? `${item.label.slice(0, 18)}...` : item.label;
               return (
                 <text
                   key={item.id || `${item.quizId}-${item.attemptNumber}-${index}`}
                   x={x}
-                  y={height - 10}
+                  y={height - 18}
                   textAnchor="middle"
                   fontSize="12"
                   fill="#64748b"
                 >
-                  {item.label}
+                  {shortLabel}
                 </text>
               );
             })}
@@ -1080,7 +1087,7 @@ Suggestions:
 
             <polygon
               fill="url(#lineFill)"
-              points={`${padding},${height - padding} ${points} ${width - padding},${height - padding}`}
+              points={`${padding},${height - bottomPadding} ${points} ${width - padding},${height - bottomPadding}`}
             />
 
             {displayedSelfCheckSeries.map((item, index) => {
@@ -1088,7 +1095,7 @@ Suggestions:
                 padding +
                 (index * (width - padding * 2)) / xDivider;
               const y =
-                height - padding - (item.value / maxValue) * (height - padding * 2);
+                height - bottomPadding - (item.value / maxValue) * (height - padding - bottomPadding);
 
               return (
                 <g key={item.id || `${item.quizId}-${item.attemptNumber}-${index}`}>
@@ -1107,6 +1114,7 @@ Suggestions:
               );
             })}
           </svg>
+          </div>
         </div>
       </div>
     );
@@ -2225,9 +2233,10 @@ Suggestions:
         )}
 
         {activeCategory === "measure" && (
-          <div className="progress-measure space-y-6">
+          <div className="progress-measure space-y-8">
             {/* Filter Section */}
             <div
+              className="progress-measure-section"
               style={{
                 borderRadius: 24,
                 border: "1px solid #fed7aa",
@@ -2271,7 +2280,7 @@ Suggestions:
             {renderChart()}
 
             {/* Key Metrics */}
-            <div className="progress-measure-metrics grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <div className="progress-measure-metrics progress-measure-section grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
               <div className="progress-measure-card" style={{ borderRadius: 20, border: "1px solid #e9d5ff", background: "#fcfaff", padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-slate-600">Latest Mark</p>
@@ -2342,7 +2351,7 @@ Suggestions:
             </div>
 
             {/* Learning Analytics */}
-            <div className="progress-measure-analytics-shell" style={{ borderRadius: 24, border: "1px solid #bfdbfe", background: "#f8fbff", padding: 28, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div className="progress-measure-section progress-measure-analytics-shell" style={{ borderRadius: 24, border: "1px solid #bfdbfe", background: "#f8fbff", padding: 28, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
               <h4 className="text-2xl font-bold text-slate-900 mb-2">📊 Learning Analytics</h4>
               <p className="text-sm text-slate-600 mb-8">
                 Comprehensive analysis of your learning progress and recommendations.
@@ -2448,9 +2457,9 @@ Suggestions:
             </div>
 
             {/* Assessment History */}
-            <div className="rounded-[24px] border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-7 shadow-sm">
+            <div className="progress-measure-section progress-measure-history rounded-[24px] border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-7 shadow-sm">
               <h4 className="text-2xl font-bold text-slate-900 mb-2">📋 Assessment Repeat History</h4>
-              <p className="text-sm text-slate-600 mb-6">
+              <p className="progress-measure-history-subtitle text-sm text-slate-600 mb-6">
                 All assessment repeats are stored with marks and timestamps.
               </p>
 
@@ -2459,11 +2468,11 @@ Suggestions:
                   <p className="text-sm text-orange-700 font-semibold">No attempts recorded yet. Start with a quiz or self-check!</p>
                 </div>
               ) : (
-                <div className="grid gap-4">
+                <div className="progress-measure-history-list grid gap-4">
                   {[...selfCheckAttemptSeries].reverse().map((attempt, idx) => (
                     <div
                       key={attempt.id}
-                      className="rounded-[18px] border-2 border-orange-200 bg-white p-5 hover:shadow-md transition hover:border-orange-300"
+                      className="progress-measure-history-item rounded-[18px] border-2 border-orange-200 bg-white p-5 hover:shadow-md transition hover:border-orange-300"
                       style={{ animation: `slideInUp 0.3s ease-out ${idx * 0.05}s backwards` }}
                     >
                       <style>{`
@@ -2472,26 +2481,42 @@ Suggestions:
                           to { opacity: 1; transform: translateY(0); }
                         }
                       `}</style>
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="text-sm font-bold text-slate-900">
+                      <div className="progress-measure-history-row flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="progress-measure-history-copy">
+                          <p className="progress-measure-history-module text-sm font-bold text-slate-900">
                             {attempt.moduleCode
                               ? `${attempt.moduleCode} - ${attempt.moduleName}`
                               : attempt.moduleName}
                           </p>
-                          <p className="text-xs text-slate-500 mt-2">
+                          <p className="progress-measure-history-meta text-xs text-slate-500 mt-2">
                             Repeat {attempt.attemptNumber} • {new Date(attempt.submittedAt).toLocaleString()}
                           </p>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="progress-measure-history-stats flex items-center gap-4">
                           <div className="text-right">
-                            <div className="inline-block rounded-lg bg-orange-100 px-3 py-2">
+                            <div className="progress-measure-history-score inline-block rounded-lg bg-orange-100 px-3 py-2">
                               <p className="text-sm font-extrabold text-orange-600">{attempt.score100}%</p>
                             </div>
                           </div>
-                          <div className="text-right text-xs">
-                            <p className="font-semibold text-slate-700">{attempt.correctCount}/{attempt.totalQuestions}</p>
-                            <p className="text-slate-500">correct</p>
+                          <div className="progress-measure-history-correct text-right text-xs">
+                            <p className="font-semibold text-slate-700">
+                              {Number.isFinite(attempt.correctCount) &&
+                              Number.isFinite(attempt.totalQuestions)
+                                ? `${attempt.correctCount}/${attempt.totalQuestions}`
+                                : Number.isFinite(attempt.checkedOutcomes) &&
+                                  Number.isFinite(attempt.totalOutcomes)
+                                ? `${attempt.checkedOutcomes}/${attempt.totalOutcomes}`
+                                : "Progress"}
+                            </p>
+                            <p className="text-slate-500">
+                              {Number.isFinite(attempt.correctCount) &&
+                              Number.isFinite(attempt.totalQuestions)
+                                ? "correct"
+                                : Number.isFinite(attempt.checkedOutcomes) &&
+                                  Number.isFinite(attempt.totalOutcomes)
+                                ? "outcomes"
+                                : "tracked"}
+                            </p>
                           </div>
                         </div>
                       </div>

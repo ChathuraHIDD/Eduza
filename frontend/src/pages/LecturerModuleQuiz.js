@@ -505,46 +505,6 @@ function LecturerModuleQuiz() {
               </p>
             </div>
 
-            <div style={{ marginBottom: "14px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={handleAddQuestion}
-                style={{
-                  border: "1px solid #fdba74",
-                  background: "#fff7ed",
-                  color: "#9a3412",
-                  borderRadius: "14px",
-                  padding: "10px 12px",
-                  fontSize: "13px",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                }}
-              >
-                + Add Question
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                style={{
-                  border: "1px solid #fdba74",
-                  background: "#fff",
-                  color: "#9a3412",
-                  borderRadius: "14px",
-                  padding: "10px 12px",
-                  fontSize: "13px",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                }}
-              >
-                Reset Form
-              </button>
-              {editingQuizId ? (
-                <span style={{ alignSelf: "center", fontSize: "13px", fontWeight: 700, color: "#9a3412" }}>
-                  Editing existing quiz
-                </span>
-              ) : null}
-            </div>
-
             <div
               style={{
                 display: "grid",
@@ -716,24 +676,6 @@ function LecturerModuleQuiz() {
                     <span style={{ fontSize: "12px", color: "#64748b", fontWeight: 700 }}>
                       Question {index + 1}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveQuestion(index)}
-                      disabled={quizForm.questions.length === 1}
-                      style={{
-                        border: "1px solid #fecaca",
-                        background: quizForm.questions.length === 1 ? "#fff1f2" : "#fff",
-                        color: "#dc2626",
-                        borderRadius: "999px",
-                        padding: "5px 10px",
-                        fontSize: "12px",
-                        fontWeight: "700",
-                        cursor: quizForm.questions.length === 1 ? "not-allowed" : "pointer",
-                        opacity: quizForm.questions.length === 1 ? 0.7 : 1,
-                      }}
-                    >
-                      Delete Question
-                    </button>
                   </div>
 
                   <input
@@ -810,8 +752,54 @@ function LecturerModuleQuiz() {
                       </option>
                     ))}
                   </select>
+
+                  <div
+                    style={{
+                      marginTop: "12px",
+                      display: "flex",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveQuestion(index)}
+                      disabled={quizForm.questions.length === 1}
+                      style={{
+                        border: "1px solid #fecaca",
+                        background: quizForm.questions.length === 1 ? "#fff1f2" : "#fff",
+                        color: "#dc2626",
+                        borderRadius: "999px",
+                        padding: "8px 12px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: quizForm.questions.length === 1 ? "not-allowed" : "pointer",
+                        opacity: quizForm.questions.length === 1 ? 0.7 : 1,
+                      }}
+                    >
+                      Delete Question
+                    </button>
+                  </div>
                 </div>
               ))}
+
+              <div style={{ display: "flex", justifyContent: "flex-start", marginTop: "2px" }}>
+                <button
+                  type="button"
+                  onClick={handleAddQuestion}
+                  style={{
+                    border: "1px solid #fdba74",
+                    background: "#fff7ed",
+                    color: "#9a3412",
+                    borderRadius: "14px",
+                    padding: "10px 12px",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                  }}
+                >
+                  + Add Question
+                </button>
+              </div>
             </div>
 
             <div style={{ marginTop: "18px", display: "flex", gap: "10px" }}>

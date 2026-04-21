@@ -4,20 +4,20 @@ import {
   createProgressAssessment,
   deleteProgressAssessment,
   listProgressAssessments,
+  updateProgressAssessment,
 } from "../utils/progressTrackerApi";
 
 const SELF_CHECK_STORAGE_KEY = "moduleSelfChecks";
-const OUTCOME_COUNT = 5; // Number of learning outcomes per self-check
 
 const createEmptyOutcome = (index) => ({
-  id: index + 1,
+  id: `${Date.now()}-${index + 1}`,
   text: "",
 });
 
 const createInitialForm = () => ({
   moduleId: "",
   status: "Not Started",
-  learningOutcomes: Array.from({ length: OUTCOME_COUNT }, (_, index) => createEmptyOutcome(index)),
+  learningOutcomes: [createEmptyOutcome(0)],
 });
 
 const loadStoredSelfChecks = () => {
@@ -38,6 +38,7 @@ function LecturerModuleSelfCheck() {
   const [moduleLoadError, setModuleLoadError] = useState("");
   const [modulesLoading, setModulesLoading] = useState(true);
   const [formError, setFormError] = useState("");
+  const [editingSelfCheckId, setEditingSelfCheckId] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -162,13 +163,58 @@ function LecturerModuleSelfCheck() {
     });
   };
 
+  const handleAddOutcome = () => {
+    setForm((prev) => ({
+      ...prev,
+      learningOutcomes: [...prev.learningOutcomes, createEmptyOutcome(prev.learningOutcomes.length)],
+    }));
+  };
+
+  const handleRemoveOutcome = (index) => {
+    setForm((prev) => {
+      if (prev.learningOutcomes.length === 1) return prev;
+
+      const nextOutcomes = prev.learningOutcomes.filter((_, outcomeIndex) => outcomeIndex !== index);
+      return {
+        ...prev,
+        learningOutcomes: nextOutcomes.map((outcome, outcomeIndex) => ({
+          ...outcome,
+          id: outcome.id || `${Date.now()}-${outcomeIndex + 1}`,
+        })),
+      };
+    });
+  };
+
+  const startEditSelfCheck = (item) => {
+    setEditingSelfCheckId(String(item.id));
+    setForm({
+      moduleId: String(item.moduleId || ""),
+      status: item.status || "Not Started",
+      learningOutcomes:
+        Array.isArray(item.learningOutcomes) && item.learningOutcomes.length > 0
+          ? item.learningOutcomes.map((outcome, index) => ({
+              id: String(outcome.id || `${Date.now()}-${index + 1}`),
+              text: outcome.text || "",
+            }))
+          : [createEmptyOutcome(0)],
+    });
+    setFormError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const resetForm = () => {
+    setForm(createInitialForm());
+    setEditingSelfCheckId("");
+    setFormError("");
+  };
+
   const validateSelfCheck = () => {
     if (!form.moduleId) {
       return "Please select a module from the database.";
     }
 
-    if (form.learningOutcomes.length !== OUTCOME_COUNT) {
-      return `Self check must include exactly ${OUTCOME_COUNT} learning outcomes.`;
+    if (form.learningOutcomes.length < 1) {
+      return "Self check must include at least one learning outcome.";
     }
 
     for (let index = 0; index < form.learningOutcomes.length; index += 1) {
@@ -181,7 +227,7 @@ function LecturerModuleSelfCheck() {
     return "";
   };
 
-  const handleAddSelfCheck = async () => {
+  const handleSaveSelfCheck = async () => {
     const validationMessage = validateSelfCheck();
     if (validationMessage) {
       setFormError(validationMessage);
@@ -213,10 +259,14 @@ function LecturerModuleSelfCheck() {
     };
 
     try {
-      const created = await createProgressAssessment(newSelfCheck);
-      const next = [created, ...selfChecks];
+      const saved = editingSelfCheckId
+        ? await updateProgressAssessment(editingSelfCheckId, newSelfCheck)
+        : await createProgressAssessment(newSelfCheck);
+      const next = editingSelfCheckId
+        ? [saved, ...selfChecks.filter((item) => String(item.id) !== String(editingSelfCheckId))]
+        : [saved, ...selfChecks];
       persistSelfChecks(next);
-      setForm(createInitialForm());
+      resetForm();
       setFormError("");
     } catch (error) {
       setFormError(error?.message || "Failed to save self-check in database.");
@@ -395,9 +445,15 @@ function LecturerModuleSelfCheck() {
                   color: "#64748b",
                 }}
               >
-                Choose a module, set the status, and define learning outcomes that students will self-assess.
+                Choose a module, set the status, and add as many learning outcomes as needed.
               </p>
             </div>
+
+            {editingSelfCheckId ? (
+              <div style={{ marginBottom: "14px", fontSize: "13px", fontWeight: 700, color: "#7e22ce" }}>
+                Editing existing self-check
+              </div>
+            ) : null}
 
             <div
               style={{
@@ -514,7 +570,7 @@ function LecturerModuleSelfCheck() {
               </div>
             ) : null}
 
-            <div style={{ maxHeight: "68vh", overflowY: "auto", paddingRight: "2px" }}>
+            <div style={{ maxHeight: "68vh", overflowY: "auto", paddingRight: "2px", display: "grid", gap: "12px" }}>
               {form.learningOutcomes.map((outcome, index) => (
                 <div
                   key={`outcome-${outcome.id}`}
@@ -555,13 +611,53 @@ function LecturerModuleSelfCheck() {
                       }}
                     />
                   </div>
+
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveOutcome(index)}
+                      disabled={form.learningOutcomes.length === 1}
+                      style={{
+                        border: "1px solid #fecaca",
+                        background: form.learningOutcomes.length === 1 ? "#fff1f2" : "#fff",
+                        color: "#dc2626",
+                        borderRadius: "999px",
+                        padding: "8px 12px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: form.learningOutcomes.length === 1 ? "not-allowed" : "pointer",
+                        opacity: form.learningOutcomes.length === 1 ? 0.7 : 1,
+                      }}
+                    >
+                      Delete Learning Outcome
+                    </button>
+                  </div>
                 </div>
               ))}
+
+              <div style={{ display: "flex", justifyContent: "flex-start", marginTop: "2px" }}>
+                <button
+                  type="button"
+                  onClick={handleAddOutcome}
+                  style={{
+                    border: "1px solid #d8b4fe",
+                    background: "#faf5ff",
+                    color: "#7e22ce",
+                    borderRadius: "14px",
+                    padding: "10px 12px",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                  }}
+                >
+                  + Add Learning Outcome
+                </button>
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginTop: "10px" }}>
               <button
-                onClick={handleAddSelfCheck}
+                onClick={handleSaveSelfCheck}
                 style={{
                   borderRadius: "16px",
                   border: "none",
@@ -572,15 +668,29 @@ function LecturerModuleSelfCheck() {
                   fontWeight: 700,
                 }}
               >
-                Save Self Check
+                {editingSelfCheckId ? "Update Self Check" : "Save Self Check"}
               </button>
               <button
-                onClick={handleClearAll}
+                onClick={resetForm}
                 style={{
                   borderRadius: "16px",
                   border: "1px solid #c4b5fd",
                   background: "#fff",
                   color: "#334155",
+                  padding: "14px 24px",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                }}
+              >
+                Reset Form
+              </button>
+              <button
+                onClick={handleClearAll}
+                style={{
+                  borderRadius: "16px",
+                  border: "1px solid #fecaca",
+                  background: "#fff1f2",
+                  color: "#dc2626",
                   padding: "14px 24px",
                   cursor: "pointer",
                   fontWeight: 700,
@@ -676,6 +786,20 @@ function LecturerModuleSelfCheck() {
                       >
                         {item.status}
                       </div>
+                      <button
+                        onClick={() => startEditSelfCheck(item)}
+                        style={{
+                          borderRadius: "16px",
+                          border: "1px solid #d8b4fe",
+                          background: "#faf5ff",
+                          color: "#7e22ce",
+                          padding: "10px 16px",
+                          cursor: "pointer",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Edit
+                      </button>
                       <button
                         onClick={() => handleDeleteSelfCheck(item.id)}
                         style={{

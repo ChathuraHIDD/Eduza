@@ -224,22 +224,25 @@ function LecturerModuleSelfCheck() {
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         <div
           style={{
+            background: "linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)",
+            borderRadius: 24,
+            padding: "28px 32px",
             position: "relative",
             overflow: "hidden",
-            borderRadius: "28px",
-            background: "linear-gradient(135deg, #7c3aed 0%, #9333ea 55%, #a855f7 100%)",
-            padding: "34px 32px",
+            minHeight: "160px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
             marginBottom: "28px",
-            boxShadow: "0 20px 40px rgba(124,58,237,0.20)",
           }}
         >
           <div
             style={{
               position: "absolute",
-              top: "-40px",
-              right: "-30px",
-              width: "190px",
-              height: "190px",
+              top: -40,
+              right: -40,
+              width: "220px",
+              height: "220px",
               borderRadius: "50%",
               background: "rgba(255,255,255,0.10)",
             }}
@@ -247,8 +250,8 @@ function LecturerModuleSelfCheck() {
           <div
             style={{
               position: "absolute",
-              bottom: "-50px",
-              right: "90px",
+              bottom: -55,
+              right: 100,
               width: "160px",
               height: "160px",
               borderRadius: "50%",
@@ -258,20 +261,14 @@ function LecturerModuleSelfCheck() {
 
           <div
             style={{
-              position: "relative",
-              zIndex: 1,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "10px",
-              background: "rgba(255,255,255,0.16)",
+              fontSize: 13,
               color: "#fff",
-              padding: "10px 14px",
-              borderRadius: "14px",
-              marginBottom: "14px",
-              fontSize: "13px",
-              fontWeight: "800",
+              fontWeight: 700,
+              marginBottom: 8,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
+              position: "relative",
+              zIndex: 1,
             }}
           >
             Lecturer Panel
@@ -279,10 +276,10 @@ function LecturerModuleSelfCheck() {
 
           <h1
             style={{
-              margin: "0 0 10px 0",
+              margin: 0,
               color: "#fff",
-              fontSize: "34px",
-              fontWeight: "800",
+              fontSize: 28,
+              fontWeight: 800,
               position: "relative",
               zIndex: 1,
             }}
@@ -292,11 +289,11 @@ function LecturerModuleSelfCheck() {
 
           <p
             style={{
-              margin: 0,
-              maxWidth: "840px",
+              margin: "10px 0 0",
+              maxWidth: "760px",
               color: "rgba(255,255,255,0.92)",
-              fontSize: "15px",
-              lineHeight: "1.8",
+              fontSize: 14,
+              lineHeight: 1.7,
               position: "relative",
               zIndex: 1,
             }}

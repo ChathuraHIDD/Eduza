@@ -252,6 +252,135 @@ body {
   min-width: 58px;
 }
 
+.progress-streak {
+  width: 100%;
+}
+
+.progress-streak > * + * {
+  margin-top: 28px !important;
+}
+
+.progress-streak-grid,
+.progress-streak-split {
+  align-items: stretch;
+}
+
+.progress-streak-card,
+.progress-streak-panel {
+  width: 100%;
+  min-width: 0;
+}
+
+.progress-streak-card {
+  padding: 24px !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.progress-streak-card h3 {
+  line-height: 1;
+}
+
+.progress-streak-panel {
+  padding: 24px !important;
+}
+
+.progress-streak-panel h3 {
+  margin-bottom: 18px !important;
+}
+
+.progress-streak-panel .space-y-3 > * + * {
+  margin-top: 16px !important;
+}
+
+.progress-streak-panel .space-y-2 > * + * {
+  margin-top: 12px !important;
+}
+
+.progress-streak-panel .grid.grid-cols-7 {
+  gap: 10px !important;
+}
+
+.progress-streak-panel .grid.grid-cols-7 > div {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.progress-streak-panel .grid.grid-cols-7 .rounded-lg {
+  margin-bottom: 8px !important;
+}
+
+.progress-streak-panel .flex.justify-between.mb-1 {
+  margin-bottom: 8px !important;
+}
+
+.progress-streak-panel .mt-4 {
+  margin-top: 18px !important;
+}
+
+.progress-streak-panel .grid.md\:grid-cols-3 {
+  gap: 16px !important;
+}
+
+.progress-streak-panel .grid.md\:grid-cols-3 > div {
+  padding: 16px !important;
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.progress-streak-panel .grid.md\:grid-cols-3 > div .text-2xl {
+  margin-bottom: 10px !important;
+}
+
+.progress-streak-panel .grid.md\:grid-cols-2 {
+  gap: 16px !important;
+}
+
+.progress-streak-panel .grid.md\:grid-cols-2 > div {
+  padding: 16px !important;
+  min-height: 92px;
+}
+
+.progress-streak-panel .grid.md\:grid-cols-2 > div p:first-child {
+  margin-bottom: 8px !important;
+}
+
+.progress-streak-panel.bg-red-50\/50 {
+  padding: 28px !important;
+}
+
+.progress-streak-panel.bg-red-50\/50 .space-y-2 > * + * {
+  margin-top: 14px !important;
+}
+
+.progress-streak-panel.bg-red-50\/50 .space-y-2 p {
+  line-height: 1.65;
+}
+
+.progress-streak-hero {
+  padding: 32px 28px !important;
+}
+
+.progress-streak-hero h3 {
+  margin-top: 8px;
+}
+
+.progress-streak-hero p {
+  max-width: 760px !important;
+}
+
+.progress-streak-hero .mb-4 {
+  margin-bottom: 20px !important;
+}
+
+.progress-streak-hero .mt-3 {
+  margin-top: 16px !important;
+}
+
 @media (max-width: 767px) {
   .progress-measure > * + * {
     margin-top: 24px !important;
@@ -303,5 +432,32 @@ body {
   .progress-measure-history-stats {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .progress-streak > * + * {
+    margin-top: 22px !important;
+  }
+
+  .progress-streak-card,
+  .progress-streak-panel {
+    padding: 18px !important;
+  }
+
+  .progress-streak-hero {
+    padding: 24px 18px !important;
+  }
+
+  .progress-streak-panel .grid.grid-cols-7 {
+    gap: 8px !important;
+  }
+
+  .progress-streak-panel .grid.md\:grid-cols-3 > div,
+  .progress-streak-panel .grid.md\:grid-cols-2 > div {
+    min-height: auto;
+    padding: 14px !important;
+  }
+
+  .progress-streak-panel.bg-red-50\/50 {
+    padding: 20px !important;
   }
 }

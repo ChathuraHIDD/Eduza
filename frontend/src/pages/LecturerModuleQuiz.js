@@ -278,20 +278,23 @@ function LecturerModuleQuiz() {
           style={{
             position: "relative",
             overflow: "hidden",
-            borderRadius: "28px",
+            borderRadius: "24px",
             background: "linear-gradient(135deg, #f97316 0%, #ea580c 55%, #c2410c 100%)",
-            padding: "34px 32px",
+            padding: "28px 32px",
+            minHeight: "160px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
             marginBottom: "28px",
-            boxShadow: "0 20px 40px rgba(249,115,22,0.20)",
           }}
         >
           <div
             style={{
               position: "absolute",
-              top: "-40px",
-              right: "-30px",
-              width: "190px",
-              height: "190px",
+              top: -40,
+              right: -40,
+              width: "220px",
+              height: "220px",
               borderRadius: "50%",
               background: "rgba(255,255,255,0.10)",
             }}
@@ -299,7 +302,7 @@ function LecturerModuleQuiz() {
           <div
             style={{
               position: "absolute",
-              bottom: "-50px",
+              bottom: -55,
               right: "90px",
               width: "160px",
               height: "160px",
@@ -310,20 +313,14 @@ function LecturerModuleQuiz() {
 
           <div
             style={{
-              position: "relative",
-              zIndex: 1,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "10px",
-              background: "rgba(255,255,255,0.16)",
+              fontSize: 13,
               color: "#fff",
-              padding: "10px 14px",
-              borderRadius: "14px",
-              marginBottom: "14px",
-              fontSize: "13px",
-              fontWeight: "800",
+              fontWeight: 700,
+              marginBottom: 8,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
+              position: "relative",
+              zIndex: 1,
             }}
           >
             Lecturer Panel
@@ -331,10 +328,10 @@ function LecturerModuleQuiz() {
 
           <h1
             style={{
-              margin: "0 0 10px 0",
+              margin: 0,
               color: "#fff",
-              fontSize: "34px",
-              fontWeight: "800",
+              fontSize: 28,
+              fontWeight: 800,
               position: "relative",
               zIndex: 1,
             }}
@@ -344,11 +341,11 @@ function LecturerModuleQuiz() {
 
           <p
             style={{
-              margin: 0,
-              maxWidth: "840px",
+              margin: "10px 0 0",
+              maxWidth: "760px",
               color: "rgba(255,255,255,0.92)",
-              fontSize: "15px",
-              lineHeight: "1.8",
+              fontSize: 14,
+              lineHeight: 1.7,
               position: "relative",
               zIndex: 1,
             }}

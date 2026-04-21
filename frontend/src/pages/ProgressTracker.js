@@ -1278,12 +1278,12 @@ Suggestions:
                 </div>
               </div>
 
-              <h2 className="mb-2 text-xl font-bold leading-7 text-slate-900">{item.title}</h2>
-              <p className="mb-4 text-sm leading-7 text-slate-500">
+              <h2 className="mb-3 text-xl font-bold leading-7 text-slate-900">{item.title}</h2>
+              <p className="mb-6 text-sm leading-7 text-slate-500">
                 {item.description}
               </p>
 
-              <div className="mt-auto pt-3 text-sm font-bold text-orange-600">
+              <div className="mt-auto pt-6 text-sm font-bold text-orange-600">
                 Open Category →
               </div>
             </button>
@@ -2529,10 +2529,10 @@ Suggestions:
         )}
 
         {activeCategory === "streak" && (
-          <div className="space-y-6">
+          <div className="progress-streak space-y-8">
             {/* Analytics Cards */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-[28px] border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-6 shadow-sm hover:shadow-md transition">
+            <div className="progress-streak-grid grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+              <div className="progress-streak-card rounded-[28px] border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-6 shadow-sm hover:shadow-md transition">
                 <p className="text-sm text-slate-500">Current Streak</p>
                 <h3 className="mt-2 text-5xl font-extrabold text-emerald-600">
                   {streakData.currentStreak}
@@ -2543,7 +2543,7 @@ Suggestions:
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-6 shadow-sm hover:shadow-md transition">
+              <div className="progress-streak-card rounded-[28px] border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-6 shadow-sm hover:shadow-md transition">
                 <p className="text-sm text-slate-500">Best Streak</p>
                 <h3 className="mt-2 text-5xl font-extrabold text-amber-600">
                   {streakData.bestStreak}
@@ -2551,7 +2551,7 @@ Suggestions:
                 <p className="mt-2 text-sm text-slate-600">best record</p>
               </div>
 
-              <div className="rounded-[28px] border border-blue-100 bg-gradient-to-br from-blue-50 to-cyan-50 p-6 shadow-sm hover:shadow-md transition">
+              <div className="progress-streak-card rounded-[28px] border border-blue-100 bg-gradient-to-br from-blue-50 to-cyan-50 p-6 shadow-sm hover:shadow-md transition">
                 <p className="text-sm text-slate-500">Study Days</p>
                 <h3 className="mt-2 text-5xl font-extrabold text-blue-600">
                   {streakData.studyDays}
@@ -2559,7 +2559,7 @@ Suggestions:
                 <p className="mt-2 text-sm text-slate-600">completed days</p>
               </div>
 
-              <div className="rounded-[28px] border border-purple-100 bg-gradient-to-br from-purple-50 to-pink-50 p-6 shadow-sm hover:shadow-md transition">
+              <div className="progress-streak-card rounded-[28px] border border-purple-100 bg-gradient-to-br from-purple-50 to-pink-50 p-6 shadow-sm hover:shadow-md transition">
                 <p className="text-sm text-slate-500">Badge Level</p>
                 <h3 className="mt-2 text-3xl font-extrabold text-purple-600">
                   {streakData.level}
@@ -2569,7 +2569,7 @@ Suggestions:
             </div>
 
             {/* Weekly Breakdown */}
-            <div className="rounded-[28px] border border-orange-100 bg-white p-6 shadow-sm">
+            <div className="progress-streak-panel rounded-[28px] border border-orange-100 bg-white p-6 shadow-sm">
               <h3 className="text-xl font-bold text-slate-900 mb-4">📊 Weekly Activity</h3>
               <div className="grid grid-cols-7 gap-2">
                 {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, idx) => {
@@ -2593,8 +2593,8 @@ Suggestions:
             </div>
 
             {/* Time Spent & Subjects */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="rounded-[28px] border border-blue-100 bg-white p-6 shadow-sm">
+            <div className="progress-streak-split grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="progress-streak-panel rounded-[28px] border border-blue-100 bg-white p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-slate-900 mb-4">⏱️ Time This Week</h3>
                 <div className="space-y-3">
                   <div>
@@ -2619,7 +2619,7 @@ Suggestions:
                 <p className="mt-4 text-sm font-semibold text-amber-600">Total: 6h 45m</p>
               </div>
 
-              <div className="rounded-[28px] border border-green-100 bg-white p-6 shadow-sm">
+              <div className="progress-streak-panel rounded-[28px] border border-green-100 bg-white p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-slate-900 mb-4">🎯 Top Subjects</h3>
                 <div className="space-y-3">
                   {[
@@ -2642,7 +2642,7 @@ Suggestions:
             </div>
 
             {/* Main Badge Section */}
-            <div className="md:col-span-2 xl:col-span-4 rounded-[28px] border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 via-white to-orange-50 p-8 shadow-lg">
+            <div className="progress-streak-hero md:col-span-2 xl:col-span-4 rounded-[28px] border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 via-white to-orange-50 p-8 shadow-lg">
               <style>{`
                 @keyframes bounce {
                   0%, 100% { transform: translateY(0); }
@@ -2673,7 +2673,7 @@ Suggestions:
             </div>
 
             {/* Rewards Catalog */}
-            <div className="rounded-[28px] border border-purple-100 bg-white p-6 shadow-sm">
+            <div className="progress-streak-panel rounded-[28px] border border-purple-100 bg-white p-6 shadow-sm">
               <h3 className="text-xl font-bold text-slate-900 mb-4">🎁 Reward Catalog</h3>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div className="rounded-xl border-2 border-dashed border-purple-200 bg-purple-50/50 p-4 hover:bg-purple-100 transition cursor-pointer">
@@ -2695,7 +2695,7 @@ Suggestions:
             </div>
 
             {/* Smart Insights */}
-            <div className="rounded-[28px] border border-cyan-100 bg-gradient-to-br from-cyan-50 to-blue-50 p-6 shadow-sm">
+            <div className="progress-streak-panel rounded-[28px] border border-cyan-100 bg-gradient-to-br from-cyan-50 to-blue-50 p-6 shadow-sm">
               <h3 className="text-xl font-bold text-slate-900 mb-4">🔮 AI Performance Insights</h3>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="rounded-xl bg-white/60 backdrop-blur p-4">
@@ -2718,7 +2718,7 @@ Suggestions:
             </div>
 
             {/* Recovery Guide */}
-            <div className="rounded-[28px] border border-red-100 bg-red-50/50 p-6 shadow-sm">
+            <div className="progress-streak-panel rounded-[28px] border border-red-100 bg-red-50/50 p-6 shadow-sm">
               <h3 className="text-lg font-bold text-slate-900 mb-3">💪 If Your Streak Breaks...</h3>
               <div className="space-y-2 text-sm text-slate-700">
                 <p>✅ <span className="font-semibold">Start small:</span> Begin with just 15 minutes of study to rebuild momentum</p>

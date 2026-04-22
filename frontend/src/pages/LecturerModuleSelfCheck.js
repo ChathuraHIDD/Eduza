@@ -1,18 +1,23 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchModules } from "../utils/moduleApi";
+import {
+  createProgressAssessment,
+  deleteProgressAssessment,
+  listProgressAssessments,
+  updateProgressAssessment,
+} from "../utils/progressTrackerApi";
 
 const SELF_CHECK_STORAGE_KEY = "moduleSelfChecks";
-const OUTCOME_COUNT = 5; // Number of learning outcomes per self-check
 
 const createEmptyOutcome = (index) => ({
-  id: index + 1,
+  id: `${Date.now()}-${index + 1}`,
   text: "",
 });
 
 const createInitialForm = () => ({
   moduleId: "",
   status: "Not Started",
-  learningOutcomes: Array.from({ length: OUTCOME_COUNT }, (_, index) => createEmptyOutcome(index)),
+  learningOutcomes: [createEmptyOutcome(0)],
 });
 
 const loadStoredSelfChecks = () => {
@@ -33,6 +38,7 @@ function LecturerModuleSelfCheck() {
   const [moduleLoadError, setModuleLoadError] = useState("");
   const [modulesLoading, setModulesLoading] = useState(true);
   const [formError, setFormError] = useState("");
+  const [editingSelfCheckId, setEditingSelfCheckId] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -71,6 +77,37 @@ function LecturerModuleSelfCheck() {
     };
 
     loadModules();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSelfChecksFromDb = async () => {
+      try {
+        const data = await listProgressAssessments("selfcheck");
+        if (!isMounted) return;
+
+        const normalized = data.map((item) => ({
+          ...item,
+          id: item.id,
+          type: "selfcheck",
+          learningOutcomes: Array.isArray(item.learningOutcomes)
+            ? item.learningOutcomes
+            : [],
+        }));
+
+        setSelfChecks(normalized);
+        localStorage.setItem(SELF_CHECK_STORAGE_KEY, JSON.stringify(normalized));
+      } catch {
+        // Keep local fallback when API is unavailable.
+      }
+    };
+
+    loadSelfChecksFromDb();
+
     return () => {
       isMounted = false;
     };
@@ -126,13 +163,58 @@ function LecturerModuleSelfCheck() {
     });
   };
 
+  const handleAddOutcome = () => {
+    setForm((prev) => ({
+      ...prev,
+      learningOutcomes: [...prev.learningOutcomes, createEmptyOutcome(prev.learningOutcomes.length)],
+    }));
+  };
+
+  const handleRemoveOutcome = (index) => {
+    setForm((prev) => {
+      if (prev.learningOutcomes.length === 1) return prev;
+
+      const nextOutcomes = prev.learningOutcomes.filter((_, outcomeIndex) => outcomeIndex !== index);
+      return {
+        ...prev,
+        learningOutcomes: nextOutcomes.map((outcome, outcomeIndex) => ({
+          ...outcome,
+          id: outcome.id || `${Date.now()}-${outcomeIndex + 1}`,
+        })),
+      };
+    });
+  };
+
+  const startEditSelfCheck = (item) => {
+    setEditingSelfCheckId(String(item.id));
+    setForm({
+      moduleId: String(item.moduleId || ""),
+      status: item.status || "Not Started",
+      learningOutcomes:
+        Array.isArray(item.learningOutcomes) && item.learningOutcomes.length > 0
+          ? item.learningOutcomes.map((outcome, index) => ({
+              id: String(outcome.id || `${Date.now()}-${index + 1}`),
+              text: outcome.text || "",
+            }))
+          : [createEmptyOutcome(0)],
+    });
+    setFormError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const resetForm = () => {
+    setForm(createInitialForm());
+    setEditingSelfCheckId("");
+    setFormError("");
+  };
+
   const validateSelfCheck = () => {
     if (!form.moduleId) {
       return "Please select a module from the database.";
     }
 
-    if (form.learningOutcomes.length !== OUTCOME_COUNT) {
-      return `Self check must include exactly ${OUTCOME_COUNT} learning outcomes.`;
+    if (form.learningOutcomes.length < 1) {
+      return "Self check must include at least one learning outcome.";
     }
 
     for (let index = 0; index < form.learningOutcomes.length; index += 1) {
@@ -145,7 +227,7 @@ function LecturerModuleSelfCheck() {
     return "";
   };
 
-  const handleAddSelfCheck = () => {
+  const handleSaveSelfCheck = async () => {
     const validationMessage = validateSelfCheck();
     if (validationMessage) {
       setFormError(validationMessage);
@@ -167,7 +249,6 @@ function LecturerModuleSelfCheck() {
     }));
 
     const newSelfCheck = {
-      id: Date.now(),
       moduleId: selectedModule.id,
       moduleName: selectedModule.name,
       moduleCode: selectedModule.code,
@@ -177,21 +258,47 @@ function LecturerModuleSelfCheck() {
       type: "selfcheck",
     };
 
-    persistSelfChecks([newSelfCheck, ...selfChecks]);
-    setForm(createInitialForm());
-    setFormError("");
+    try {
+      const saved = editingSelfCheckId
+        ? await updateProgressAssessment(editingSelfCheckId, newSelfCheck)
+        : await createProgressAssessment(newSelfCheck);
+      const next = editingSelfCheckId
+        ? [saved, ...selfChecks.filter((item) => String(item.id) !== String(editingSelfCheckId))]
+        : [saved, ...selfChecks];
+      persistSelfChecks(next);
+      resetForm();
+      setFormError("");
+    } catch (error) {
+      setFormError(error?.message || "Failed to save self-check in database.");
+    }
   };
 
-  const handleDeleteSelfCheck = (id) => {
-    const updated = selfChecks.filter((item) => item.id !== id);
+  const handleDeleteSelfCheck = async (id) => {
+    try {
+      if (typeof id === "string") {
+        await deleteProgressAssessment(id);
+      }
+    } catch {
+      // Continue local removal to avoid blocking UI when API fails.
+    }
+
+    const updated = selfChecks.filter((item) => String(item.id) !== String(id));
     persistSelfChecks(updated);
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     const confirmed = window.confirm(
       "Are you sure you want to delete all self-check entries?"
     );
     if (!confirmed) return;
+
+    await Promise.all(
+      selfChecks
+        .map((item) => item.id)
+        .filter((id) => typeof id === "string")
+        .map((id) => deleteProgressAssessment(id).catch(() => null))
+    );
+
     setSelfChecks([]);
     localStorage.removeItem(SELF_CHECK_STORAGE_KEY);
   };
@@ -224,22 +331,25 @@ function LecturerModuleSelfCheck() {
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         <div
           style={{
+            background: "linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)",
+            borderRadius: 24,
+            padding: "28px 32px",
             position: "relative",
             overflow: "hidden",
-            borderRadius: "28px",
-            background: "linear-gradient(135deg, #7c3aed 0%, #9333ea 55%, #a855f7 100%)",
-            padding: "34px 32px",
+            minHeight: "160px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
             marginBottom: "28px",
-            boxShadow: "0 20px 40px rgba(124,58,237,0.20)",
           }}
         >
           <div
             style={{
               position: "absolute",
-              top: "-40px",
-              right: "-30px",
-              width: "190px",
-              height: "190px",
+              top: -40,
+              right: -40,
+              width: "220px",
+              height: "220px",
               borderRadius: "50%",
               background: "rgba(255,255,255,0.10)",
             }}
@@ -247,8 +357,8 @@ function LecturerModuleSelfCheck() {
           <div
             style={{
               position: "absolute",
-              bottom: "-50px",
-              right: "90px",
+              bottom: -55,
+              right: 100,
               width: "160px",
               height: "160px",
               borderRadius: "50%",
@@ -258,20 +368,14 @@ function LecturerModuleSelfCheck() {
 
           <div
             style={{
-              position: "relative",
-              zIndex: 1,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "10px",
-              background: "rgba(255,255,255,0.16)",
+              fontSize: 13,
               color: "#fff",
-              padding: "10px 14px",
-              borderRadius: "14px",
-              marginBottom: "14px",
-              fontSize: "13px",
-              fontWeight: "800",
+              fontWeight: 700,
+              marginBottom: 8,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
+              position: "relative",
+              zIndex: 1,
             }}
           >
             Lecturer Panel
@@ -279,10 +383,10 @@ function LecturerModuleSelfCheck() {
 
           <h1
             style={{
-              margin: "0 0 10px 0",
+              margin: 0,
               color: "#fff",
-              fontSize: "34px",
-              fontWeight: "800",
+              fontSize: 28,
+              fontWeight: 800,
               position: "relative",
               zIndex: 1,
             }}
@@ -292,11 +396,11 @@ function LecturerModuleSelfCheck() {
 
           <p
             style={{
-              margin: 0,
-              maxWidth: "840px",
+              margin: "10px 0 0",
+              maxWidth: "760px",
               color: "rgba(255,255,255,0.92)",
-              fontSize: "15px",
-              lineHeight: "1.8",
+              fontSize: 14,
+              lineHeight: 1.7,
               position: "relative",
               zIndex: 1,
             }}
@@ -341,9 +445,15 @@ function LecturerModuleSelfCheck() {
                   color: "#64748b",
                 }}
               >
-                Choose a module, set the status, and define learning outcomes that students will self-assess.
+                Choose a module, set the status, and add as many learning outcomes as needed.
               </p>
             </div>
+
+            {editingSelfCheckId ? (
+              <div style={{ marginBottom: "14px", fontSize: "13px", fontWeight: 700, color: "#7e22ce" }}>
+                Editing existing self-check
+              </div>
+            ) : null}
 
             <div
               style={{
@@ -460,7 +570,7 @@ function LecturerModuleSelfCheck() {
               </div>
             ) : null}
 
-            <div style={{ maxHeight: "68vh", overflowY: "auto", paddingRight: "2px" }}>
+            <div style={{ maxHeight: "68vh", overflowY: "auto", paddingRight: "2px", display: "grid", gap: "12px" }}>
               {form.learningOutcomes.map((outcome, index) => (
                 <div
                   key={`outcome-${outcome.id}`}
@@ -501,13 +611,53 @@ function LecturerModuleSelfCheck() {
                       }}
                     />
                   </div>
+
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveOutcome(index)}
+                      disabled={form.learningOutcomes.length === 1}
+                      style={{
+                        border: "1px solid #fecaca",
+                        background: form.learningOutcomes.length === 1 ? "#fff1f2" : "#fff",
+                        color: "#dc2626",
+                        borderRadius: "999px",
+                        padding: "8px 12px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: form.learningOutcomes.length === 1 ? "not-allowed" : "pointer",
+                        opacity: form.learningOutcomes.length === 1 ? 0.7 : 1,
+                      }}
+                    >
+                      Delete Learning Outcome
+                    </button>
+                  </div>
                 </div>
               ))}
+
+              <div style={{ display: "flex", justifyContent: "flex-start", marginTop: "2px" }}>
+                <button
+                  type="button"
+                  onClick={handleAddOutcome}
+                  style={{
+                    border: "1px solid #d8b4fe",
+                    background: "#faf5ff",
+                    color: "#7e22ce",
+                    borderRadius: "14px",
+                    padding: "10px 12px",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                  }}
+                >
+                  + Add Learning Outcome
+                </button>
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginTop: "10px" }}>
               <button
-                onClick={handleAddSelfCheck}
+                onClick={handleSaveSelfCheck}
                 style={{
                   borderRadius: "16px",
                   border: "none",
@@ -518,15 +668,29 @@ function LecturerModuleSelfCheck() {
                   fontWeight: 700,
                 }}
               >
-                Save Self Check
+                {editingSelfCheckId ? "Update Self Check" : "Save Self Check"}
               </button>
               <button
-                onClick={handleClearAll}
+                onClick={resetForm}
                 style={{
                   borderRadius: "16px",
                   border: "1px solid #c4b5fd",
                   background: "#fff",
                   color: "#334155",
+                  padding: "14px 24px",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                }}
+              >
+                Reset Form
+              </button>
+              <button
+                onClick={handleClearAll}
+                style={{
+                  borderRadius: "16px",
+                  border: "1px solid #fecaca",
+                  background: "#fff1f2",
+                  color: "#dc2626",
                   padding: "14px 24px",
                   cursor: "pointer",
                   fontWeight: 700,
@@ -622,6 +786,20 @@ function LecturerModuleSelfCheck() {
                       >
                         {item.status}
                       </div>
+                      <button
+                        onClick={() => startEditSelfCheck(item)}
+                        style={{
+                          borderRadius: "16px",
+                          border: "1px solid #d8b4fe",
+                          background: "#faf5ff",
+                          color: "#7e22ce",
+                          padding: "10px 16px",
+                          cursor: "pointer",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Edit
+                      </button>
                       <button
                         onClick={() => handleDeleteSelfCheck(item.id)}
                         style={{

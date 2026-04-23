@@ -225,6 +225,24 @@ function ProgressTracker() {
     return `${year}-${month}-${day}`;
   }, []);
 
+  const getPublishedTimestamp = useCallback((item) => {
+    const candidates = [
+      item?.publishedAt,
+      item?.publishDate,
+      item?.createdAt,
+      item?.updatedAt,
+      item?.date,
+    ];
+
+    for (const value of candidates) {
+      if (!value) continue;
+      const timestamp = new Date(value).getTime();
+      if (!Number.isNaN(timestamp)) return timestamp;
+    }
+
+    return 0;
+  }, []);
+
   const dayKeyToIndex = useCallback((dayKey) => {
     const [year, month, day] = dayKey.split("-").map(Number);
     return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
@@ -557,32 +575,73 @@ function ProgressTracker() {
   }, []);
 
   const normalizedQuizModules = useMemo(() => {
-    return quizModules.map((quiz) => {
-      const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
-      return {
-        ...quiz,
-        type: quiz.type || "quiz",
-        moduleName: quiz.moduleName || "Unnamed Module",
-        moduleCode: quiz.moduleCode || "",
-        questionCount: questions.length || Number(quiz.questions) || 0,
-        questions,
-      };
-    });
-  }, [quizModules]);
+    return quizModules
+      .map((quiz) => {
+        const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+        return {
+          ...quiz,
+          type: quiz.type || "quiz",
+          moduleName: quiz.moduleName || "Unnamed Module",
+          moduleCode: quiz.moduleCode || "",
+          questionCount: questions.length || Number(quiz.questions) || 0,
+          questions,
+        };
+      })
+      .sort((a, b) => getPublishedTimestamp(b) - getPublishedTimestamp(a));
+  }, [getPublishedTimestamp, quizModules]);
 
   const normalizedSelfCheckModules = useMemo(() => {
-    return selfCheckModules.map((item) => {
-      const questions = Array.isArray(item.questions) ? item.questions : [];
-      return {
-        ...item,
-        type: item.type || "selfcheck",
-        moduleName: item.moduleName || "Unnamed Module",
-        moduleCode: item.moduleCode || "",
-        questionCount: questions.length || Number(item.questions) || 0,
-        questions,
-      };
-    });
-  }, [selfCheckModules]);
+    return selfCheckModules
+      .map((item) => {
+        const questions = Array.isArray(item.questions) ? item.questions : [];
+        return {
+          ...item,
+          type: item.type || "selfcheck",
+          moduleName: item.moduleName || "Unnamed Module",
+          moduleCode: item.moduleCode || "",
+          questionCount: questions.length || Number(item.questions) || 0,
+          questions,
+        };
+      })
+      .sort((a, b) => getPublishedTimestamp(b) - getPublishedTimestamp(a));
+  }, [getPublishedTimestamp, selfCheckModules]);
+
+  const isAssessmentOpen = useCallback(
+    (assessmentId) => String(selectedQuizId) === String(assessmentId),
+    [selectedQuizId]
+  );
+
+  const getDisplayedAssessmentStatus = useCallback(
+    (item) => {
+      if (isAssessmentOpen(item.id) && item.status !== "Completed") {
+        return "Started";
+      }
+
+      return item.status || "Not Started";
+    },
+    [isAssessmentOpen]
+  );
+
+  const getDisplayedAssessmentStatusStyle = useCallback((status) => {
+    switch (status) {
+      case "Completed":
+        return {
+          background: "#dbeafe",
+          color: "#2563eb",
+        };
+      case "Started":
+      case "In Progress":
+        return {
+          background: "#ffedd5",
+          color: "#9a3412",
+        };
+      default:
+        return {
+          background: "#f3f4f6",
+          color: "#6b7280",
+        };
+    }
+  }, []);
 
   const allAssessments = useMemo(() => {
     return [...normalizedQuizModules, ...normalizedSelfCheckModules];
@@ -2006,7 +2065,7 @@ Suggestions:
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gridTemplateColumns: "1fr",
                 gap: 16,
               }}
             >
@@ -2046,21 +2105,10 @@ Suggestions:
                           padding: "3px 10px",
                           fontSize: 11,
                           fontWeight: 700,
-                          background:
-                            item.status === "Completed"
-                              ? "#dbeafe"
-                              : item.status === "In Progress"
-                              ? "#e0e7ff"
-                              : "#f3f4f6",
-                          color:
-                            item.status === "Completed"
-                              ? "#2563eb"
-                              : item.status === "In Progress"
-                              ? "#4f46e5"
-                              : "#6b7280",
+                          ...getDisplayedAssessmentStatusStyle(getDisplayedAssessmentStatus(item)),
                         }}
                       >
-                        {item.status}
+                        {getDisplayedAssessmentStatus(item)}
                       </span>
                     </div>
 
@@ -2706,7 +2754,7 @@ Suggestions:
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                  gridTemplateColumns: "1fr",
                   gap: 16,
                 }}
               >
@@ -2742,11 +2790,10 @@ Suggestions:
                           padding: "3px 10px",
                           fontSize: 11,
                           fontWeight: 700,
-                          background: "#f3e8ff",
-                          color: "#9333ea",
+                          ...getDisplayedAssessmentStatusStyle(getDisplayedAssessmentStatus(item)),
                         }}
                       >
-                        {item.status}
+                        {getDisplayedAssessmentStatus(item)}
                       </span>
                     </div>
 

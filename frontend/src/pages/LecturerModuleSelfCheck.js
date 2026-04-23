@@ -313,9 +313,9 @@ function LecturerModuleSelfCheck() {
         };
       case "In Progress":
         return {
-          background: "#e0f2fe",
-          color: "#075985",
-          border: "1px solid #7dd3fc",
+          background: "#ffedd5",
+          color: "#9a3412",
+          border: "1px solid #fdba74",
         };
       default:
         return {
@@ -331,7 +331,7 @@ function LecturerModuleSelfCheck() {
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         <div
           style={{
-            background: "linear-gradient(135deg, #ff6a00 0%, #f25c05 55%, #d5541b 100%)",
+            background: "linear-gradient(135deg, #f97316 0%, #ea580c 55%, #c2410c 100%)",
             borderRadius: 24,
             padding: "28px 32px",
             position: "relative",
@@ -420,7 +420,7 @@ function LecturerModuleSelfCheck() {
           <div
             style={{
               background: "#fff",
-              border: "1px solid #e9d5ff",
+              border: "1px solid #fed7aa",
               borderRadius: "26px",
               padding: "24px",
               boxShadow: "0 8px 24px rgba(15,23,42,0.05)",
@@ -450,7 +450,7 @@ function LecturerModuleSelfCheck() {
             </div>
 
             {editingSelfCheckId ? (
-              <div style={{ marginBottom: "14px", fontSize: "13px", fontWeight: 700, color: "#7e22ce" }}>
+              <div style={{ marginBottom: "14px", fontSize: "13px", fontWeight: 700, color: "#9a3412" }}>
                 Editing existing self-check
               </div>
             ) : null}
@@ -482,8 +482,8 @@ function LecturerModuleSelfCheck() {
                   style={{
                     width: "100%",
                     boxSizing: "border-box",
-                    border: "1px solid #c084fc",
-                    background: "#f8fafc",
+                    border: "1px solid #fdba74",
+                    background: "#fff7ed",
                     borderRadius: "16px",
                     padding: "14px 16px",
                     fontSize: "14px",
@@ -521,8 +521,8 @@ function LecturerModuleSelfCheck() {
                   style={{
                     width: "100%",
                     boxSizing: "border-box",
-                    border: "1px solid #c084fc",
-                    background: "#f8fafc",
+                    border: "1px solid #fdba74",
+                    background: "#fff7ed",
                     borderRadius: "16px",
                     padding: "14px 16px",
                     fontSize: "14px",
@@ -578,8 +578,8 @@ function LecturerModuleSelfCheck() {
                     marginBottom: "22px",
                     padding: "18px 20px",
                     borderRadius: "22px",
-                    border: "1px solid #e5d5fc",
-                    background: "#faf5ff",
+                    border: "1px solid #fed7aa",
+                    background: "#fffaf5",
                   }}
                 >
                   <div style={{ marginBottom: "14px" }}>
@@ -602,7 +602,7 @@ function LecturerModuleSelfCheck() {
                       style={{
                         width: "100%",
                         borderRadius: "16px",
-                        border: "1px solid #c4b5fd",
+                        border: "1px solid #fdba74",
                         padding: "14px 16px",
                         fontSize: "14px",
                         resize: "vertical",
@@ -640,9 +640,9 @@ function LecturerModuleSelfCheck() {
                   type="button"
                   onClick={handleAddOutcome}
                   style={{
-                    border: "1px solid #d8b4fe",
-                    background: "#faf5ff",
-                    color: "#7e22ce",
+                    border: "1px solid #fdba74",
+                    background: "#fff7ed",
+                    color: "#9a3412",
                     borderRadius: "14px",
                     padding: "10px 12px",
                     fontSize: "13px",
@@ -661,9 +661,10 @@ function LecturerModuleSelfCheck() {
                 style={{
                   borderRadius: "16px",
                   border: "none",
-                  background: "#7c3aed",
+                  background: "linear-gradient(135deg, #f97316, #ea580c)",
                   color: "#fff",
-                  padding: "14px 24px",
+                  padding: "14px 18px",
+                  fontSize: "15px",
                   cursor: "pointer",
                   fontWeight: 700,
                 }}
@@ -674,10 +675,11 @@ function LecturerModuleSelfCheck() {
                 onClick={resetForm}
                 style={{
                   borderRadius: "16px",
-                  border: "1px solid #c4b5fd",
+                  border: "1px solid #fdba74",
                   background: "#fff",
-                  color: "#334155",
-                  padding: "14px 24px",
+                  color: "#9a3412",
+                  padding: "14px 18px",
+                  fontSize: "14px",
                   cursor: "pointer",
                   fontWeight: 700,
                 }}
@@ -691,7 +693,8 @@ function LecturerModuleSelfCheck() {
                   border: "1px solid #fecaca",
                   background: "#fff1f2",
                   color: "#dc2626",
-                  padding: "14px 24px",
+                  padding: "14px 18px",
+                  fontSize: "14px",
                   cursor: "pointer",
                   fontWeight: 700,
                 }}
@@ -704,7 +707,7 @@ function LecturerModuleSelfCheck() {
           <div
             style={{
               background: "#fff",
-              border: "1px solid #e5d5ff",
+              border: "1px solid #fed7aa",
               borderRadius: "26px",
               padding: "24px",
               boxShadow: "0 8px 24px rgba(15,23,42,0.05)",
@@ -754,7 +757,7 @@ function LecturerModuleSelfCheck() {
                     style={{
                       borderRadius: "24px",
                       padding: "18px 20px",
-                      border: "1px solid #e9d5ff",
+                      border: "1px solid #fed7aa",
                       background: "#fff",
                     }}
                   >
@@ -776,10 +779,9 @@ function LecturerModuleSelfCheck() {
                     <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
                       <div
                         style={{
+                          ...getStatusBadgeStyle(item.status),
                           borderRadius: "16px",
                           padding: "10px 14px",
-                          background: "#eef2ff",
-                          color: "#4338ca",
                           fontSize: "13px",
                           fontWeight: 700,
                         }}
@@ -790,10 +792,11 @@ function LecturerModuleSelfCheck() {
                         onClick={() => startEditSelfCheck(item)}
                         style={{
                           borderRadius: "16px",
-                          border: "1px solid #d8b4fe",
-                          background: "#faf5ff",
-                          color: "#7e22ce",
+                          border: "1px solid #fdba74",
+                          background: "#fff7ed",
+                          color: "#9a3412",
                           padding: "10px 16px",
+                          fontSize: "14px",
                           cursor: "pointer",
                           fontWeight: 700,
                         }}
@@ -808,6 +811,7 @@ function LecturerModuleSelfCheck() {
                           background: "#fff",
                           color: "#dc2626",
                           padding: "10px 16px",
+                          fontSize: "14px",
                           cursor: "pointer",
                           fontWeight: 700,
                         }}

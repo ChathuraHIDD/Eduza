@@ -606,6 +606,43 @@ function ProgressTracker() {
       .sort((a, b) => getPublishedTimestamp(b) - getPublishedTimestamp(a));
   }, [getPublishedTimestamp, selfCheckModules]);
 
+  const isAssessmentOpen = useCallback(
+    (assessmentId) => String(selectedQuizId) === String(assessmentId),
+    [selectedQuizId]
+  );
+
+  const getDisplayedAssessmentStatus = useCallback(
+    (item) => {
+      if (isAssessmentOpen(item.id) && item.status !== "Completed") {
+        return "Started";
+      }
+
+      return item.status || "Not Started";
+    },
+    [isAssessmentOpen]
+  );
+
+  const getDisplayedAssessmentStatusStyle = useCallback((status) => {
+    switch (status) {
+      case "Completed":
+        return {
+          background: "#dbeafe",
+          color: "#2563eb",
+        };
+      case "Started":
+      case "In Progress":
+        return {
+          background: "#ffedd5",
+          color: "#9a3412",
+        };
+      default:
+        return {
+          background: "#f3f4f6",
+          color: "#6b7280",
+        };
+    }
+  }, []);
+
   const allAssessments = useMemo(() => {
     return [...normalizedQuizModules, ...normalizedSelfCheckModules];
   }, [normalizedQuizModules, normalizedSelfCheckModules]);
@@ -2068,21 +2105,10 @@ Suggestions:
                           padding: "3px 10px",
                           fontSize: 11,
                           fontWeight: 700,
-                          background:
-                            item.status === "Completed"
-                              ? "#dbeafe"
-                              : item.status === "In Progress"
-                              ? "#e0e7ff"
-                              : "#f3f4f6",
-                          color:
-                            item.status === "Completed"
-                              ? "#2563eb"
-                              : item.status === "In Progress"
-                              ? "#4f46e5"
-                              : "#6b7280",
+                          ...getDisplayedAssessmentStatusStyle(getDisplayedAssessmentStatus(item)),
                         }}
                       >
-                        {item.status}
+                        {getDisplayedAssessmentStatus(item)}
                       </span>
                     </div>
 
@@ -2764,11 +2790,10 @@ Suggestions:
                           padding: "3px 10px",
                           fontSize: 11,
                           fontWeight: 700,
-                          background: "#f3e8ff",
-                          color: "#9333ea",
+                          ...getDisplayedAssessmentStatusStyle(getDisplayedAssessmentStatus(item)),
                         }}
                       >
-                        {item.status}
+                        {getDisplayedAssessmentStatus(item)}
                       </span>
                     </div>
 

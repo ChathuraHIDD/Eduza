@@ -663,7 +663,8 @@ function LecturerModuleSelfCheck() {
                   border: "none",
                   background: "linear-gradient(135deg, #f97316, #ea580c)",
                   color: "#fff",
-                  padding: "14px 24px",
+                  padding: "14px 18px",
+                  fontSize: "15px",
                   cursor: "pointer",
                   fontWeight: 700,
                 }}
@@ -677,7 +678,8 @@ function LecturerModuleSelfCheck() {
                   border: "1px solid #fdba74",
                   background: "#fff",
                   color: "#9a3412",
-                  padding: "14px 24px",
+                  padding: "14px 18px",
+                  fontSize: "14px",
                   cursor: "pointer",
                   fontWeight: 700,
                 }}
@@ -691,7 +693,8 @@ function LecturerModuleSelfCheck() {
                   border: "1px solid #fecaca",
                   background: "#fff1f2",
                   color: "#dc2626",
-                  padding: "14px 24px",
+                  padding: "14px 18px",
+                  fontSize: "14px",
                   cursor: "pointer",
                   fontWeight: 700,
                 }}
@@ -793,6 +796,7 @@ function LecturerModuleSelfCheck() {
                           background: "#fff7ed",
                           color: "#9a3412",
                           padding: "10px 16px",
+                          fontSize: "14px",
                           cursor: "pointer",
                           fontWeight: 700,
                         }}
@@ -807,6 +811,7 @@ function LecturerModuleSelfCheck() {
                           background: "#fff",
                           color: "#dc2626",
                           padding: "10px 16px",
+                          fontSize: "14px",
                           cursor: "pointer",
                           fontWeight: 700,
                         }}

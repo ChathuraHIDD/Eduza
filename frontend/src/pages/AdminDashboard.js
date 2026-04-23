@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { getPendingProfileRequests, updateProfileRequestStatus } from '../utils/profileRequestApi'
 import { fetchModules, updateModuleApproval } from '../utils/moduleApi'
 import { acknowledgeStressAlert, getStressAdminSummary, getStressAlerts } from '../utils/stressHubApi'
-import { getPendingKuppiRequests, updateKuppiRequestStatus } from '../utils/kuppiRequestStorage'
+import socket from '../utils/socket'
+import { getKuppiConductorApplications, updateKuppiConductorApplicationStatus } from '../utils/kuppiApi'
 
 const cardStyle = {
   background: '#ffffff',
@@ -46,19 +47,35 @@ function AdminDashboard() {
     fetchStressSummary()
     loadPendingKuppiRequests()
 
-    const handleKuppiUpdate = () => {
-      loadPendingKuppiRequests()
+    const handleKuppiCreated = (application) => {
+      if (application?.status === 'pending') {
+        setPendingKuppiRequests((prev) => [application, ...prev.filter((item) => item._id !== application._id)])
+      }
     }
 
-    window.addEventListener('kuppi-requests-updated', handleKuppiUpdate)
+    const handleKuppiUpdated = (application) => {
+      setPendingKuppiRequests((prev) => {
+        const withoutCurrent = prev.filter((item) => item._id !== application?._id)
+        return application?.status === 'pending' ? [application, ...withoutCurrent] : withoutCurrent
+      })
+    }
+
+    socket.on('kuppi_application_created', handleKuppiCreated)
+    socket.on('kuppi_application_updated', handleKuppiUpdated)
 
     return () => {
-      window.removeEventListener('kuppi-requests-updated', handleKuppiUpdate)
+      socket.off('kuppi_application_created', handleKuppiCreated)
+      socket.off('kuppi_application_updated', handleKuppiUpdated)
     }
   }, [])
 
-  const loadPendingKuppiRequests = () => {
-    setPendingKuppiRequests(getPendingKuppiRequests())
+  const loadPendingKuppiRequests = async () => {
+    try {
+      const response = await getKuppiConductorApplications('pending')
+      setPendingKuppiRequests(response?.data || [])
+    } catch (err) {
+      console.error('Failed to load pending Kuppi requests', err)
+    }
   }
 
   const fetchStressSummary = async () => {
@@ -182,12 +199,7 @@ function AdminDashboard() {
   const handleKuppiDecision = async (requestId, status) => {
     try {
       setKuppiProcessingId(requestId)
-      updateKuppiRequestStatus(
-        requestId,
-        status,
-        status === 'approved' ? 'Approved by admin' : 'Rejected by admin'
-      )
-      loadPendingKuppiRequests()
+      await updateKuppiConductorApplicationStatus(requestId, status)
       alert(`Kuppi request ${status} successfully!`)
     } catch (err) {
       alert('Failed to update Kuppi request: ' + err.message)

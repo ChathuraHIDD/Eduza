@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import "./KuppiSessions.css";
-import { createKuppiRequest } from "../../utils/kuppiRequestStorage";
+import { submitKuppiConductorApplication } from "../../utils/kuppiApi";
 
 function KuppiSessions() {
   const storedUser = JSON.parse(localStorage.getItem("user")) || {};
@@ -356,24 +356,31 @@ function KuppiSessions() {
     }));
   };
 
-  const handleConductorSubmit = (e) => {
+  const handleConductorSubmit = async (e) => {
     e.preventDefault();
-    const savedRequest = createKuppiRequest(conductorForm, storedUser);
-    console.log("Conductor Application Data:", savedRequest);
-    alert("Kuppi conductor request sent to admin successfully!");
-    setIsModalOpen(false);
-    setConductorForm({
-      fullName: currentUser.name,
-      mainSubject: "",
-      moduleLikeToDo: "",
-      currentStudyYear: currentUser.year,
-      currentSemester: currentUser.semester,
-      cgpa: "",
-      contact: "",
-      experience: "",
-      topicStrength: "",
-      availability: "",
-    });
+    try {
+      const savedRequest = await submitKuppiConductorApplication({
+        ...conductorForm,
+        userId: storedUser._id || storedUser.id || null,
+      });
+      console.log("Conductor Application Data:", savedRequest);
+      alert("Kuppi conductor request sent to admin successfully!");
+      setIsModalOpen(false);
+      setConductorForm({
+        fullName: currentUser.name,
+        mainSubject: "",
+        moduleLikeToDo: "",
+        currentStudyYear: currentUser.year,
+        currentSemester: currentUser.semester,
+        cgpa: "",
+        contact: "",
+        experience: "",
+        topicStrength: "",
+        availability: "",
+      });
+    } catch (error) {
+      alert(error.message || "Failed to send Kuppi conductor request.");
+    }
   };
 
   const handlePinTask = (taskId) => {

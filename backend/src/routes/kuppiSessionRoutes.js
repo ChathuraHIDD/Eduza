@@ -6,6 +6,8 @@ const {
   getAllKuppiSessions,
   getKuppiSessionById,
   applyAsKuppiConductor,
+  getKuppiConductorApplications,
+  updateKuppiConductorApplicationStatus,
   togglePinKuppiSession,
   setKuppiReminder,
   getPinnedKuppiSessions,
@@ -15,11 +17,13 @@ const {
 router.post("/", createKuppiSession);
 router.get("/", getAllKuppiSessions);
 router.get("/calendar/month", getKuppiCalendarSessions);
+router.get("/conductor/applications", getKuppiConductorApplications);
 router.get("/user/:userId/pinned", getPinnedKuppiSessions);
-router.get("/:id", getKuppiSessionById);
 
 router.post("/conductor/apply", applyAsKuppiConductor);
+router.patch("/conductor/applications/:id/status", updateKuppiConductorApplicationStatus);
 router.post("/:sessionId/pin", togglePinKuppiSession);
 router.post("/:sessionId/reminder", setKuppiReminder);
+router.get("/:id", getKuppiSessionById);
 
 module.exports = router;

@@ -7,6 +7,11 @@ import {
 } from "../../utils/kuppiApi";
 
 const STATUS_FILTERS = ["all", "pending", "approved", "rejected"];
+const STATUS_CHART_ITEMS = [
+  { key: "pending", label: "Pending", tone: "pending" },
+  { key: "approved", label: "Approved", tone: "approved" },
+  { key: "rejected", label: "Rejected", tone: "rejected" },
+];
 
 const scheduledSessions = [
   {
@@ -118,6 +123,51 @@ function AdminKuppiDetails() {
     [applications]
   );
 
+  const dailyBookingData = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat("en-US", { weekday: "short" });
+    const today = new Date();
+
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (6 - index));
+
+      const dayCount = applications.filter((application) => {
+        const createdAt = new Date(application.createdAt);
+        return (
+          createdAt.getFullYear() === date.getFullYear() &&
+          createdAt.getMonth() === date.getMonth() &&
+          createdAt.getDate() === date.getDate()
+        );
+      }).length;
+
+      return {
+        key: date.toISOString(),
+        label: formatter.format(date),
+        fullDate: date.toLocaleDateString(),
+        value: dayCount,
+      };
+    });
+  }, [applications]);
+
+  const maxDailyBookings = Math.max(...dailyBookingData.map((item) => item.value), 1);
+  const lineChartPoints = dailyBookingData
+    .map((item, index) => {
+      const x = dailyBookingData.length === 1 ? 50 : (index / (dailyBookingData.length - 1)) * 100;
+      const y = 100 - (item.value / maxDailyBookings) * 100;
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  const statusChartData = useMemo(
+    () =>
+      STATUS_CHART_ITEMS.map((item) => ({
+        ...item,
+        value: counts[item.key],
+        percentage: counts.all ? Math.round((counts[item.key] / counts.all) * 100) : 0,
+      })),
+    [counts]
+  );
+
   const overviewCards = [
     {
       label: "Total Applications",
@@ -187,6 +237,94 @@ function AdminKuppiDetails() {
             <p>{card.note}</p>
           </article>
         ))}
+      </section>
+
+      <section className="admin-kuppi-analytics-grid">
+        <article className="admin-kuppi-panel">
+          <div className="admin-kuppi-panel-head">
+            <div>
+              <h2>Daily Kuppi Bookings</h2>
+              <p>How many Kuppi requests were submitted each day during the last 7 days.</p>
+            </div>
+          </div>
+
+          <div className="admin-kuppi-line-chart-card">
+            <div className="admin-kuppi-line-chart">
+              <div className="admin-kuppi-line-grid"></div>
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="admin-kuppi-line-svg" aria-hidden="true">
+                <polyline
+                  fill="none"
+                  stroke="url(#kuppiLineGradient)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  points={lineChartPoints}
+                />
+                <defs>
+                  <linearGradient id="kuppiLineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#fdba74" />
+                    <stop offset="100%" stopColor="#ea580c" />
+                  </linearGradient>
+                </defs>
+              </svg>
+
+              {dailyBookingData.map((item, index) => {
+                const x = dailyBookingData.length === 1 ? 50 : (index / (dailyBookingData.length - 1)) * 100;
+                const y = 100 - (item.value / maxDailyBookings) * 100;
+
+                return (
+                  <div
+                    key={item.key}
+                    className="admin-kuppi-line-point"
+                    style={{ left: `${x}%`, top: `${y}%` }}
+                    title={`${item.fullDate}: ${item.value} bookings`}
+                  >
+                    <span className="admin-kuppi-line-point-value">{item.value}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="admin-kuppi-line-labels">
+              {dailyBookingData.map((item) => (
+                <div key={item.key} className="admin-kuppi-line-label">
+                  <strong>{item.label}</strong>
+                  <span>{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </article>
+
+        <article className="admin-kuppi-panel">
+          <div className="admin-kuppi-panel-head">
+            <div>
+              <h2>Status Overview</h2>
+              <p>Approved, rejected, and pending Kuppi requests based on the live admin dataset.</p>
+            </div>
+          </div>
+
+          <div className="admin-kuppi-status-chart">
+            {statusChartData.map((item) => (
+              <div key={item.key} className="admin-kuppi-status-row">
+                <div className="admin-kuppi-status-copy">
+                  <span className={`admin-kuppi-status-dot admin-kuppi-status-dot-${item.tone}`}></span>
+                  <strong>{item.label}</strong>
+                </div>
+                <div className="admin-kuppi-status-metrics">
+                  <span>{item.value}</span>
+                  <span>{item.percentage}%</span>
+                </div>
+                <div className="admin-kuppi-status-track">
+                  <div
+                    className={`admin-kuppi-status-fill admin-kuppi-status-fill-${item.tone}`}
+                    style={{ width: `${item.percentage}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
       </section>
 
       <section className="admin-kuppi-content-grid">

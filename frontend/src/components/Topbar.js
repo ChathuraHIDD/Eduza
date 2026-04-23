@@ -18,6 +18,7 @@ const pageTitles = {
   "/profile": "My Profile",
   "/lecture-profile": "Lecture Profile",
   "/software-hub": "Software Hub",
+  "/kuppi-sessions": "Kuppi Details",
   "/lecturer/module-quiz": "Module Quiz Manager",
   "/lecturer/module-selfcheck": "Module Self Check",
   "/progress-tracker": "Progress Tracker",

@@ -156,6 +156,11 @@ function SidebarContent({ onClose }) {
       path: '/admin/module-requests',
       icon: aiNotesIcon,
     },
+    {
+      label: 'Kuppi Details',
+      path: '/kuppi-sessions',
+      icon: kuppiIcon,
+    },
  
     {
       label: 'Group Chat',

@@ -225,6 +225,24 @@ function ProgressTracker() {
     return `${year}-${month}-${day}`;
   }, []);
 
+  const getPublishedTimestamp = useCallback((item) => {
+    const candidates = [
+      item?.publishedAt,
+      item?.publishDate,
+      item?.createdAt,
+      item?.updatedAt,
+      item?.date,
+    ];
+
+    for (const value of candidates) {
+      if (!value) continue;
+      const timestamp = new Date(value).getTime();
+      if (!Number.isNaN(timestamp)) return timestamp;
+    }
+
+    return 0;
+  }, []);
+
   const dayKeyToIndex = useCallback((dayKey) => {
     const [year, month, day] = dayKey.split("-").map(Number);
     return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
@@ -557,32 +575,36 @@ function ProgressTracker() {
   }, []);
 
   const normalizedQuizModules = useMemo(() => {
-    return quizModules.map((quiz) => {
-      const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
-      return {
-        ...quiz,
-        type: quiz.type || "quiz",
-        moduleName: quiz.moduleName || "Unnamed Module",
-        moduleCode: quiz.moduleCode || "",
-        questionCount: questions.length || Number(quiz.questions) || 0,
-        questions,
-      };
-    });
-  }, [quizModules]);
+    return quizModules
+      .map((quiz) => {
+        const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+        return {
+          ...quiz,
+          type: quiz.type || "quiz",
+          moduleName: quiz.moduleName || "Unnamed Module",
+          moduleCode: quiz.moduleCode || "",
+          questionCount: questions.length || Number(quiz.questions) || 0,
+          questions,
+        };
+      })
+      .sort((a, b) => getPublishedTimestamp(b) - getPublishedTimestamp(a));
+  }, [getPublishedTimestamp, quizModules]);
 
   const normalizedSelfCheckModules = useMemo(() => {
-    return selfCheckModules.map((item) => {
-      const questions = Array.isArray(item.questions) ? item.questions : [];
-      return {
-        ...item,
-        type: item.type || "selfcheck",
-        moduleName: item.moduleName || "Unnamed Module",
-        moduleCode: item.moduleCode || "",
-        questionCount: questions.length || Number(item.questions) || 0,
-        questions,
-      };
-    });
-  }, [selfCheckModules]);
+    return selfCheckModules
+      .map((item) => {
+        const questions = Array.isArray(item.questions) ? item.questions : [];
+        return {
+          ...item,
+          type: item.type || "selfcheck",
+          moduleName: item.moduleName || "Unnamed Module",
+          moduleCode: item.moduleCode || "",
+          questionCount: questions.length || Number(item.questions) || 0,
+          questions,
+        };
+      })
+      .sort((a, b) => getPublishedTimestamp(b) - getPublishedTimestamp(a));
+  }, [getPublishedTimestamp, selfCheckModules]);
 
   const allAssessments = useMemo(() => {
     return [...normalizedQuizModules, ...normalizedSelfCheckModules];
@@ -2006,7 +2028,7 @@ Suggestions:
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gridTemplateColumns: "1fr",
                 gap: 16,
               }}
             >
@@ -2706,7 +2728,7 @@ Suggestions:
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                  gridTemplateColumns: "1fr",
                   gap: 16,
                 }}
               >

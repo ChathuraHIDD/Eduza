@@ -1,12 +1,42 @@
 const KuppiSession = require("../models/KuppiSession");
 const KuppiConductorApplication = require("../models/KuppiConductorApplication");
 const KuppiSessionPreference = require("../models/KuppiSessionPreference");
+const Notification = require("../models/Notification");
 
 const emitKuppiApplicationEvent = (req, eventName, payload) => {
   const io = req.app.get("io");
   if (io) {
     io.emit(eventName, payload);
   }
+};
+
+const createKuppiDecisionNotification = async (application) => {
+  if (!application?.userId) {
+    return;
+  }
+
+  if (!["approved", "rejected"].includes(application.status)) {
+    return;
+  }
+
+  const title =
+    application.status === "approved"
+      ? "Kuppi Conductor Request Approved"
+      : "Kuppi Conductor Request Rejected";
+
+  const message =
+    application.status === "approved"
+      ? `Your request to conduct ${application.moduleLikeToDo} under ${application.mainSubject} has been approved by admin.`
+      : `Your request to conduct ${application.moduleLikeToDo} under ${application.mainSubject} has been rejected by admin.`;
+
+  await Notification.create({
+    studentId: application.userId,
+    channel: "IN_APP",
+    title,
+    message,
+    status: "SENT",
+    read: false,
+  });
 };
 
 /**
@@ -285,6 +315,8 @@ const updateKuppiConductorApplicationStatus = async (req, res) => {
 
     application.status = status;
     await application.save();
+
+    await createKuppiDecisionNotification(application);
 
     emitKuppiApplicationEvent(req, "kuppi_application_updated", application);
 

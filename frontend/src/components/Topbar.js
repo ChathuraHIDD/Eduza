@@ -72,6 +72,21 @@ function Topbar({ onMenuClick }) {
   }, []);
 
   useEffect(() => {
+    if (notificationOpen) {
+      loadNotifications();
+    }
+  }, [notificationOpen]);
+
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      loadNotifications();
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    return () => window.removeEventListener("focus", handleWindowFocus);
+  }, []);
+
+  useEffect(() => {
     const handleOutsideClick = (event) => {
       if (popoverRef.current && !popoverRef.current.contains(event.target)) {
         setNotificationOpen(false);

@@ -35,16 +35,9 @@ body {
   background: #ea6c10;
 }
 
-/* Hide hamburger on desktop */
+/* Keep menu toggle visible on all breakpoints */
 .mobile-menu-btn {
-  display: none;
-}
-
-/* Show only on mobile */
-@media (max-width: 1024px) {
-  .mobile-menu-btn {
-    display: flex;
-  }
+  display: flex;
 }
 
 .progress-measure {

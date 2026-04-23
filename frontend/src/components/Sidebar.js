@@ -5,7 +5,16 @@ import BrandLogo from './BrandLogo'
 
 function Sidebar({ open, onClose }) {
   return (
-    <>
+    <div
+      style={{
+        width: open ? '260px' : '0px',
+        minWidth: open ? '260px' : '0px',
+        transition: 'width 0.3s ease, min-width 0.3s ease',
+        overflow: 'hidden',
+        flexShrink: 0,
+      }}
+      aria-hidden={!open}
+    >
       <aside
         style={{
           width: '260px',
@@ -15,37 +24,17 @@ function Sidebar({ open, onClose }) {
           display: 'flex',
           flexDirection: 'column',
           height: '100vh',
-          position: 'relative',
-          zIndex: 50,
-          transition: 'transform 0.3s ease',
-          transform: open ? 'translateX(0)' : undefined,
-        }}
-        className="hidden lg:flex"
-      >
-        <SidebarContent onClose={onClose} />
-      </aside>
-
-      <aside
-        style={{
-          width: '260px',
-          minWidth: '260px',
-          background: '#f3f3f5',
-          borderRight: '1px solid #e2e3e8',
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100vh',
-          position: 'fixed',
+          position: 'sticky',
           top: 0,
-          left: 0,
-          zIndex: 50,
-          transition: 'transform 0.3s ease',
-          transform: open ? 'translateX(0)' : 'translateX(-100%)',
+          zIndex: 30,
+          transition: 'opacity 0.2s ease',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
         }}
-        className="lg:hidden"
       >
         <SidebarContent onClose={onClose} />
       </aside>
-    </>
+    </div>
   )
 }
 

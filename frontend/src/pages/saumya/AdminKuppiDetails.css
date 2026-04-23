@@ -540,7 +540,8 @@
 }
 
 .admin-kuppi-approve-btn,
-.admin-kuppi-reject-btn {
+.admin-kuppi-reject-btn,
+.admin-kuppi-create-btn {
   flex: 1;
   border: none;
   border-radius: 14px;
@@ -554,12 +555,17 @@
   background: #16a34a;
 }
 
+.admin-kuppi-create-btn {
+  background: linear-gradient(135deg, #fb923c 0%, #ea580c 100%);
+}
+
 .admin-kuppi-reject-btn {
   background: #dc2626;
 }
 
 .admin-kuppi-approve-btn:disabled,
-.admin-kuppi-reject-btn:disabled {
+.admin-kuppi-reject-btn:disabled,
+.admin-kuppi-create-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -603,6 +609,10 @@
 .admin-kuppi-field {
   display: grid;
   gap: 8px;
+}
+
+.admin-kuppi-field-full {
+  grid-column: 1 / -1;
 }
 
 .admin-kuppi-field label {

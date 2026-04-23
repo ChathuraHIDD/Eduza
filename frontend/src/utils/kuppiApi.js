@@ -29,3 +29,31 @@ export async function updateKuppiConductorApplicationStatus(id, status) {
     body: JSON.stringify({ status }),
   });
 }
+
+export async function createKuppiSession(payload) {
+  const token = getAuthToken();
+
+  return apiFetch("/api/kuppi-sessions", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getKuppiSessions(filters = {}) {
+  const token = getAuthToken();
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "" && value !== "All") {
+      params.append(key, value);
+    }
+  });
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  return apiFetch(`/api/kuppi-sessions${query}`, {
+    method: "GET",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}

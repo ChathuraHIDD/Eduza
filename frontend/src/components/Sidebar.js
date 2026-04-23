@@ -161,6 +161,11 @@ function SidebarContent({ onClose }) {
       path: '/admin/kuppi-details',
       icon: kuppiIcon,
     },
+    {
+      label: 'Create Kuppi',
+      path: '/admin/create-kuppi',
+      icon: kuppiIcon,
+    },
  
     {
       label: 'Group Chat',

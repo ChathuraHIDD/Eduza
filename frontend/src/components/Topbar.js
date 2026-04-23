@@ -20,6 +20,7 @@ const pageTitles = {
   "/software-hub": "Software Hub",
   "/kuppi-sessions": "Kuppi Sessions",
   "/admin/kuppi-details": "Kuppi Details",
+  "/admin/create-kuppi": "Create Kuppi",
   "/lecturer/module-quiz": "Module Quiz Manager",
   "/lecturer/module-selfcheck": "Module Self Check",
   "/progress-tracker": "Progress Tracker",

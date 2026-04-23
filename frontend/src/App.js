@@ -38,6 +38,7 @@ import GuardianStressResult from './pages/GuardianStressResult'
 import GroupChat from './pages/saumya/GroupChat'
 import KuppiSessions from './pages/saumya/KuppiSessions'
 import AdminKuppiDetails from './pages/saumya/AdminKuppiDetails'
+import CreateKuppi from './pages/saumya/CreateKuppi'
 import SoftwareHub from './pages/saumya/SoftwareHub'
 import AINotes from './pages/saumya/AINotes'
 import SoftwareDetails from './pages/saumya/SoftwareDetails'
@@ -156,6 +157,15 @@ function App() {
             element={
               <ProtectedRoute roles={['admin']}>
                 <AdminKuppiDetails />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="admin/create-kuppi"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <CreateKuppi />
               </ProtectedRoute>
             }
           />

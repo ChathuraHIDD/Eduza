@@ -10,6 +10,13 @@ const emitKuppiApplicationEvent = (req, eventName, payload) => {
   }
 };
 
+const emitKuppiSessionEvent = (req, eventName, payload) => {
+  const io = req.app.get("io");
+  if (io) {
+    io.emit(eventName, payload);
+  }
+};
+
 const createKuppiDecisionNotification = async (application) => {
   if (!application?.userId) {
     return;
@@ -39,6 +46,21 @@ const createKuppiDecisionNotification = async (application) => {
   });
 };
 
+const createKuppiSessionCreatedNotification = async (application, session) => {
+  if (!application?.userId || !session) {
+    return;
+  }
+
+  await Notification.create({
+    studentId: application.userId,
+    channel: "IN_APP",
+    title: "Kuppi Session Created",
+    message: `Your approved request has been scheduled as "${session.title}" on ${session.day}, ${session.month} ${session.date} at ${session.timeRange}.`,
+    status: "SENT",
+    read: false,
+  });
+};
+
 /**
  * @desc Create a new kuppi session
  * @route POST /api/kuppi-sessions
@@ -60,11 +82,12 @@ const createKuppiSession = async (req, res) => {
       yearNumber,
       startTime,
       endTime,
-      meetingLink,
-      location,
-      sessionType,
-      category,
-      maxParticipants,
+    meetingLink,
+    location,
+    sessionType,
+    category,
+    maxParticipants,
+      applicationId,
     } = req.body;
 
     if (
@@ -84,6 +107,26 @@ const createKuppiSession = async (req, res) => {
         success: false,
         message: "Please fill all required fields",
       });
+    }
+
+    let linkedApplication = null;
+
+    if (applicationId) {
+      linkedApplication = await KuppiConductorApplication.findById(applicationId);
+
+      if (!linkedApplication) {
+        return res.status(404).json({
+          success: false,
+          message: "Approved request not found",
+        });
+      }
+
+      if (linkedApplication.status !== "approved") {
+        return res.status(400).json({
+          success: false,
+          message: "Only approved requests can be used to create a Kuppi session",
+        });
+      }
     }
 
     const session = await KuppiSession.create({
@@ -108,6 +151,16 @@ const createKuppiSession = async (req, res) => {
       category,
       maxParticipants,
     });
+
+    if (linkedApplication) {
+      linkedApplication.createdSessionId = session._id;
+      linkedApplication.sessionCreatedAt = new Date();
+      await linkedApplication.save();
+      await createKuppiSessionCreatedNotification(linkedApplication, session);
+      emitKuppiApplicationEvent(req, "kuppi_application_updated", linkedApplication);
+    }
+
+    emitKuppiSessionEvent(req, "kuppi_session_created", session);
 
     res.status(201).json({
       success: true,

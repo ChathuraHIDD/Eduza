@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
+import { useNavigate } from "react-router-dom";
 import "./AdminKuppiDetails.css";
 import socket from "../../utils/socket";
 import { drawEduzaLogo } from "../../utils/pdfBranding";
 import {
+  createKuppiSession,
   getKuppiConductorApplications,
+  getKuppiSessions,
   updateKuppiConductorApplicationStatus,
 } from "../../utils/kuppiApi";
 
@@ -40,6 +43,7 @@ const scheduledSessions = [
 ];
 
 function AdminKuppiDetails() {
+  const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -47,6 +51,26 @@ function AdminKuppiDetails() {
   const [selectedApplicationId, setSelectedApplicationId] = useState("");
   const [processingId, setProcessingId] = useState("");
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [sessionModalOpen, setSessionModalOpen] = useState(false);
+  const [sessionCreating, setSessionCreating] = useState(false);
+  const [scheduledSessionsLive, setScheduledSessionsLive] = useState([]);
+  const [sessionForm, setSessionForm] = useState({
+    title: "",
+    subject: "",
+    moduleCode: "",
+    description: "",
+    day: "Monday",
+    date: "",
+    month: "",
+    yearNumber: new Date().getFullYear(),
+    startTime: "",
+    endTime: "",
+    meetingLink: "",
+    location: "",
+    sessionType: "upcoming",
+    category: "General",
+    maxParticipants: 50,
+  });
   const [reportFilters, setReportFilters] = useState({
     name: "",
     startDate: "",
@@ -58,6 +82,7 @@ function AdminKuppiDetails() {
 
   useEffect(() => {
     loadApplications();
+    loadSessions();
 
     const handleCreated = (application) => {
       setApplications((prev) => [application, ...prev.filter((item) => item._id !== application._id)]);
@@ -101,6 +126,15 @@ function AdminKuppiDetails() {
       setError(err.message || "Failed to load Kuppi applications");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSessions = async () => {
+    try {
+      const response = await getKuppiSessions();
+      setScheduledSessionsLive(response?.data || []);
+    } catch (err) {
+      console.error("Failed to load Kuppi sessions", err);
     }
   };
 
@@ -258,6 +292,67 @@ function AdminKuppiDetails() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleSessionFormChange = (event) => {
+    const { name, value } = event.target;
+    setSessionForm((prev) => ({
+      ...prev,
+      [name]:
+        name === "date" || name === "yearNumber" || name === "maxParticipants"
+          ? Number(value) || ""
+          : value,
+    }));
+  };
+
+  const openCreateSessionModal = (application) => {
+    if (!application) return;
+
+    const today = new Date();
+    setSessionForm({
+      title: `${application.mainSubject} Kuppi`,
+      subject: application.mainSubject || "",
+      moduleCode: application.moduleLikeToDo || "",
+      description: `${application.fullName} will conduct a ${application.mainSubject} Kuppi session for ${application.currentStudyYear} students.`,
+      day: "Monday",
+      date: "",
+      month: today.toLocaleString("en-US", { month: "long" }),
+      yearNumber: today.getFullYear(),
+      startTime: "",
+      endTime: "",
+      meetingLink: "",
+      location: "",
+      sessionType: "upcoming",
+      category: "General",
+      maxParticipants: 50,
+    });
+    setSessionModalOpen(true);
+  };
+
+  const handleCreateSession = async (event) => {
+    event.preventDefault();
+
+    if (!selectedApplication) {
+      return;
+    }
+
+    try {
+      setSessionCreating(true);
+      await createKuppiSession({
+        ...sessionForm,
+        conductorName: selectedApplication.fullName,
+        conductorUserId: selectedApplication.userId || null,
+        year: selectedApplication.currentStudyYear,
+        semester: selectedApplication.currentSemester,
+      });
+      await loadSessions();
+      setSessionModalOpen(false);
+      alert("Kuppi session created successfully!");
+    } catch (err) {
+      alert(err.message || "Failed to create Kuppi session.");
+    } finally {
+      setSessionCreating(false);
+    }
   };
 
   const generateReport = async () => {
@@ -588,6 +683,13 @@ function AdminKuppiDetails() {
           >
             Generate Report
           </button>
+          <button
+            type="button"
+            className="admin-kuppi-secondary-btn"
+            onClick={() => navigate("/admin/create-kuppi")}
+          >
+            Create Kuppi
+          </button>
         </div>
       </section>
 
@@ -821,6 +923,15 @@ function AdminKuppiDetails() {
                 </div>
 
                 <div className="admin-kuppi-detail-actions">
+                  {selectedApplication.status === "approved" && (
+                    <button
+                      type="button"
+                      className="admin-kuppi-create-btn"
+                      onClick={() => openCreateSessionModal(selectedApplication)}
+                    >
+                      Create Kuppi Session
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="admin-kuppi-approve-btn"
@@ -857,16 +968,16 @@ function AdminKuppiDetails() {
             </div>
 
             <div className="admin-kuppi-session-list">
-              {scheduledSessions.map((session) => (
+              {(scheduledSessionsLive.length > 0 ? scheduledSessionsLive : scheduledSessions).map((session) => (
                 <div key={session.title} className="admin-kuppi-session-card">
                   <div className="admin-kuppi-session-meta">
                     <h3>{session.title}</h3>
-                    <p>{session.time}</p>
+                    <p>{session.time || `${session.day}, ${session.startTime} - ${session.endTime}`}</p>
                   </div>
                   <div className="admin-kuppi-session-details">
-                    <span>Conductor: {session.conductor}</span>
-                    <span>{session.audience}</span>
-                    <span>{session.mode}</span>
+                    <span>Conductor: {session.conductor || session.conductorName}</span>
+                    <span>{session.audience || `${session.year} / ${session.semester}`}</span>
+                    <span>{session.mode || (session.meetingLink ? "Online" : session.location || "Physical")}</span>
                   </div>
                 </div>
               ))}
@@ -972,6 +1083,121 @@ function AdminKuppiDetails() {
                 Download PDF Report
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {sessionModalOpen && selectedApplication && (
+        <div className="admin-kuppi-modal-overlay" onClick={() => setSessionModalOpen(false)}>
+          <div className="admin-kuppi-modal-card" onClick={(event) => event.stopPropagation()}>
+            <div className="admin-kuppi-panel-head">
+              <div>
+                <h2>Create Kuppi Session</h2>
+                <p>Schedule a session for the approved Kuppi conductor request.</p>
+              </div>
+              <button
+                type="button"
+                className="admin-kuppi-modal-close"
+                onClick={() => setSessionModalOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <form className="admin-kuppi-report-grid" onSubmit={handleCreateSession}>
+              <div className="admin-kuppi-field">
+                <label>Session Title</label>
+                <input name="title" value={sessionForm.title} onChange={handleSessionFormChange} required />
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>Subject</label>
+                <input name="subject" value={sessionForm.subject} onChange={handleSessionFormChange} required />
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>Module Code</label>
+                <input name="moduleCode" value={sessionForm.moduleCode} onChange={handleSessionFormChange} />
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>Category</label>
+                <input name="category" value={sessionForm.category} onChange={handleSessionFormChange} />
+              </div>
+
+              <div className="admin-kuppi-field admin-kuppi-field-full">
+                <label>Description</label>
+                <input name="description" value={sessionForm.description} onChange={handleSessionFormChange} />
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>Day</label>
+                <select name="day" value={sessionForm.day} onChange={handleSessionFormChange}>
+                  {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day) => (
+                    <option key={day} value={day}>
+                      {day}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>Date</label>
+                <input type="number" name="date" value={sessionForm.date} onChange={handleSessionFormChange} min="1" max="31" required />
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>Month</label>
+                <input name="month" value={sessionForm.month} onChange={handleSessionFormChange} required />
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>Year Number</label>
+                <input type="number" name="yearNumber" value={sessionForm.yearNumber} onChange={handleSessionFormChange} required />
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>Start Time</label>
+                <input type="text" name="startTime" value={sessionForm.startTime} onChange={handleSessionFormChange} placeholder="10:00 AM" required />
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>End Time</label>
+                <input type="text" name="endTime" value={sessionForm.endTime} onChange={handleSessionFormChange} placeholder="11:30 AM" required />
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>Meeting Link</label>
+                <input name="meetingLink" value={sessionForm.meetingLink} onChange={handleSessionFormChange} placeholder="https://..." />
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>Location</label>
+                <input name="location" value={sessionForm.location} onChange={handleSessionFormChange} placeholder="Hall / Classroom / Lab" />
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>Session Type</label>
+                <select name="sessionType" value={sessionForm.sessionType} onChange={handleSessionFormChange}>
+                  <option value="today">Today</option>
+                  <option value="upcoming">Upcoming</option>
+                </select>
+              </div>
+
+              <div className="admin-kuppi-field">
+                <label>Max Participants</label>
+                <input type="number" name="maxParticipants" value={sessionForm.maxParticipants} onChange={handleSessionFormChange} min="1" />
+              </div>
+
+              <div className="admin-kuppi-detail-actions admin-kuppi-field-full">
+                <button type="button" className="admin-kuppi-secondary-report-btn" onClick={() => setSessionModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="admin-kuppi-primary-report-btn" disabled={sessionCreating}>
+                  {sessionCreating ? "Creating..." : "Create Session"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

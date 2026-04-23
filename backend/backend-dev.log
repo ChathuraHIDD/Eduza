@@ -7,10 +7,14 @@
 [33m[nodemon] watching path(s): *.*[39m
 [33m[nodemon] watching extensions: js,mjs,cjs,json[39m
 [32m[nodemon] starting `node src/server.js`[39m
+MongoDB connected: liver-shard-00-01.hnxmg.mongodb.net
+Server running on port 5001
+User connected: rkIQVcijZiBKwStwAAAC
+User connected: ff5I0ly5uMcia0O9AAAD
 [31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting child process[39m
 [32m[nodemon] starting `node src/server.js`[39m
-MongoDB connected: liver-shard-00-01.hnxmg.mongodb.net
+MongoDB connected: liver-shard-00-00.hnxmg.mongodb.net
 Server running on port 5001
-User connected: DaLQtUWM6apDehTKAAAB
-User connected: zf9vGGeJ_skysFTWAAAD
+User connected: zmLKNI8gpjAt29ljAAAB
+User connected: CoEBtQsE6asEX7VsAAAD

@@ -21,6 +21,7 @@ const pageTitles = {
   "/lecturer/module-quiz": "Module Quiz Manager",
   "/lecturer/module-selfcheck": "Module Self Check",
   "/progress-tracker": "Progress Tracker",
+  "/mbti-measure": "MBTI Measure",
 };
 
 function Topbar({ onMenuClick }) {

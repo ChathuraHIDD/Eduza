@@ -158,7 +158,7 @@ function SidebarContent({ onClose }) {
     },
     {
       label: 'Kuppi Details',
-      path: '/kuppi-sessions',
+      path: '/admin/kuppi-details',
       icon: kuppiIcon,
     },
  

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import "./KuppiSessions.css";
+import { createKuppiRequest } from "../../utils/kuppiRequestStorage";
 
 function KuppiSessions() {
   const storedUser = JSON.parse(localStorage.getItem("user")) || {};
@@ -357,9 +358,22 @@ function KuppiSessions() {
 
   const handleConductorSubmit = (e) => {
     e.preventDefault();
-    console.log("Conductor Application Data:", conductorForm);
-    alert("Kuppi conductor application submitted successfully!");
+    const savedRequest = createKuppiRequest(conductorForm, storedUser);
+    console.log("Conductor Application Data:", savedRequest);
+    alert("Kuppi conductor request sent to admin successfully!");
     setIsModalOpen(false);
+    setConductorForm({
+      fullName: currentUser.name,
+      mainSubject: "",
+      moduleLikeToDo: "",
+      currentStudyYear: currentUser.year,
+      currentSemester: currentUser.semester,
+      cgpa: "",
+      contact: "",
+      experience: "",
+      topicStrength: "",
+      availability: "",
+    });
   };
 
   const handlePinTask = (taskId) => {

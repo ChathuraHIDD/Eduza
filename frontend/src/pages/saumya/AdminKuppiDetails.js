@@ -53,12 +53,25 @@ function AdminKuppiDetails() {
       );
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadApplications();
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      loadApplications();
+    }, 5000);
+
     socket.on("kuppi_application_created", handleCreated);
     socket.on("kuppi_application_updated", handleUpdated);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      window.clearInterval(intervalId);
       socket.off("kuppi_application_created", handleCreated);
       socket.off("kuppi_application_updated", handleUpdated);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -136,6 +149,7 @@ function AdminKuppiDetails() {
     try {
       setProcessingId(applicationId);
       await updateKuppiConductorApplicationStatus(applicationId, status);
+      await loadApplications();
     } catch (err) {
       alert(err.message || `Failed to ${status} application`);
     } finally {

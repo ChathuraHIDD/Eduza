@@ -3340,13 +3340,13 @@ Suggestions:
                 </div>
 
                 <div className="progress-measure-area-grid grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div className="progress-measure-card h-full rounded-[20px] border-2 border-red-300 bg-gradient-to-br from-red-50 to-pink-50 p-6 transition hover:shadow-lg">
-                    <h5 className="text-sm font-bold text-red-800 mb-1">🔴 Slipping Repeats</h5>
-                    <p className="text-xs text-red-600 mb-4 leading-5">Quizzes that are not improving across repeats</p>
+                  <div className="progress-measure-card progress-measure-repeat-card h-full rounded-[20px] border-2 border-red-300 bg-gradient-to-br from-red-50 to-pink-50 p-6 transition hover:shadow-lg">
+                    <h5 className="progress-measure-repeat-title text-sm font-bold text-red-800 mb-1">🔴 Slipping Repeats</h5>
+                    <p className="progress-measure-repeat-subtitle text-xs text-red-600 mb-4 leading-5">Quizzes that are not improving across repeats</p>
                     {Array.from(quizAttemptsByAssessment.entries()).filter(([, attempts]) => attempts.length > 1 && (attempts[attempts.length - 1].score100 || 0) <= (attempts[0].score100 || 0)).length === 0 ? (
-                      <p className="text-sm text-red-700 font-semibold">No slipping quizzes found.</p>
+                      <p className="progress-measure-repeat-empty text-sm text-red-700 font-semibold">No slipping quizzes found.</p>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="progress-measure-repeat-list space-y-3">
                         {Array.from(quizAttemptsByAssessment.entries())
                           .filter(([, attempts]) => attempts.length > 1 && (attempts[attempts.length - 1].score100 || 0) <= (attempts[0].score100 || 0))
                           .map(([quizId, attempts]) => {
@@ -3355,14 +3355,14 @@ Suggestions:
                             const gain = Number(latestAttempt.score100 || 0) - Number(firstAttempt.score100 || 0);
 
                             return (
-                              <div key={quizId}>
-                                <div className="flex justify-between mb-2">
-                                  <p className="text-xs font-semibold text-red-800">
+                              <div key={quizId} className="progress-measure-repeat-item">
+                                <div className="progress-measure-repeat-row flex justify-between mb-2">
+                                  <p className="progress-measure-repeat-module text-xs font-semibold text-red-800">
                                     {latestAttempt.moduleCode ? `${latestAttempt.moduleCode} - ${latestAttempt.moduleName}` : latestAttempt.moduleName}
                                   </p>
-                                  <p className="text-xs font-bold text-red-600">{gain >= 0 ? "+" : ""}{gain}%</p>
+                                  <p className="progress-measure-repeat-delta text-xs font-bold text-red-600">{gain >= 0 ? "+" : ""}{gain}%</p>
                                 </div>
-                                <div className="h-2 bg-red-200 rounded-full overflow-hidden">
+                                <div className="progress-measure-repeat-bar h-2 bg-red-200 rounded-full overflow-hidden">
                                   <div className="h-full bg-red-500" style={{ width: `${Math.max(Math.min(Number(latestAttempt.score100 || 0), 100), 0)}%` }}></div>
                                 </div>
                               </div>
@@ -3372,13 +3372,13 @@ Suggestions:
                     )}
                   </div>
 
-                  <div className="progress-measure-card h-full rounded-[20px] border-2 border-green-300 bg-gradient-to-br from-green-50 to-emerald-50 p-6 transition hover:shadow-lg">
-                    <h5 className="text-sm font-bold text-green-800 mb-1">🟢 Improving Repeats</h5>
-                    <p className="text-xs text-green-600 mb-4 leading-5">Quizzes where later attempts beat earlier ones</p>
+                  <div className="progress-measure-card progress-measure-repeat-card h-full rounded-[20px] border-2 border-green-300 bg-gradient-to-br from-green-50 to-emerald-50 p-6 transition hover:shadow-lg">
+                    <h5 className="progress-measure-repeat-title text-sm font-bold text-green-800 mb-1">🟢 Improving Repeats</h5>
+                    <p className="progress-measure-repeat-subtitle text-xs text-green-600 mb-4 leading-5">Quizzes where later attempts beat earlier ones</p>
                     {Array.from(quizAttemptsByAssessment.entries()).filter(([, attempts]) => attempts.length > 1 && (attempts[attempts.length - 1].score100 || 0) > (attempts[0].score100 || 0)).length === 0 ? (
-                      <p className="text-sm text-green-700 font-semibold">Start repeating quizzes to identify improvement.</p>
+                      <p className="progress-measure-repeat-empty text-sm text-green-700 font-semibold">Start repeating quizzes to identify improvement.</p>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="progress-measure-repeat-list space-y-3">
                         {Array.from(quizAttemptsByAssessment.entries())
                           .filter(([, attempts]) => attempts.length > 1 && (attempts[attempts.length - 1].score100 || 0) > (attempts[0].score100 || 0))
                           .map(([quizId, attempts]) => {
@@ -3387,14 +3387,14 @@ Suggestions:
                             const gain = Number(latestAttempt.score100 || 0) - Number(firstAttempt.score100 || 0);
 
                             return (
-                              <div key={quizId}>
-                                <div className="flex justify-between mb-2">
-                                  <p className="text-xs font-semibold text-green-800">
+                              <div key={quizId} className="progress-measure-repeat-item">
+                                <div className="progress-measure-repeat-row flex justify-between mb-2">
+                                  <p className="progress-measure-repeat-module text-xs font-semibold text-green-800">
                                     {latestAttempt.moduleCode ? `${latestAttempt.moduleCode} - ${latestAttempt.moduleName}` : latestAttempt.moduleName}
                                   </p>
-                                  <p className="text-xs font-bold text-green-600">+{gain}%</p>
+                                  <p className="progress-measure-repeat-delta text-xs font-bold text-green-600">+{gain}%</p>
                                 </div>
-                                <div className="h-2 bg-green-200 rounded-full overflow-hidden">
+                                <div className="progress-measure-repeat-bar h-2 bg-green-200 rounded-full overflow-hidden">
                                   <div className="h-full bg-green-500" style={{ width: `${Math.max(Math.min(Number(latestAttempt.score100 || 0), 100), 0)}%` }}></div>
                                 </div>
                               </div>

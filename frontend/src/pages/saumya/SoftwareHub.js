@@ -10,6 +10,10 @@ function SoftwareHub() {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [logoLoadFailed, setLogoLoadFailed] = useState({});
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [licenseFilter, setLicenseFilter] = useState("all");
+  const [popularityFilter, setPopularityFilter] = useState("recent");
   const menuRef = useRef(null);
 
   const user = (() => {
@@ -60,26 +64,100 @@ function SoftwareHub() {
     return 0;
   };
 
+  const resolveCategory = (file) => {
+    const rawCategory = (file?.category || "").toLowerCase();
+    if (["development", "database", "productivity", "communication"].includes(rawCategory)) {
+      return rawCategory;
+    }
+
+    const source = `${file?.title || ""} ${file?.softwareName || ""} ${file?.type || ""}`.toLowerCase();
+    if (/(mysql|mongodb|postgres|sqlite|database|db|workbench|compass)/.test(source)) return "database";
+    if (/(slack|zoom|teams|discord|meet|communication|chat)/.test(source)) return "communication";
+    if (/(notion|figma|chrome|browser|pdf|office|trello|jira|productivity)/.test(source)) return "productivity";
+    return "development";
+  };
+
+  const resolveLicenseType = (file) => {
+    const source = `${file?.type || ""} ${file?.about || ""} ${file?.category || ""} ${file?.title || ""}`.toLowerCase();
+    if (/(open source|opensource|oss|gpl|mit|apache)/.test(source)) return "open-source";
+    if (/(paid|premium|licensed|subscription|enterprise)/.test(source)) return "paid";
+    return "free";
+  };
+
+  const getDownloadScore = (file) => {
+    if (typeof file?.downloadCount === "number") return file.downloadCount;
+    if (typeof file?.downloads === "number") return file.downloads;
+    return 0;
+  };
+
   const filteredFiles = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
-    if (!keyword) return files;
 
-    return files.filter((file) => {
-      return [
+    const searched = files.filter((file) => {
+      const isKeywordMatch = !keyword || [
         file.title,
         file.softwareName,
+        file.category,
         file.type,
         file.size,
       ]
         .join(" ")
         .toLowerCase()
         .includes(keyword);
+
+      const category = resolveCategory(file);
+      const isCategoryMatch = categoryFilter === "all" || category === categoryFilter;
+
+      const license = resolveLicenseType(file);
+      const isLicenseMatch = licenseFilter === "all" || license === licenseFilter;
+
+      return isKeywordMatch && isCategoryMatch && isLicenseMatch;
     });
-  }, [files, searchTerm]);
+
+    const sorted = [...searched].sort((a, b) => {
+      if (popularityFilter === "most-downloaded") {
+        const scoreDiff = getDownloadScore(b) - getDownloadScore(a);
+        if (scoreDiff !== 0) return scoreDiff;
+      }
+
+      const dateA = new Date(a?.createdAt || 0).getTime();
+      const dateB = new Date(b?.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    return sorted;
+  }, [files, searchTerm, categoryFilter, licenseFilter, popularityFilter]);
 
   const totalGB = filteredFiles
     .reduce((sum, file) => sum + parseSizeToGB(file.size), 0)
     .toFixed(2);
+
+  const resolveBrandAsset = (file) => {
+    const source = `${file?.title || ""} ${file?.softwareName || ""} ${file?.type || ""}`.toLowerCase();
+    const catalog = [
+      { key: "android", logo: "https://cdn.simpleicons.org/androidstudio/3DDC84", bg: "#eaf9f0" },
+      { key: "intellij", logo: "https://cdn.simpleicons.org/intellijidea/000000", bg: "#f2f4ff" },
+      { key: "notion", logo: "https://cdn.simpleicons.org/notion/111111", bg: "#f5f5f5" },
+      { key: "zoom", logo: "https://cdn.simpleicons.org/zoom/0B5CFF", bg: "#eef4ff" },
+      { key: "slack", logo: "https://cdn.simpleicons.org/slack/4A154B", bg: "#f8f1ff" },
+      { key: "mysql", logo: "https://cdn.simpleicons.org/mysql/4479A1", bg: "#edf5fb" },
+      { key: "mongodb", logo: "https://cdn.simpleicons.org/mongodb/47A248", bg: "#ecf8f0" },
+      { key: "docker", logo: "https://cdn.simpleicons.org/docker/2496ED", bg: "#edf5ff" },
+      { key: "chrome", logo: "https://cdn.simpleicons.org/googlechrome/4285F4", bg: "#f1f8ff" },
+      { key: "figma", logo: "https://cdn.simpleicons.org/figma/F24E1E", bg: "#fff0ed" },
+      { key: "obs", logo: "https://cdn.simpleicons.org/obsstudio/302E31", bg: "#f2f3f5" },
+      { key: "vscode", logo: "https://cdn.simpleicons.org/visualstudiocode/007ACC", bg: "#edf5ff" },
+      { key: "postman", logo: "https://cdn.simpleicons.org/postman/FF6C37", bg: "#fff3ee" },
+      { key: "node", logo: "https://cdn.simpleicons.org/nodedotjs/339933", bg: "#edf8ef" },
+      { key: "github", logo: "https://cdn.simpleicons.org/github/181717", bg: "#f2f4f7" },
+      { key: "git", logo: "https://cdn.simpleicons.org/git/F05032", bg: "#fff1ed" },
+      { key: "sketch", logo: "https://cdn.simpleicons.org/sketch/F7B500", bg: "#fff8e6" },
+      { key: "adobe xd", logo: "https://cdn.simpleicons.org/adobexd/FF61F6", bg: "#fff1fd" },
+      { key: "wamp", logo: "https://cdn.simpleicons.org/apache/E22F2F", bg: "#fff1f1" },
+    ];
+
+    return catalog.find((item) => source.includes(item.key));
+  };
 
   const handleDownloadSoftwareListPdf = async () => {
     const rows = filteredFiles;
@@ -188,233 +266,56 @@ function SoftwareHub() {
     navigate("/upload-software");
   };
 
-  const renderIcon = (type) => {
-    switch (type) {
-      case "figma":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg"
-            alt="Figma"
-            width="28"
-            height="28"
-          />
-        );
+  const renderSoftwareLogo = (file) => {
+    const brand = resolveBrandAsset(file);
+    const softwareName = file.softwareName || file.title || "Software";
+    const logoKey = file._id || softwareName;
+    const initials = softwareName
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
 
-      case "xd":
-        return (
-          <div
+    return (
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 16,
+          background: brand?.bg || "#eef2f7",
+          border: "1px solid #dfe6f1",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
+        }}
+      >
+        {brand?.logo && !logoLoadFailed[logoKey] ? (
+          <img
+            src={brand.logo}
+            alt={`${softwareName} logo`}
+            width="30"
+            height="30"
+            style={{ objectFit: "contain" }}
+            onError={() => {
+              setLogoLoadFailed((prev) => ({ ...prev, [logoKey]: true }));
+            }}
+          />
+        ) : (
+          <span
             style={{
-              width: 30,
-              height: 30,
-              borderRadius: 10,
-              background: "#f4e8fb",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#c026d3",
+              fontSize: 13,
               fontWeight: 800,
-              fontSize: 14,
-              border: "1px solid #e9d5ff",
+              color: "#5b6678",
+              letterSpacing: "0.04em",
             }}
           >
-            Xd
-          </div>
-        );
-
-      case "pdf":
-        return (
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 10,
-              background: "#fee2e2",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#dc2626",
-              fontWeight: 800,
-              fontSize: 12,
-              border: "1px solid #fecaca",
-            }}
-          >
-            PDF
-          </div>
-        );
-
-      case "sketch":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/sketch/sketch-original.svg"
-            alt="Sketch"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "vscode":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg"
-            alt="VS Code"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "postman":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postman/postman-original.svg"
-            alt="Postman"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "docker":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg"
-            alt="Docker"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "node":
-      case "nodejs":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg"
-            alt="Node.js"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "mongodb":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg"
-            alt="MongoDB"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "mysql":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg"
-            alt="MySQL"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "github":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg"
-            alt="GitHub"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "git":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg"
-            alt="Git"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "chrome":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/chrome/chrome-original.svg"
-            alt="Chrome"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "android":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/android/android-original.svg"
-            alt="Android"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "slack":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/slack/slack-original.svg"
-            alt="Slack"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "notion":
-        return (
-          <img
-            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/notion/notion-original.svg"
-            alt="Notion"
-            width="28"
-            height="28"
-          />
-        );
-
-      case "wampserver":
-        return (
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 10,
-              background: "#fee2e2",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#b91c1c",
-              fontWeight: 800,
-              fontSize: 11,
-              border: "1px solid #fecaca",
-            }}
-          >
-            W
-          </div>
-        );
-
-      default:
-        return (
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 10,
-              background: "#eef2f7",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#64748b",
-              fontWeight: 700,
-              fontSize: 12,
-              border: "1px solid #e2e8f0",
-            }}
-          >
-            APP
-          </div>
-        );
-    }
+            {initials || "APP"}
+          </span>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -533,13 +434,17 @@ function SoftwareHub() {
         style={{
           marginBottom: "2rem",
           display: "flex",
-          alignItems: "flex-start",
+          alignItems: "stretch",
           justifyContent: "space-between",
-          gap: "16px",
+          gap: "20px",
           flexWrap: "wrap",
+          background: "#f8fbff",
+          border: "1px solid #e6edf7",
+          borderRadius: 18,
+          padding: "18px",
         }}
       >
-        <div>
+        <div style={{ flex: "1 1 260px", minWidth: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <h2
             style={{
               color: "#1e293b",
@@ -551,80 +456,139 @@ function SoftwareHub() {
             Available Software
           </h2>
 
-          <div style={{ color: "#64748b", fontSize: "13px" }}>
-            Total: {totalGB} GB
-          </div>
+          <p
+            style={{
+              margin: "8px 0 0",
+              fontSize: 12,
+              color: "#7c879a",
+              lineHeight: 1.5,
+              maxWidth: 260,
+            }}
+          >
+            Search and filter resources to quickly find the software you need.
+          </p>
+        </div>
+
+        <div style={{ flex: "1.4 1 420px", minWidth: 280 }}>
+          {!isStudent && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+              <button
+                onClick={handleAddNew}
+                style={{
+                  border: "none",
+                  borderRadius: 999,
+                  background: "linear-gradient(135deg, #f97316, #ea580c)",
+                  color: "#fff",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  padding: "10px 16px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: "0 8px 24px rgba(249,115,22,0.18)",
+                }}
+              >
+                <span
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: "50%",
+                    background: "rgba(255,255,255,0.18)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}
+                >
+                  +
+                </span>
+                Add New
+              </button>
+            </div>
+          )}
 
           <input
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Search software"
             style={{
-              marginTop: "10px",
               border: "1px solid #fed7aa",
               borderRadius: 10,
               padding: "8px 10px",
-              minWidth: 220,
+              width: "100%",
               background: "#fff",
               color: "#334155",
               fontSize: 13,
               outline: "none",
             }}
           />
-        </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button
-            onClick={handleDownloadSoftwareListPdf}
+          <div
             style={{
-              border: "none",
-              borderRadius: 999,
-              background: "linear-gradient(135deg, #9a3412, #c2410c)",
-              color: "#fff",
-              fontSize: "13px",
-              fontWeight: 700,
-              padding: "10px 16px",
-              cursor: "pointer",
-              boxShadow: "0 8px 24px rgba(194,65,12,0.2)",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 10,
+              marginTop: 10,
             }}
           >
-            Download List PDF
-          </button>
-
-          <button
-            onClick={handleAddNew}
-            style={{
-              border: "none",
-              borderRadius: 999,
-              background: "linear-gradient(135deg, #f97316, #ea580c)",
-              color: "#fff",
-              fontSize: "13px",
-              fontWeight: 700,
-              padding: "10px 16px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              boxShadow: "0 8px 24px rgba(249,115,22,0.18)",
-            }}
-          >
-            <span
+            <select
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value)}
               style={{
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                background: "rgba(255,255,255,0.18)",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                fontWeight: 800,
+                border: "1px solid #fed7aa",
+                borderRadius: 10,
+                padding: "8px 10px",
+                background: "#fff",
+                color: "#334155",
+                fontSize: 13,
+                outline: "none",
               }}
             >
-              +
-            </span>
-            Add New
-          </button>
+              <option value="all">Category: All</option>
+              <option value="development">Category: Development</option>
+              <option value="database">Category: Database</option>
+              <option value="productivity">Category: Productivity</option>
+              <option value="communication">Category: Communication</option>
+            </select>
+
+            <select
+              value={licenseFilter}
+              onChange={(event) => setLicenseFilter(event.target.value)}
+              style={{
+                border: "1px solid #fed7aa",
+                borderRadius: 10,
+                padding: "8px 10px",
+                background: "#fff",
+                color: "#334155",
+                fontSize: 13,
+                outline: "none",
+              }}
+            >
+              <option value="all">Type: All</option>
+              <option value="free">Type: Free</option>
+              <option value="paid">Type: Paid</option>
+              <option value="open-source">Type: Open Source</option>
+            </select>
+
+            <select
+              value={popularityFilter}
+              onChange={(event) => setPopularityFilter(event.target.value)}
+              style={{
+                border: "1px solid #fed7aa",
+                borderRadius: 10,
+                padding: "8px 10px",
+                background: "#fff",
+                color: "#334155",
+                fontSize: 13,
+                outline: "none",
+              }}
+            >
+              <option value="most-downloaded">Popularity: Most Downloaded</option>
+              <option value="recent">Popularity: Recent</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -634,46 +598,37 @@ function SoftwareHub() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
-            gap: "18px",
+            gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+            gap: "22px",
           }}
         >
           {filteredFiles.map((file, i) => (
             <div
+              className="software-hub-card"
               key={file._id}
               onClick={() => handleOpenSoftware(file)}
               style={{
                 background: "#ffffff",
-                border: "1px solid #e6e8ee",
-                borderRadius: "16px",
-                padding: "18px",
+                border: "1px solid #fdba74",
+                borderRadius: "18px",
+                padding: "22px 16px 14px",
                 position: "relative",
-                transition: "0.2s",
+                transition: "transform 0.2s ease, box-shadow 0.2s ease",
                 cursor: "pointer",
-                boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
+                boxShadow: "0 14px 30px rgba(15,23,42,0.06)",
+                overflow: "visible",
               }}
             >
               <div
                 style={{
                   display: "flex",
                   alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  marginBottom: "14px",
+                  justifyContent: "flex-end",
+                  marginBottom: "4px",
                 }}
               >
-                <div
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 14,
-                    background: "#fff7ed",
-                    border: "1px solid #fed7aa",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {renderIcon(file.type)}
+                <div style={{ position: "absolute", top: -18, left: "50%", transform: "translateX(-50%)" }}>
+                  {renderSoftwareLogo(file)}
                 </div>
 
                 <div
@@ -746,9 +701,11 @@ function SoftwareHub() {
               <div
                 style={{
                   color: "#1e293b",
-                  fontSize: "15px",
+                  fontSize: "22px",
                   fontWeight: "700",
-                  marginBottom: "6px",
+                  marginBottom: "3px",
+                  textAlign: "center",
+                  marginTop: "8px",
                 }}
               >
                 {file.title}
@@ -756,10 +713,11 @@ function SoftwareHub() {
 
               <div
                 style={{
-                  color: "#f97316",
-                  fontSize: "13px",
-                  fontWeight: "600",
-                  marginBottom: "8px",
+                  color: "#7b8599",
+                  fontSize: "12px",
+                  fontWeight: "500",
+                  marginBottom: "14px",
+                  textAlign: "center",
                 }}
               >
                 {file.softwareName}
@@ -768,10 +726,16 @@ function SoftwareHub() {
               <div
                 style={{
                   fontSize: "12px",
-                  color: "#64748b",
+                  color: "#7c879a",
+                  borderTop: "1px solid #edf1f7",
+                  paddingTop: 10,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                 }}
               >
-                {file.size} used
+                <span>{file.size} used</span>
+                <span style={{ textTransform: "uppercase", fontWeight: 700 }}>{file.type || "app"}</span>
               </div>
             </div>
           ))}

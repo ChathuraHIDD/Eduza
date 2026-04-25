@@ -1,12 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchModules } from "../utils/moduleApi";
+import {
+  createProgressAssessment,
+  deleteProgressAssessment,
+  listProgressAssessments,
+  updateProgressAssessment,
+} from "../utils/progressTrackerApi";
 
 const QUIZ_STORAGE_KEY = "moduleQuizzes";
-const QUESTION_COUNT = 10;
 const OPTION_LABELS = ["A", "B", "C", "D"];
 
 const createEmptyQuestion = (index) => ({
-  id: index + 1,
+  id: `${Date.now()}-${index + 1}`,
   text: "",
   options: ["", "", "", ""],
   correctOption: "",
@@ -15,9 +20,7 @@ const createEmptyQuestion = (index) => ({
 const createInitialForm = () => ({
   moduleId: "",
   status: "Not Started",
-  questions: Array.from({ length: QUESTION_COUNT }, (_, index) =>
-    createEmptyQuestion(index)
-  ),
+  questions: [createEmptyQuestion(0)],
 });
 
 const loadStoredQuizzes = () => {
@@ -38,6 +41,7 @@ function LecturerModuleQuiz() {
   const [moduleLoadError, setModuleLoadError] = useState("");
   const [modulesLoading, setModulesLoading] = useState(true);
   const [formError, setFormError] = useState("");
+  const [editingQuizId, setEditingQuizId] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -76,6 +80,37 @@ function LecturerModuleQuiz() {
     };
 
     loadModules();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadQuizzesFromDb = async () => {
+      try {
+        const data = await listProgressAssessments("quiz");
+        if (!isMounted) return;
+
+        const normalized = data.map((item) => ({
+          ...item,
+          id: item.id,
+          questionCount:
+            Number(item.questionCount) ||
+            (Array.isArray(item.questions) ? item.questions.length : 0),
+          questions: Array.isArray(item.questions) ? item.questions : [],
+        }));
+
+        setQuizzes(normalized);
+        localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(normalized));
+      } catch {
+        // Keep local fallback when API is unavailable.
+      }
+    };
+
+    loadQuizzesFromDb();
+
     return () => {
       isMounted = false;
     };
@@ -164,13 +199,61 @@ function LecturerModuleQuiz() {
     });
   };
 
+  const handleAddQuestion = () => {
+    setQuizForm((prev) => ({
+      ...prev,
+      questions: [...prev.questions, createEmptyQuestion(prev.questions.length)],
+    }));
+  };
+
+  const handleRemoveQuestion = (index) => {
+    setQuizForm((prev) => {
+      if (prev.questions.length === 1) return prev;
+      const nextQuestions = prev.questions.filter((_, questionIndex) => questionIndex !== index);
+      return {
+        ...prev,
+        questions: nextQuestions.map((question, questionIndex) => ({
+          ...question,
+          id: question.id || `${Date.now()}-${questionIndex + 1}`,
+        })),
+      };
+    });
+  };
+
+  const startEditQuiz = (quiz) => {
+    setEditingQuizId(String(quiz.id));
+    setQuizForm({
+      moduleId: String(quiz.moduleId || ""),
+      status: quiz.status || "Not Started",
+      questions:
+        Array.isArray(quiz.questions) && quiz.questions.length > 0
+          ? quiz.questions.map((question, index) => ({
+              id: String(question.id || `${Date.now()}-${index + 1}`),
+              text: question.text || "",
+              options: Array.isArray(question.options)
+                ? [...question.options, "", "", "", ""].slice(0, 4)
+                : ["", "", "", ""],
+              correctOption: question.correctOption || "",
+            }))
+          : [createEmptyQuestion(0)],
+    });
+    setFormError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const resetForm = () => {
+    setQuizForm(createInitialForm());
+    setEditingQuizId("");
+    setFormError("");
+  };
+
   const validateQuiz = () => {
     if (!quizForm.moduleId) {
       return "Please select a module from the database.";
     }
 
-    if (quizForm.questions.length !== QUESTION_COUNT) {
-      return `Quiz must include exactly ${QUESTION_COUNT} questions.`;
+    if (quizForm.questions.length < 1) {
+      return "Quiz must include at least one question.";
     }
 
     for (let index = 0; index < quizForm.questions.length; index += 1) {
@@ -194,7 +277,7 @@ function LecturerModuleQuiz() {
     return "";
   };
 
-  const handleAddQuiz = () => {
+  const handleSaveQuiz = async () => {
     const validationMessage = validateQuiz();
     if (validationMessage) {
       setFormError(validationMessage);
@@ -210,39 +293,65 @@ function LecturerModuleQuiz() {
       return;
     }
 
-    const questions = quizForm.questions.map((question) => ({
+    const questions = quizForm.questions.map((question, index) => ({
       id: question.id,
       text: question.text.trim(),
       options: question.options.map((option) => option.trim()),
       correctOption: question.correctOption,
       correctOptionIndex: OPTION_LABELS.indexOf(question.correctOption),
+      order: index + 1,
     }));
 
     const newQuiz = {
-      id: Date.now(),
+      type: "quiz",
       moduleId: selectedModule.id,
       moduleName: selectedModule.name,
       moduleCode: selectedModule.code,
       status: quizForm.status,
       score: 0,
-      questionCount: QUESTION_COUNT,
+      questionCount: questions.length,
       questions,
       createdAt: new Date().toISOString(),
     };
 
-    persistQuizzes([newQuiz, ...quizzes]);
-    setQuizForm(createInitialForm());
-    setFormError("");
+    try {
+      const saved = editingQuizId
+        ? await updateProgressAssessment(editingQuizId, newQuiz)
+        : await createProgressAssessment(newQuiz);
+      const next = editingQuizId
+        ? [saved, ...quizzes.filter((quiz) => String(quiz.id) !== String(editingQuizId))]
+        : [saved, ...quizzes];
+      persistQuizzes(next);
+      resetForm();
+      setFormError("");
+    } catch (error) {
+      setFormError(error?.message || "Failed to save quiz in database.");
+    }
   };
 
-  const handleDeleteQuiz = (id) => {
-    const updatedQuizzes = quizzes.filter((quiz) => quiz.id !== id);
+  const handleDeleteQuiz = async (id) => {
+    try {
+      if (typeof id === "string") {
+        await deleteProgressAssessment(id);
+      }
+    } catch {
+      // Continue local removal to avoid blocking UI when API fails.
+    }
+
+    const updatedQuizzes = quizzes.filter((quiz) => String(quiz.id) !== String(id));
     persistQuizzes(updatedQuizzes);
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     const confirmed = window.confirm("Are you sure you want to delete all quizzes?");
     if (!confirmed) return;
+
+    await Promise.all(
+      quizzes
+        .map((quiz) => quiz.id)
+        .filter((id) => typeof id === "string")
+        .map((id) => deleteProgressAssessment(id).catch(() => null))
+    );
 
     setQuizzes([]);
     localStorage.removeItem(QUIZ_STORAGE_KEY);
@@ -278,20 +387,23 @@ function LecturerModuleQuiz() {
           style={{
             position: "relative",
             overflow: "hidden",
-            borderRadius: "28px",
+            borderRadius: "24px",
             background: "linear-gradient(135deg, #f97316 0%, #ea580c 55%, #c2410c 100%)",
-            padding: "34px 32px",
+            padding: "28px 32px",
+            minHeight: "160px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
             marginBottom: "28px",
-            boxShadow: "0 20px 40px rgba(249,115,22,0.20)",
           }}
         >
           <div
             style={{
               position: "absolute",
-              top: "-40px",
-              right: "-30px",
-              width: "190px",
-              height: "190px",
+              top: -40,
+              right: -40,
+              width: "220px",
+              height: "220px",
               borderRadius: "50%",
               background: "rgba(255,255,255,0.10)",
             }}
@@ -299,7 +411,7 @@ function LecturerModuleQuiz() {
           <div
             style={{
               position: "absolute",
-              bottom: "-50px",
+              bottom: -55,
               right: "90px",
               width: "160px",
               height: "160px",
@@ -310,20 +422,14 @@ function LecturerModuleQuiz() {
 
           <div
             style={{
-              position: "relative",
-              zIndex: 1,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "10px",
-              background: "rgba(255,255,255,0.16)",
+              fontSize: 13,
               color: "#fff",
-              padding: "10px 14px",
-              borderRadius: "14px",
-              marginBottom: "14px",
-              fontSize: "13px",
-              fontWeight: "800",
+              fontWeight: 700,
+              marginBottom: 8,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
+              position: "relative",
+              zIndex: 1,
             }}
           >
             Lecturer Panel
@@ -331,10 +437,10 @@ function LecturerModuleQuiz() {
 
           <h1
             style={{
-              margin: "0 0 10px 0",
+              margin: 0,
               color: "#fff",
-              fontSize: "34px",
-              fontWeight: "800",
+              fontSize: 28,
+              fontWeight: 800,
               position: "relative",
               zIndex: 1,
             }}
@@ -344,11 +450,11 @@ function LecturerModuleQuiz() {
 
           <p
             style={{
-              margin: 0,
-              maxWidth: "840px",
+              margin: "10px 0 0",
+              maxWidth: "760px",
               color: "rgba(255,255,255,0.92)",
-              fontSize: "15px",
-              lineHeight: "1.8",
+              fontSize: 14,
+              lineHeight: 1.7,
               position: "relative",
               zIndex: 1,
             }}
@@ -385,7 +491,7 @@ function LecturerModuleQuiz() {
                   color: "#0f172a",
                 }}
               >
-                Create Module Quiz
+                {editingQuizId ? "Update Module Quiz" : "Create Module Quiz"}
               </h2>
               <p
                 style={{
@@ -395,8 +501,7 @@ function LecturerModuleQuiz() {
                   color: "#64748b",
                 }}
               >
-                Modules are loaded from the database. Choose one module, then
-                complete all 10 questions.
+                Modules are loaded from the database. Choose one module and add as many questions as needed.
               </p>
             </div>
 
@@ -567,6 +672,12 @@ function LecturerModuleQuiz() {
                     </span>
                   </div>
 
+                  <div style={{ marginBottom: "10px", display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                    <span style={{ fontSize: "12px", color: "#64748b", fontWeight: 700 }}>
+                      Question {index + 1}
+                    </span>
+                  </div>
+
                   <input
                     type="text"
                     value={question.text}
@@ -641,13 +752,59 @@ function LecturerModuleQuiz() {
                       </option>
                     ))}
                   </select>
+
+                  <div
+                    style={{
+                      marginTop: "12px",
+                      display: "flex",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveQuestion(index)}
+                      disabled={quizForm.questions.length === 1}
+                      style={{
+                        border: "1px solid #fecaca",
+                        background: quizForm.questions.length === 1 ? "#fff1f2" : "#fff",
+                        color: "#dc2626",
+                        borderRadius: "999px",
+                        padding: "8px 12px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: quizForm.questions.length === 1 ? "not-allowed" : "pointer",
+                        opacity: quizForm.questions.length === 1 ? 0.7 : 1,
+                      }}
+                    >
+                      Delete Question
+                    </button>
+                  </div>
                 </div>
               ))}
+
+              <div style={{ display: "flex", justifyContent: "flex-start", marginTop: "2px" }}>
+                <button
+                  type="button"
+                  onClick={handleAddQuestion}
+                  style={{
+                    border: "1px solid #fdba74",
+                    background: "#fff7ed",
+                    color: "#9a3412",
+                    borderRadius: "14px",
+                    padding: "10px 12px",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                  }}
+                >
+                  + Add Question
+                </button>
+              </div>
             </div>
 
             <div style={{ marginTop: "18px", display: "flex", gap: "10px" }}>
               <button
-                onClick={handleAddQuiz}
+                onClick={handleSaveQuiz}
                 style={{
                   border: "none",
                   background: "linear-gradient(135deg, #f97316, #ea580c)",
@@ -660,13 +817,12 @@ function LecturerModuleQuiz() {
                   boxShadow: "0 12px 24px rgba(249,115,22,0.24)",
                 }}
               >
-                Save 10-Question Quiz
+                {editingQuizId ? "Update Quiz" : "Save Quiz"}
               </button>
 
               <button
                 onClick={() => {
-                  setQuizForm(createInitialForm());
-                  setFormError("");
+                  resetForm();
                 }}
                 style={{
                   border: "1px solid #fdba74",
@@ -804,6 +960,23 @@ function LecturerModuleQuiz() {
                     <p style={{ margin: "0 0 12px 0", color: "#334155", fontSize: "13px" }}>
                       Created: {new Date(quiz.createdAt || Date.now()).toLocaleString()}
                     </p>
+
+                    <button
+                      onClick={() => startEditQuiz(quiz)}
+                      style={{
+                        border: "1px solid #fdba74",
+                        background: "#fff7ed",
+                        color: "#9a3412",
+                        borderRadius: "12px",
+                        padding: "8px 12px",
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        marginRight: "8px",
+                      }}
+                    >
+                      Edit Quiz
+                    </button>
 
                     <button
                       onClick={() => handleDeleteQuiz(quiz.id)}

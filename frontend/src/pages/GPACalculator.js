@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { getGpaProfile, saveGpaProfile } from '../utils/progressTrackerApi'
 
 const GRADING_SCALE = [
   { grade: 'A+', gpa: 4.0, marks: '90-100' },
@@ -28,12 +29,50 @@ const modeOptions = [
   { title: 'Up to Y2S2', subtitle: 'Old Syllabus' },
 ]
 
+const GPA_STORAGE_KEY = 'gpaProfile'
+const CREDIT_OPTIONS = [1, 2, 3, 4]
+
+const normalizeCredits = (value) => {
+  const numeric = Number(value)
+  return CREDIT_OPTIONS.includes(numeric) ? numeric : 3
+}
+
+const defaultGpaProfile = {
+  selectedMode: 'Custom-Add your own',
+  modules: [{ id: '1', moduleName: '', credits: 3, grade: 'A' }],
+}
+
+const loadStoredGpaProfile = () => {
+  try {
+    const raw = localStorage.getItem(GPA_STORAGE_KEY)
+    if (!raw) return defaultGpaProfile
+
+    const parsed = JSON.parse(raw)
+    const modules = Array.isArray(parsed?.modules)
+      ? parsed.modules.map((module, index) => ({
+          id: String(module?.id || Date.now() + index),
+          moduleName: String(module?.moduleName || ''),
+          credits: normalizeCredits(module?.credits),
+          grade: String(module?.grade || 'A'),
+        }))
+      : defaultGpaProfile.modules
+
+    return {
+      selectedMode: String(parsed?.selectedMode || defaultGpaProfile.selectedMode),
+      modules: modules.length > 0 ? modules : defaultGpaProfile.modules,
+    }
+  } catch {
+    return defaultGpaProfile
+  }
+}
+
 function GPACalculator() {
-  const [selectedMode, setSelectedMode] = useState('Custom-Add your own')
-  const [modules, setModules] = useState([
-    { id: 1, moduleName: '', credits: 3, grade: 'A' },
-  ])
+  const [selectedMode, setSelectedMode] = useState(() => loadStoredGpaProfile().selectedMode)
+  const [modules, setModules] = useState(() => loadStoredGpaProfile().modules)
   const [reportGenerated, setReportGenerated] = useState(false)
+  const [isProfileLoaded, setIsProfileLoaded] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncError, setSyncError] = useState('')
 
   const getGradePoint = useCallback((grade) => {
     const found = GRADING_SCALE.find((item) => item.grade === grade)
@@ -41,9 +80,12 @@ function GPACalculator() {
   }, [])
 
   const handleModuleChange = (id, field, value) => {
+    const normalizedValue =
+      field === 'credits' ? normalizeCredits(value) : value
+
     setModules((prev) =>
       prev.map((module) =>
-        module.id === id ? { ...module, [field]: value } : module
+        module.id === id ? { ...module, [field]: normalizedValue } : module
       )
     )
     setReportGenerated(false)
@@ -53,7 +95,7 @@ function GPACalculator() {
     setModules((prev) => [
       ...prev,
       {
-        id: Date.now(),
+        id: String(Date.now()),
         moduleName: '',
         credits: 3,
         grade: 'A',
@@ -73,6 +115,14 @@ function GPACalculator() {
       (m) => m.moduleName.trim() !== '' && Number(m.credits) > 0
     )
   }, [modules])
+
+  const strengthModules = useMemo(() => {
+    return validModules.filter((m) => getGradePoint(m.grade) >= 3.3)
+  }, [getGradePoint, validModules])
+
+  const weakModules = useMemo(() => {
+    return validModules.filter((m) => getGradePoint(m.grade) < 3.0)
+  }, [getGradePoint, validModules])
 
   const summary = useMemo(() => {
     const totalCredits = validModules.reduce(
@@ -127,12 +177,82 @@ function GPACalculator() {
   }
 
   const getStrengthModules = () => {
-    return validModules.filter((m) => getGradePoint(m.grade) >= 3.3)
+    return strengthModules
   }
 
   const getWeakModules = () => {
-    return validModules.filter((m) => getGradePoint(m.grade) < 3.0)
+    return weakModules
   }
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadProfile = async () => {
+      try {
+        const remote = await getGpaProfile()
+        if (!isMounted) return
+
+        setSelectedMode(remote.selectedMode || defaultGpaProfile.selectedMode)
+        setModules(
+          Array.isArray(remote.modules) && remote.modules.length > 0
+            ? remote.modules
+            : defaultGpaProfile.modules
+        )
+
+        localStorage.setItem(
+          GPA_STORAGE_KEY,
+          JSON.stringify({
+            selectedMode: remote.selectedMode || defaultGpaProfile.selectedMode,
+            modules:
+              Array.isArray(remote.modules) && remote.modules.length > 0
+                ? remote.modules
+                : defaultGpaProfile.modules,
+          })
+        )
+      } catch {
+        // Keep local fallback when API is unavailable.
+      } finally {
+        if (isMounted) setIsProfileLoaded(true)
+      }
+    }
+
+    loadProfile()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isProfileLoaded) return undefined
+
+    const payload = {
+      selectedMode,
+      modules: modules.length > 0 ? modules : defaultGpaProfile.modules,
+    }
+
+    localStorage.setItem(GPA_STORAGE_KEY, JSON.stringify(payload))
+
+    let isCancelled = false
+    const timer = window.setTimeout(async () => {
+      try {
+        setIsSyncing(true)
+        setSyncError('')
+        await saveGpaProfile(payload)
+      } catch {
+        if (!isCancelled) {
+          setSyncError('Cloud sync unavailable. Local save is active.')
+        }
+      } finally {
+        if (!isCancelled) setIsSyncing(false)
+      }
+    }, 600)
+
+    return () => {
+      isCancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [isProfileLoaded, modules, selectedMode])
 
   const handleGenerateReport = () => {
     if (validModules.length === 0) {
@@ -289,6 +409,9 @@ function GPACalculator() {
       </div>
 
       <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 10, fontSize: 12, color: syncError ? '#b91c1c' : '#475569' }}>
+          {syncError || (isSyncing ? 'Saving GPA profile...' : 'GPA profile synced')}
+        </div>
         <p style={{ marginBottom: 12, fontWeight: 700, color: '#111827' }}>Select Mode</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
           {modeOptions.map((mode) => {
@@ -350,13 +473,28 @@ function GPACalculator() {
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 700, color: '#111827' }}>
                 {index === 0 ? 'Credits' : ' '}
               </label>
-              <input
-                type="number"
-                min="1"
+              <select
                 value={module.credits}
                 onChange={(e) => handleModuleChange(module.id, 'credits', e.target.value)}
-                style={{ width: '100%', padding: 12, borderRadius: 16, border: '1px solid #fbbf24', background: '#fffbeb', outline: 'none' }}
-              />
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  borderRadius: 16,
+                  border: '1px solid #fbbf24',
+                  background:
+                    'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27221f1f%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpolyline points=%279 11 12 14 15 11%27/%3E%3C/svg%3E") no-repeat calc(100% - 16px) center / 14px 14px, #fffbeb',
+                  outline: 'none',
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  MozAppearance: 'none',
+                }}
+              >
+                {CREDIT_OPTIONS.map((credit) => (
+                  <option key={credit} value={credit}>
+                    {credit}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 700, color: '#111827' }}>
@@ -434,7 +572,16 @@ function GPACalculator() {
           </button>
           <button
             onClick={handleDownloadReport}
-            style={{ borderRadius: 18, border: '1px solid #f97316', background: '#ffffff', color: '#f97316', padding: '12px 20px', cursor: 'pointer' }}
+            disabled={!reportGenerated}
+            style={{
+              borderRadius: 18,
+              border: '1px solid #f97316',
+              background: '#ffffff',
+              color: '#f97316',
+              padding: '12px 20px',
+              cursor: reportGenerated ? 'pointer' : 'not-allowed',
+              opacity: reportGenerated ? 1 : 0.55,
+            }}
           >
             Download Report
           </button>

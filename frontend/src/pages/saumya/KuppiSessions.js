@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./KuppiSessions.css";
+import { getKuppiSessions, submitKuppiConductorApplication } from "../../utils/kuppiApi";
+import socket from "../../utils/socket";
 
 function KuppiSessions() {
   const storedUser = JSON.parse(localStorage.getItem("user")) || {};
@@ -15,8 +17,11 @@ function KuppiSessions() {
   const [hoveredDate, setHoveredDate] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [pinnedTasks, setPinnedTasks] = useState([1, 5, 7]);
+  const [pinnedTasks, setPinnedTasks] = useState([]);
   const [notifyTasks, setNotifyTasks] = useState([]);
+  const [liveSessions, setLiveSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessionsError, setSessionsError] = useState("");
 
   const monthNames = [
     "January",
@@ -38,7 +43,7 @@ function KuppiSessions() {
   const currentMonthName = monthNames[currentCalendarDate.getMonth()];
   const currentYearValue = currentCalendarDate.getFullYear();
 
-  const allTasks = [
+  const fallbackTasks = [
     {
       id: 1,
       title: "UI Design Kuppi",
@@ -212,6 +217,62 @@ function KuppiSessions() {
     },
   ];
 
+  useEffect(() => {
+    const mapSessionToTask = (session) => ({
+      id: session._id,
+      title: session.title,
+      time: session.timeRange || `${session.startTime} - ${session.endTime}`,
+      day: session.day,
+      date: session.date,
+      month: session.month,
+      yearNumber: session.yearNumber,
+      subject: session.subject,
+      year: session.year,
+      semester: session.semester,
+      type: session.sessionType || "upcoming",
+      category: session.category || "General",
+      bgClass: "task-card-peach",
+      avatars: (session.conductorName || "K")
+        .split(" ")
+        .slice(0, 3)
+        .map((name) => name[0]?.toUpperCase() || "K"),
+      accent: "accent-peach",
+      conductor: session.conductorName,
+      calendarColor: "calendar-orange",
+      meetingLink: session.meetingLink,
+      location: session.location,
+    });
+
+    const loadSessions = async () => {
+      try {
+        setSessionsLoading(true);
+        setSessionsError("");
+        const response = await getKuppiSessions();
+        const mapped = (response?.data || []).map(mapSessionToTask);
+        setLiveSessions(mapped);
+        setPinnedTasks(mapped.slice(0, 3).map((task) => task.id));
+      } catch (error) {
+        setSessionsError(error.message || "Failed to load Kuppi sessions.");
+      } finally {
+        setSessionsLoading(false);
+      }
+    };
+
+    const handleSessionCreated = (session) => {
+      const mappedSession = mapSessionToTask(session);
+      setLiveSessions((prev) => [mappedSession, ...prev.filter((item) => item.id !== mappedSession.id)]);
+    };
+
+    loadSessions();
+    socket.on("kuppi_session_created", handleSessionCreated);
+
+    return () => {
+      socket.off("kuppi_session_created", handleSessionCreated);
+    };
+  }, []);
+
+  const allTasks = liveSessions.length > 0 ? liveSessions : fallbackTasks;
+
   const [filters, setFilters] = useState({
     day: "All",
     subject: "All",
@@ -355,11 +416,31 @@ function KuppiSessions() {
     }));
   };
 
-  const handleConductorSubmit = (e) => {
+  const handleConductorSubmit = async (e) => {
     e.preventDefault();
-    console.log("Conductor Application Data:", conductorForm);
-    alert("Kuppi conductor application submitted successfully!");
-    setIsModalOpen(false);
+    try {
+      const savedRequest = await submitKuppiConductorApplication({
+        ...conductorForm,
+        userId: storedUser._id || storedUser.id || null,
+      });
+      console.log("Conductor Application Data:", savedRequest);
+      alert("Kuppi conductor request sent to admin successfully!");
+      setIsModalOpen(false);
+      setConductorForm({
+        fullName: currentUser.name,
+        mainSubject: "",
+        moduleLikeToDo: "",
+        currentStudyYear: currentUser.year,
+        currentSemester: currentUser.semester,
+        cgpa: "",
+        contact: "",
+        experience: "",
+        topicStrength: "",
+        availability: "",
+      });
+    } catch (error) {
+      alert(error.message || "Failed to send Kuppi conductor request.");
+    }
   };
 
   const handlePinTask = (taskId) => {
@@ -567,6 +648,12 @@ function KuppiSessions() {
             </div>
 
             <div className="kuppi-grid">
+              {sessionsError && (
+                <div className="empty-state-card">{sessionsError}</div>
+              )}
+              {sessionsLoading && !sessionsError && (
+                <div className="empty-state-card">Loading Kuppi sessions...</div>
+              )}
               {todayTasks.length > 0 ? (
                 todayTasks.map((task) => <TaskCard key={task.id} task={task} />)
               ) : (
@@ -602,6 +689,12 @@ function KuppiSessions() {
             </div>
 
             <div className="kuppi-grid upcoming-grid">
+              {sessionsError && (
+                <div className="empty-state-card">{sessionsError}</div>
+              )}
+              {sessionsLoading && !sessionsError && (
+                <div className="empty-state-card">Loading Kuppi sessions...</div>
+              )}
               {upcomingTasks.length > 0 ? (
                 upcomingTasks.map((task) => <TaskCard key={task.id} task={task} />)
               ) : (

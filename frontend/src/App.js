@@ -37,6 +37,8 @@ import GuardianStressResult from './pages/GuardianStressResult'
 
 import GroupChat from './pages/saumya/GroupChat'
 import KuppiSessions from './pages/saumya/KuppiSessions'
+import AdminKuppiDetails from './pages/saumya/AdminKuppiDetails'
+import CreateKuppi from './pages/saumya/CreateKuppi'
 import SoftwareHub from './pages/saumya/SoftwareHub'
 import AINotes from './pages/saumya/AINotes'
 import SoftwareDetails from './pages/saumya/SoftwareDetails'
@@ -151,6 +153,24 @@ function App() {
           />
 
           <Route
+            path="admin/kuppi-details"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminKuppiDetails />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="admin/create-kuppi"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <CreateKuppi />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="coordinator"
             element={
               <ProtectedRoute roles={['guardian']}>
@@ -169,7 +189,14 @@ function App() {
           />
 
           <Route path="group-chat" element={<GroupChat />} />
-          <Route path="kuppi-sessions" element={<KuppiSessions />} />
+          <Route
+            path="kuppi-sessions"
+            element={
+              <ProtectedRoute roles={['student', 'coordinator']}>
+                <KuppiSessions />
+              </ProtectedRoute>
+            }
+          />
           <Route path="software-hub" element={<SoftwareHub />} />
           <Route path="ai-notes" element={<AINotes />} />
           <Route path="software/:slug" element={<SoftwareDetails />} />

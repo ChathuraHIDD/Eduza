@@ -79,6 +79,9 @@ function examSubjects(day) {
 function getPlanTitle(planType) {
   if (planType === 'assignment') return 'Assignment Plan'
   if (planType === 'mid-exam') return 'Mid Exam Plan'
+  if (planType === 'whole-semester') return 'Whole Semester Plan'
+  if (planType === 'other-exam') return 'Other Exam Plan'
+  if (planType === 'other-activity') return 'Other Activity Plan'
   return 'Final Exam Plan'
 }
 
@@ -91,6 +94,44 @@ function getSummaryRows(planType, data) {
       ['Total Days', data?.totalDays ?? '-'],
       ['Hours per Day', data?.hoursPerDay ? `${data.hoursPerDay}h` : '-'],
       ['Total Workload', data?.totalHours ? `${data.totalHours}h` : '-'],
+    ]
+  }
+
+  if (planType === 'whole-semester') {
+    return [
+      ['Semester', data?.semesterLabel || '-'],
+      ['Start Date', formatDate(data?.semesterStart)],
+      ['End Date', formatDate(data?.semesterEnd)],
+      ['Total Weeks', data?.totalWeeks ?? '-'],
+      ['Modules', Array.isArray(data?.modules) ? data.modules.length : '-'],
+      ['Study Days', Array.isArray(data?.studyDays) ? data.studyDays.length : '-'],
+      ['Hours per Day', data?.hoursPerDay ? `${data.hoursPerDay}h` : '-'],
+      ['Total Workload', data?.totalHours ? `${data.totalHours}h` : '-'],
+      ['Study Time', data?.studyTime === 'morning' ? 'Morning' : data?.studyTime === 'night' ? 'Night' : '-'],
+    ]
+  }
+
+  if (planType === 'other-exam') {
+    return [
+      ['Exam Type', data?.examTypeName || '-'],
+      ['Total Papers', Array.isArray(data?.exams) ? data.exams.length : '-'],
+      ['Target', data?.targetLabel || '-'],
+      ['Total Days', data?.totalDays ?? '-'],
+      ['Hours per Day', data?.hoursPerDay ? `${data.hoursPerDay}h` : '-'],
+      ['Total Workload', data?.totalHours ? `${data.totalHours}h` : '-'],
+      ['Study Time', data?.studyTime === 'morning' ? 'Morning' : data?.studyTime === 'night' ? 'Night' : '-'],
+    ]
+  }
+
+  if (planType === 'other-activity') {
+    return [
+      ['Goal', data?.goalName || '-'],
+      ['Category', data?.goalCategoryName || '-'],
+      ['Target', data?.targetLabel || '-'],
+      ['Total Weeks', data?.totalWeeks ?? '-'],
+      ['Hours per Week', data?.hoursPerWeek ? `${data.hoursPerWeek}h` : '-'],
+      ['Total Workload', data?.totalHours ? `${data.totalHours}h` : '-'],
+      ['Study Time', data?.studyTime === 'morning' ? 'Morning' : data?.studyTime === 'night' ? 'Night' : '-'],
     ]
   }
 
@@ -181,6 +222,48 @@ function buildTimetableRows(days) {
       task: 'Total planned workload',
       workload: typeof day?.hoursPlanned === 'number' ? `${day.hoursPlanned}h` : '-',
       isSummary: true,
+    })
+  })
+
+  return rows
+}
+
+function buildWholeSemesterRows(weeks) {
+  const rows = []
+
+  weeks.forEach((week, weekIndex) => {
+    rows.push({
+      date: `${formatDate(week?.weekStart)} - ${formatDate(week?.weekEnd)}`,
+      day: `Week ${week?.weekNumber ?? weekIndex + 1}`,
+      focus: 'Week Summary',
+      time: '-',
+      task: week?.weekLabel || `Study plan for week ${week?.weekNumber ?? weekIndex + 1}`,
+      workload: week?.weekTotalHrs ? `${week.weekTotalHrs}h` : '-',
+      isSummary: true,
+    })
+
+    const examDays = Array.isArray(week?.examDays) ? week.examDays : []
+    examDays.forEach((exam) => {
+      rows.push({
+        date: formatDate(exam?.date),
+        day: 'Exam',
+        focus: exam?.subject || 'Exam',
+        time: 'Exam',
+        task: `Exam Day: ${exam?.subject || 'Exam'}`,
+        workload: '0h',
+      })
+    })
+
+    const days = Array.isArray(week?.days) ? week.days : []
+    days.forEach((day) => {
+      rows.push({
+        date: formatDate(day?.date),
+        day: formatWeekday(day?.date),
+        focus: day?.module || 'Module',
+        time: '-',
+        task: day?.task || 'Study session',
+        workload: typeof day?.hours === 'number' ? `${day.hours}h` : '-',
+      })
     })
   })
 
@@ -308,7 +391,10 @@ export async function downloadSchedulePdf({ planType, data }) {
     { key: 'workload', label: 'Workload', width: 18 },
   ]
 
-  const rows = buildTimetableRows(Array.isArray(data?.days) ? data.days : [])
+  const rows =
+    planType === 'whole-semester'
+      ? buildWholeSemesterRows(Array.isArray(data?.weeks) ? data.weeks : [])
+      : buildTimetableRows(Array.isArray(data?.days) ? data.days : [])
 
   const x = 14
   drawTableHeader(doc, x, y, columns)
@@ -343,7 +429,13 @@ export async function downloadSchedulePdf({ planType, data }) {
       ? 'assignment'
       : planType === 'mid-exam'
         ? 'mid-exam'
-        : 'final-exam'
+        : planType === 'whole-semester'
+          ? 'whole-semester'
+          : planType === 'other-exam'
+            ? 'other-exam'
+            : planType === 'other-activity'
+              ? 'other-activity'
+              : 'final-exam'
 
   doc.save(`eduza-${filePrefix}-timetable.pdf`)
 }

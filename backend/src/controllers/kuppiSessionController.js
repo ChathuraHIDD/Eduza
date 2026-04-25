@@ -1,6 +1,65 @@
 const KuppiSession = require("../models/KuppiSession");
 const KuppiConductorApplication = require("../models/KuppiConductorApplication");
 const KuppiSessionPreference = require("../models/KuppiSessionPreference");
+const Notification = require("../models/Notification");
+
+const emitKuppiApplicationEvent = (req, eventName, payload) => {
+  const io = req.app.get("io");
+  if (io) {
+    io.emit(eventName, payload);
+  }
+};
+
+const emitKuppiSessionEvent = (req, eventName, payload) => {
+  const io = req.app.get("io");
+  if (io) {
+    io.emit(eventName, payload);
+  }
+};
+
+const createKuppiDecisionNotification = async (application) => {
+  if (!application?.userId) {
+    return;
+  }
+
+  if (!["approved", "rejected"].includes(application.status)) {
+    return;
+  }
+
+  const title =
+    application.status === "approved"
+      ? "Kuppi Conductor Request Approved"
+      : "Kuppi Conductor Request Rejected";
+
+  const message =
+    application.status === "approved"
+      ? `Your request to conduct ${application.moduleLikeToDo} under ${application.mainSubject} has been approved by admin.`
+      : `Your request to conduct ${application.moduleLikeToDo} under ${application.mainSubject} has been rejected by admin.`;
+
+  await Notification.create({
+    studentId: application.userId,
+    channel: "IN_APP",
+    title,
+    message,
+    status: "SENT",
+    read: false,
+  });
+};
+
+const createKuppiSessionCreatedNotification = async (application, session) => {
+  if (!application?.userId || !session) {
+    return;
+  }
+
+  await Notification.create({
+    studentId: application.userId,
+    channel: "IN_APP",
+    title: "Kuppi Session Created",
+    message: `Your approved request has been scheduled as "${session.title}" on ${session.day}, ${session.month} ${session.date} at ${session.timeRange}.`,
+    status: "SENT",
+    read: false,
+  });
+};
 
 /**
  * @desc Create a new kuppi session
@@ -23,11 +82,12 @@ const createKuppiSession = async (req, res) => {
       yearNumber,
       startTime,
       endTime,
-      meetingLink,
-      location,
-      sessionType,
-      category,
-      maxParticipants,
+    meetingLink,
+    location,
+    sessionType,
+    category,
+    maxParticipants,
+      applicationId,
     } = req.body;
 
     if (
@@ -47,6 +107,26 @@ const createKuppiSession = async (req, res) => {
         success: false,
         message: "Please fill all required fields",
       });
+    }
+
+    let linkedApplication = null;
+
+    if (applicationId) {
+      linkedApplication = await KuppiConductorApplication.findById(applicationId);
+
+      if (!linkedApplication) {
+        return res.status(404).json({
+          success: false,
+          message: "Approved request not found",
+        });
+      }
+
+      if (linkedApplication.status !== "approved") {
+        return res.status(400).json({
+          success: false,
+          message: "Only approved requests can be used to create a Kuppi session",
+        });
+      }
     }
 
     const session = await KuppiSession.create({
@@ -71,6 +151,16 @@ const createKuppiSession = async (req, res) => {
       category,
       maxParticipants,
     });
+
+    if (linkedApplication) {
+      linkedApplication.createdSessionId = session._id;
+      linkedApplication.sessionCreatedAt = new Date();
+      await linkedApplication.save();
+      await createKuppiSessionCreatedNotification(linkedApplication, session);
+      emitKuppiApplicationEvent(req, "kuppi_application_updated", linkedApplication);
+    }
+
+    emitKuppiSessionEvent(req, "kuppi_session_created", session);
 
     res.status(201).json({
       success: true,
@@ -204,6 +294,8 @@ const applyAsKuppiConductor = async (req, res) => {
       userId: userId || null,
     });
 
+    emitKuppiApplicationEvent(req, "kuppi_application_created", application);
+
     res.status(201).json({
       success: true,
       message: "Kuppi conductor application submitted successfully",
@@ -213,6 +305,83 @@ const applyAsKuppiConductor = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to submit conductor application",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc Get conductor applications
+ * @route GET /api/kuppi-sessions/conductor/applications
+ */
+const getKuppiConductorApplications = async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = {};
+
+    if (status) {
+      filter.status = status;
+    }
+
+    const applications = await KuppiConductorApplication.find(filter).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json({
+      success: true,
+      count: applications.length,
+      data: applications,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch conductor applications",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc Update conductor application status
+ * @route PATCH /api/kuppi-sessions/conductor/applications/:id/status
+ */
+const updateKuppiConductorApplicationStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["approved", "rejected", "pending"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status value",
+      });
+    }
+
+    const application = await KuppiConductorApplication.findById(id);
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: "Conductor application not found",
+      });
+    }
+
+    application.status = status;
+    await application.save();
+
+    await createKuppiDecisionNotification(application);
+
+    emitKuppiApplicationEvent(req, "kuppi_application_updated", application);
+
+    res.status(200).json({
+      success: true,
+      message: "Conductor application updated successfully",
+      data: application,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update conductor application",
       error: error.message,
     });
   }
@@ -418,6 +587,8 @@ module.exports = {
   getAllKuppiSessions,
   getKuppiSessionById,
   applyAsKuppiConductor,
+  getKuppiConductorApplications,
+  updateKuppiConductorApplicationStatus,
   togglePinKuppiSession,
   setKuppiReminder,
   getPinnedKuppiSessions,

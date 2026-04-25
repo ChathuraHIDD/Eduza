@@ -183,6 +183,36 @@ function parseNumericLikeValue(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
+function getTargetProgressFromScheduleData(scheduleData) {
+  let targetProgress = 70
+
+  if (typeof scheduleData?.mark === 'number') {
+    targetProgress = scheduleData.mark
+  }
+
+  if (typeof scheduleData?.grade === 'string' && scheduleData.grade) {
+    targetProgress = gradeToTargetPercent(scheduleData.grade)
+  }
+
+  if (typeof scheduleData?.targetLabel === 'string') {
+    const targetLabel = scheduleData.targetLabel.trim()
+    const asNum = Number(targetLabel.replace('%', ''))
+    if (!Number.isNaN(asNum) && asNum > 0) targetProgress = asNum
+    if (['A+','A','B+','B','C+','C','D','F'].includes(targetLabel)) {
+      targetProgress = gradeToTargetPercent(targetLabel)
+    }
+  }
+
+  return targetProgress
+}
+
+function weaknessToDifficulty(weakness) {
+  const value = Number(weakness)
+  if (value >= 4) return 3
+  if (value >= 3) return 2
+  return 1
+}
+
 function getPlanScheduleType(plan) {
   if (plan?.uiScheduleType) return plan.uiScheduleType
 
@@ -695,21 +725,7 @@ function SmartSchedule() {
     // If your scheduleEngine doesn’t return mark/grade, we still can infer a target.
     const hoursPerDay = Number(scheduleData?.hoursPerDay ?? 3)
 
-    // Try to infer target progress:
-    // - if scheduleData contains mark (number) use it
-    // - else if it contains grade string, map it
-    // - else fallback 70
-    let target_progress = 70
-    if (typeof scheduleData?.mark === 'number') target_progress = scheduleData.mark
-    if (typeof scheduleData?.grade === 'string' && scheduleData.grade) target_progress = gradeToTargetPercent(scheduleData.grade)
-
-    // If scheduleEngine stores targetLabel like "A+" or "70%", try to parse it
-    if (typeof scheduleData?.targetLabel === 'string') {
-      const tl = scheduleData.targetLabel.trim()
-      const asNum = Number(tl.replace('%', ''))
-      if (!Number.isNaN(asNum) && asNum > 0) target_progress = asNum
-      if (['A+','A','B+','B','C+','C','D','F'].includes(tl)) target_progress = gradeToTargetPercent(tl)
-    }
+    const target_progress = getTargetProgressFromScheduleData(scheduleData)
 
     const current_progress = 0 // starting point
     const difficulty = deriveDifficultyFromTarget(target_progress)
@@ -766,15 +782,135 @@ function SmartSchedule() {
   const handleMidExamGenerate = async (scheduleData) => {
     setMidExamModalOpen(false)
     setScheduleType('mid-exam')
+    setMlError('')
     setGeneratedSchedule(scheduleData)
-    await persistSchedule('mid-exam', scheduleData)
+    let scheduleToPersist = scheduleData
+
+    const target_progress = getTargetProgressFromScheduleData(scheduleData)
+    const current_progress = Math.max(0, Number(scheduleData?.currentProgress || 0))
+    const past_study_pace = 25
+    const daily_hours = Number(scheduleData?.hoursPerDay || 3)
+    const exams = Array.isArray(scheduleData?.exams) ? scheduleData.exams : []
+
+    setMlLoading(true)
+    try {
+      const predictions = await Promise.all(
+        exams.map(async (exam) => {
+          const difficulty = weaknessToDifficulty(exam?.weakness)
+          const pred = await predictTaskDuration({
+            current_progress,
+            target_progress,
+            past_study_pace,
+            difficulty,
+            daily_hours,
+          })
+
+          const predicted_minutes = Number(pred?.predicted_minutes ?? pred?.predictedMinutes ?? 0)
+          const predicted_hours = predicted_minutes ? Number((predicted_minutes / 60).toFixed(2)) : 0
+          const predicted_days = (predicted_hours && daily_hours) ? Math.ceil(predicted_hours / daily_hours) : 0
+
+          return {
+            subject: exam?.subject || 'Exam',
+            predicted_minutes,
+            predicted_hours,
+            predicted_days,
+            inputs: { current_progress, target_progress, past_study_pace, difficulty, daily_hours },
+          }
+        })
+      )
+
+      const predicted_minutes = predictions.reduce((sum, exam) => sum + Number(exam.predicted_minutes || 0), 0)
+      const predicted_hours = Number((predicted_minutes / 60).toFixed(2))
+      const predicted_days = daily_hours ? Math.ceil(predicted_hours / daily_hours) : 0
+
+      const ml = {
+        predicted_minutes,
+        predicted_hours,
+        predicted_days,
+        inputs: { current_progress, target_progress, past_study_pace, daily_hours },
+        exams: predictions,
+      }
+
+      setGeneratedSchedule((prev) => ({ ...prev, ml }))
+      scheduleToPersist = {
+        ...scheduleData,
+        studyPlanId: scheduleData?.studyPlanId || null,
+        ml,
+      }
+    } catch (error) {
+      setMlError(error?.message || 'AI prediction failed for mid exam schedule')
+    } finally {
+      setMlLoading(false)
+    }
+
+    await persistSchedule('mid-exam', scheduleToPersist)
   }
 
   const handleFinalExamGenerate = async (scheduleData) => {
     setFinalExamModalOpen(false)
     setScheduleType('final-exam')
+    setMlError('')
     setGeneratedSchedule(scheduleData)
-    await persistSchedule('final-exam', scheduleData)
+    let scheduleToPersist = scheduleData
+
+    const target_progress = getTargetProgressFromScheduleData(scheduleData)
+    const current_progress = Math.max(0, Number(scheduleData?.currentProgress || 0))
+    const past_study_pace = 25
+    const daily_hours = Number(scheduleData?.hoursPerDay || 3)
+    const exams = Array.isArray(scheduleData?.exams) ? scheduleData.exams : []
+
+    setMlLoading(true)
+    try {
+      const predictions = await Promise.all(
+        exams.map(async (exam) => {
+          const difficulty = weaknessToDifficulty(exam?.weakness)
+          const pred = await predictTaskDuration({
+            current_progress,
+            target_progress,
+            past_study_pace,
+            difficulty,
+            daily_hours,
+          })
+
+          const predicted_minutes = Number(pred?.predicted_minutes ?? pred?.predictedMinutes ?? 0)
+          const predicted_hours = predicted_minutes ? Number((predicted_minutes / 60).toFixed(2)) : 0
+          const predicted_days = (predicted_hours && daily_hours) ? Math.ceil(predicted_hours / daily_hours) : 0
+
+          return {
+            subject: exam?.subject || 'Exam',
+            predicted_minutes,
+            predicted_hours,
+            predicted_days,
+            inputs: { current_progress, target_progress, past_study_pace, difficulty, daily_hours },
+          }
+        })
+      )
+
+      const predicted_minutes = predictions.reduce((sum, exam) => sum + Number(exam.predicted_minutes || 0), 0)
+      const predicted_hours = Number((predicted_minutes / 60).toFixed(2))
+      const predicted_days = daily_hours ? Math.ceil(predicted_hours / daily_hours) : 0
+
+      const ml = {
+        predicted_minutes,
+        predicted_hours,
+        predicted_days,
+        inputs: { current_progress, target_progress, past_study_pace, daily_hours },
+        exams: predictions,
+      }
+
+      setGeneratedSchedule((prev) => ({ ...prev, ml }))
+      scheduleToPersist = {
+        ...scheduleData,
+        studyPlanId: scheduleData?.studyPlanId || null,
+        ml,
+      }
+    } catch (error) {
+      setMlError(error?.message || 'AI prediction failed for final exam schedule')
+    } finally {
+      setMlLoading(false)
+    }
+
+    await persistSchedule('final-exam', scheduleToPersist)
   }
 
   const handleWholeSemesterGenerate = async (scheduleData) => {
@@ -848,11 +984,75 @@ function SmartSchedule() {
   }
 
   if (generatedSchedule && scheduleType === 'mid-exam') {
-    return <MidExamResult data={generatedSchedule} onBack={handleReset} />
+    return (
+      <div>
+        {(mlLoading || mlError) && (
+          <div style={{ maxWidth: 900, margin: '0 auto 1rem' }}>
+            {mlLoading && (
+              <div style={{
+                background: '#111',
+                border: '1px solid #222',
+                borderRadius: 12,
+                padding: '10px 14px',
+                fontSize: 12,
+                color: '#888',
+              }}>
+                ⏳ Calculating AI time estimate for your mid exams...
+              </div>
+            )}
+            {mlError && (
+              <div style={{
+                background: 'rgba(239,68,68,0.08)',
+                border: '1px solid rgba(239,68,68,0.25)',
+                borderRadius: 12,
+                padding: '10px 14px',
+                fontSize: 12,
+                color: '#ef4444',
+              }}>
+                ⚠️ AI estimate unavailable: {mlError}
+              </div>
+            )}
+          </div>
+        )}
+        <MidExamResult data={generatedSchedule} onBack={handleReset} />
+      </div>
+    )
   }
 
   if (generatedSchedule && scheduleType === 'final-exam') {
-    return <FinalExamResult data={generatedSchedule} onBack={handleReset} />
+    return (
+      <div>
+        {(mlLoading || mlError) && (
+          <div style={{ maxWidth: 900, margin: '0 auto 1rem' }}>
+            {mlLoading && (
+              <div style={{
+                background: '#111',
+                border: '1px solid #222',
+                borderRadius: 12,
+                padding: '10px 14px',
+                fontSize: 12,
+                color: '#888',
+              }}>
+                ⏳ Calculating AI time estimate for your final exams...
+              </div>
+            )}
+            {mlError && (
+              <div style={{
+                background: 'rgba(239,68,68,0.08)',
+                border: '1px solid rgba(239,68,68,0.25)',
+                borderRadius: 12,
+                padding: '10px 14px',
+                fontSize: 12,
+                color: '#ef4444',
+              }}>
+                ⚠️ AI estimate unavailable: {mlError}
+              </div>
+            )}
+          </div>
+        )}
+        <FinalExamResult data={generatedSchedule} onBack={handleReset} />
+      </div>
+    )
   }
 
   if (generatedSchedule && scheduleType === 'whole-semester') {

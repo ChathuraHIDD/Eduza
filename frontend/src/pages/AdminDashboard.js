@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { getPendingProfileRequests, updateProfileRequestStatus } from '../utils/profileRequestApi'
 import { fetchModules, updateModuleApproval } from '../utils/moduleApi'
 import { acknowledgeStressAlert, getStressAdminSummary, getStressAlerts } from '../utils/stressHubApi'
+import socket from '../utils/socket'
+import { getKuppiConductorApplications, updateKuppiConductorApplicationStatus } from '../utils/kuppiApi'
 
 const cardStyle = {
   background: '#ffffff',
@@ -34,6 +36,8 @@ function AdminDashboard() {
   const [stressSummary, setStressSummary] = useState(null)
   const [stressSummaryLoading, setStressSummaryLoading] = useState(true)
   const [stressSummaryError, setStressSummaryError] = useState('')
+  const [pendingKuppiRequests, setPendingKuppiRequests] = useState([])
+  const [kuppiProcessingId, setKuppiProcessingId] = useState('')
 
   // Fetch pending requests on component mount
   useEffect(() => {
@@ -41,7 +45,38 @@ function AdminDashboard() {
     fetchPendingModuleRequests()
     fetchOpenStressAlerts()
     fetchStressSummary()
+    loadPendingKuppiRequests()
+
+    const handleKuppiCreated = (application) => {
+      if (application?.status === 'pending') {
+        setPendingKuppiRequests((prev) => [application, ...prev.filter((item) => item._id !== application._id)])
+      }
+    }
+
+    const handleKuppiUpdated = (application) => {
+      setPendingKuppiRequests((prev) => {
+        const withoutCurrent = prev.filter((item) => item._id !== application?._id)
+        return application?.status === 'pending' ? [application, ...withoutCurrent] : withoutCurrent
+      })
+    }
+
+    socket.on('kuppi_application_created', handleKuppiCreated)
+    socket.on('kuppi_application_updated', handleKuppiUpdated)
+
+    return () => {
+      socket.off('kuppi_application_created', handleKuppiCreated)
+      socket.off('kuppi_application_updated', handleKuppiUpdated)
+    }
   }, [])
+
+  const loadPendingKuppiRequests = async () => {
+    try {
+      const response = await getKuppiConductorApplications('pending')
+      setPendingKuppiRequests(response?.data || [])
+    } catch (err) {
+      console.error('Failed to load pending Kuppi requests', err)
+    }
+  }
 
   const fetchStressSummary = async () => {
     try {
@@ -158,6 +193,18 @@ function AdminDashboard() {
       alert('Failed to reject module request: ' + err.message)
     } finally {
       setModuleProcessing(false)
+    }
+  }
+
+  const handleKuppiDecision = async (requestId, status) => {
+    try {
+      setKuppiProcessingId(requestId)
+      await updateKuppiConductorApplicationStatus(requestId, status)
+      alert(`Kuppi request ${status} successfully!`)
+    } catch (err) {
+      alert('Failed to update Kuppi request: ' + err.message)
+    } finally {
+      setKuppiProcessingId('')
     }
   }
 
@@ -492,6 +539,119 @@ function AdminDashboard() {
             <div style={{ color: '#9ca3af', fontSize: 12, marginTop: 6 }}>{item.note}</div>
           </div>
         ))}
+      </div>
+
+      <div style={{
+        ...cardStyle,
+        borderRadius: 14,
+        padding: '1.25rem',
+        marginBottom: '1.5rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, color: '#1a1a2e', fontSize: 18 }}>
+            Pending Kuppi Conductor Requests ({pendingKuppiRequests.length})
+          </h3>
+          <Link
+            to="/admin/kuppi-details"
+            style={{
+              color: '#f97316',
+              textDecoration: 'none',
+              fontSize: 12,
+              fontWeight: 700,
+              border: '1px solid rgba(249,115,22,0.35)',
+              borderRadius: 8,
+              padding: '6px 10px',
+            }}
+          >
+            View Kuppi Details
+          </Link>
+        </div>
+
+        {pendingKuppiRequests.length === 0 && (
+          <div style={{ color: '#9ca3af', textAlign: 'center', padding: '2rem' }}>
+            <div style={{ fontSize: 40, marginBottom: '0.5rem' }}>OK</div>
+            <p>No pending Kuppi conductor requests right now.</p>
+          </div>
+        )}
+
+        {pendingKuppiRequests.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            {pendingKuppiRequests.map((request) => (
+              <div
+                key={request._id}
+                style={{
+                  background: '#f8faff',
+                  border: '1.5px solid #e8ecf4',
+                  borderRadius: 12,
+                  padding: '1rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.75rem', gap: 10 }}>
+                  <div>
+                    <div style={{ color: '#f97316', fontSize: 14, fontWeight: 700 }}>{request.fullName}</div>
+                    <div style={{ color: '#9ca3af', fontSize: 12, marginTop: 2 }}>{request.studentEmail}</div>
+                  </div>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: 20,
+                    background: 'rgba(249, 115, 22, 0.2)',
+                    color: '#f97316',
+                  }}>
+                    Pending
+                  </span>
+                </div>
+
+                <div style={{ color: '#374151', fontSize: 13, lineHeight: 1.6 }}>
+                  <div><strong>Subject:</strong> {request.mainSubject}</div>
+                  <div><strong>Module:</strong> {request.moduleLikeToDo}</div>
+                  <div><strong>Year:</strong> {request.currentStudyYear} · {request.currentSemester}</div>
+                  <div><strong>Availability:</strong> {request.availability}</div>
+                </div>
+
+                <div style={{ color: '#9ca3af', fontSize: 11, marginTop: '0.75rem' }}>
+                  {new Date(request.createdAt).toLocaleString()}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.9rem' }}>
+                  <button
+                    onClick={() => handleKuppiDecision(request._id, 'approved')}
+                    disabled={kuppiProcessingId === request._id}
+                    style={{
+                      border: 'none',
+                      borderRadius: 10,
+                      background: '#22c55e',
+                      color: '#ffffff',
+                      padding: '9px 14px',
+                      fontWeight: 700,
+                      cursor: kuppiProcessingId === request._id ? 'not-allowed' : 'pointer',
+                      opacity: kuppiProcessingId === request._id ? 0.6 : 1,
+                    }}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleKuppiDecision(request._id, 'rejected')}
+                    disabled={kuppiProcessingId === request._id}
+                    style={{
+                      border: 'none',
+                      borderRadius: 10,
+                      background: '#ef4444',
+                      color: '#ffffff',
+                      padding: '9px 14px',
+                      fontWeight: 700,
+                      cursor: kuppiProcessingId === request._id ? 'not-allowed' : 'pointer',
+                      opacity: kuppiProcessingId === request._id ? 0.6 : 1,
+                    }}
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{

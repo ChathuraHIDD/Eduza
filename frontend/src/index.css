@@ -35,16 +35,9 @@ body {
   background: #ea6c10;
 }
 
-/* Hide hamburger on desktop */
+/* Keep menu toggle visible on all breakpoints */
 .mobile-menu-btn {
-  display: none;
-}
-
-/* Show only on mobile */
-@media (max-width: 1024px) {
-  .mobile-menu-btn {
-    display: flex;
-  }
+  display: flex;
 }
 
 .progress-measure {
@@ -435,6 +428,16 @@ body {
 
 .progress-streak-hero .mt-3 {
   margin-top: 16px !important;
+}
+
+.software-hub-card {
+  border: 1px solid #fdba74 !important;
+}
+
+.software-hub-card:hover {
+  transform: translateY(-8px) scale(1.01);
+  box-shadow: 0 18px 34px rgba(249, 115, 22, 0.22) !important;
+  border-color: #f97316 !important;
 }
 
 @media (max-width: 767px) {

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { generateAssignmentSchedule } from '../../utils/scheduleEngine'
+import { fetchAvailableModules } from '../../utils/moduleApi'
 
 const GRADES = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D', 'F']
 
@@ -63,7 +64,11 @@ function StepIndicator({ current }) {
 
 function AssignmentModal({ onClose, onGenerate }) {
   const [step, setStep] = useState(0)
+  const [modules, setModules] = useState([])
+  const [modulesLoading, setModulesLoading] = useState(false)
+  const [modulesError, setModulesError] = useState('')
   const [form, setForm] = useState({
+    moduleId: '',
     subject: '',
     dueDate: '',
     currentProgress: 0, // ✅ NEW
@@ -75,7 +80,55 @@ function AssignmentModal({ onClose, onGenerate }) {
   })
   const [errors, setErrors] = useState({})
 
+  useEffect(() => {
+    let cancelled = false
+
+    const loadModules = async () => {
+      setModulesLoading(true)
+      setModulesError('')
+
+      try {
+        const data = await fetchAvailableModules({ limit: 500 })
+        if (cancelled) return
+
+        const list = Array.isArray(data) ? data : Array.isArray(data?.modules) ? data.modules : []
+        setModules(list)
+      } catch (error) {
+        if (cancelled) return
+        setModules([])
+        setModulesError(error?.message || 'Failed to load modules')
+      } finally {
+        if (!cancelled) setModulesLoading(false)
+      }
+    }
+
+    loadModules()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const selectedModule = useMemo(
+    () => modules.find((module) => String(module?._id || module?.id || '') === String(form.moduleId)) || null,
+    [form.moduleId, modules]
+  )
+
   const set = (key, value) => {
+    if (key === 'moduleId') {
+      const nextModule = modules.find((module) => String(module?._id || module?.id || '') === String(value)) || null
+      setForm((f) => ({
+        ...f,
+        moduleId: String(value || ''),
+        subject: nextModule?.name || '',
+      }))
+      setErrors((e) => ({
+        ...e,
+        moduleId: nextModule ? '' : 'Please select a module',
+        subject: nextModule ? '' : e.subject,
+      }))
+      return
+    }
+
     if (key === 'subject') {
       const hasSpecials = DISALLOWED_SPECIALS.test(value)
       const cleaned = sanitizeTextValue(value)
@@ -94,8 +147,8 @@ function AssignmentModal({ onClose, onGenerate }) {
   const validateStep = () => {
     const errs = {}
     if (step === 0) {
+      if (!form.moduleId) errs.moduleId = 'Please select a module'
       if (!form.subject.trim()) errs.subject = 'Subject is required'
-      else if (DISALLOWED_SPECIALS.test(form.subject)) errs.subject = SPECIAL_CHAR_ERROR
       if (!form.dueDate) errs.dueDate = 'Due date is required'
       else if (new Date(form.dueDate) <= new Date()) errs.dueDate = 'Due date must be in the future'
       if (form.currentProgress < 0 || form.currentProgress > 100) errs.currentProgress = 'Progress must be between 0 and 100'
@@ -117,9 +170,19 @@ function AssignmentModal({ onClose, onGenerate }) {
   }
 
   const handleSubmit = () => {
-    const schedule = generateAssignmentSchedule(form)
+    const schedule = generateAssignmentSchedule({
+      ...form,
+      moduleCode: selectedModule?.code || '',
+      moduleName: selectedModule?.name || form.subject,
+    })
     // ✅ keep currentProgress inside returned data (so ScheduleResult can show it)
-    onGenerate({ ...schedule, currentProgress: form.currentProgress })
+    onGenerate({
+      ...schedule,
+      currentProgress: form.currentProgress,
+      moduleId: form.moduleId,
+      moduleCode: selectedModule?.code || '',
+      moduleName: selectedModule?.name || form.subject,
+    })
   }
 
   const today = new Date().toISOString().split('T')[0]
@@ -189,13 +252,33 @@ function AssignmentModal({ onClose, onGenerate }) {
 
         {step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <Field label="Module / Subject" error={errors.subject} required>
-              <input
-                value={form.subject}
-                onChange={(e) => set('subject', e.target.value)}
-                placeholder="e.g. Advanced Web Development"
-                style={inputStyle(!!errors.subject)}
-              />
+            <Field label="Module" error={errors.moduleId || errors.subject} required>
+              <select
+                value={form.moduleId}
+                onChange={(e) => set('moduleId', e.target.value)}
+                style={{ ...inputStyle(!!errors.moduleId), color: form.moduleId ? '#f0f0f0' : '#888' }}
+                disabled={modulesLoading}
+              >
+                <option value="">
+                  {modulesLoading ? 'Loading available modules...' : 'Select a module from the system'}
+                </option>
+                {modules.map((module) => {
+                  const id = module?._id || module?.id || module?.code || module?.name
+                  const label = `${module?.code ? `${module.code} - ` : ''}${module?.name || 'Untitled Module'}`
+                  const extra = [module?.semester, module?.academicYear].filter(Boolean).join(' • ')
+                  return (
+                    <option key={id} value={id}>
+                      {extra ? `${label} (${extra})` : label}
+                    </option>
+                  )
+                })}
+              </select>
+              {modulesError && <div style={{ ...errorStyle, color: '#f97316' }}>{modulesError}</div>}
+              {selectedModule && (
+                <div style={{ marginTop: 8, fontSize: 11, color: '#777' }}>
+                  Selected: <strong style={{ color: '#ddd' }}>{selectedModule.code ? `${selectedModule.code} - ` : ''}{selectedModule.name}</strong>
+                </div>
+              )}
             </Field>
 
             <Field label="Due Date" error={errors.dueDate} required>
@@ -383,6 +466,7 @@ function AssignmentModal({ onClose, onGenerate }) {
               </div>
               {[
                 { label: 'Subject', value: form.subject },
+                { label: 'Module Code', value: selectedModule?.code || '—' },
                 { label: 'Due', value: form.dueDate ? new Date(form.dueDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—' },
                 { label: 'Current', value: `${form.currentProgress}%` }, // ✅ NEW
                 { label: 'Daily Hours', value: `${form.hoursPerDay}h/day` },

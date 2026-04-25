@@ -182,6 +182,57 @@ body {
   padding: 18px 20px !important;
 }
 
+.progress-measure-analytics-shell .progress-measure-repeat-card {
+  padding: 22px 22px 20px !important;
+}
+
+.progress-measure-repeat-title {
+  margin-bottom: 6px !important;
+  line-height: 1.35;
+}
+
+.progress-measure-repeat-subtitle {
+  margin-bottom: 16px !important;
+  line-height: 1.5;
+}
+
+.progress-measure-repeat-empty {
+  margin-top: 8px;
+  line-height: 1.55;
+}
+
+.progress-measure-repeat-list {
+  display: grid;
+  gap: 14px;
+}
+
+.progress-measure-repeat-item {
+  display: grid;
+  gap: 8px;
+}
+
+.progress-measure-repeat-row {
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 0 !important;
+}
+
+.progress-measure-repeat-module {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.progress-measure-repeat-delta {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding-top: 1px;
+}
+
+.progress-measure-repeat-bar {
+  margin-top: 2px;
+}
+
 .progress-measure-analytics-shell .progress-measure-analytics-grid > .progress-measure-card .metric-circle {
   margin-left: auto !important;
   margin-right: auto !important;
@@ -478,6 +529,22 @@ body {
   .progress-measure-analytics-shell .progress-measure-area-grid > .progress-measure-card,
   .progress-measure-analytics-shell .progress-measure-recommendation {
     padding: 16px !important;
+  }
+
+  .progress-measure-analytics-shell .progress-measure-repeat-card {
+    padding: 18px !important;
+  }
+
+  .progress-measure-repeat-row {
+    gap: 10px;
+  }
+
+  .progress-measure-repeat-module {
+    font-size: 12px;
+  }
+
+  .progress-measure-repeat-delta {
+    font-size: 12px;
   }
 
   .progress-measure-history {

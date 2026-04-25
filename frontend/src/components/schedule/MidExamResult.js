@@ -47,6 +47,7 @@ function MidExamResult({ data, onBack }) {
   }
 
   const { exams, totalDays, hoursPerDay, studyTime, targetLabel, totalHours, days } = data
+  const mlEstimate = data?.ml
   const plannedMinutesToday = Math.max(0, Math.round((hoursPerDay || 0) * 60))
 
   const filteredDays = activeSubject
@@ -130,6 +131,42 @@ function MidExamResult({ data, onBack }) {
           </div>
         </div>
       </div>
+
+      {mlEstimate?.predicted_minutes > 0 && (
+        <div style={{
+          background: THEME.paper,
+          border: `1px solid ${THEME.border}`,
+          borderRadius: 16,
+          padding: '1rem 1.25rem',
+          marginBottom: '1.25rem',
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: THEME.text, marginBottom: 6 }}>AI Time Estimate</div>
+          <div style={{ fontSize: 13, color: THEME.textSoft, marginBottom: 8 }}>
+            Estimated study effort for your mid exams: <span style={{ color: THEME.orangeDark, fontWeight: 700 }}>{mlEstimate.predicted_hours}h</span>
+            {' '}({mlEstimate.predicted_minutes} mins)
+            {Number.isFinite(mlEstimate.predicted_days) && mlEstimate.predicted_days > 0 ? ` ~ ${mlEstimate.predicted_days} day(s)` : ''}
+          </div>
+          {Array.isArray(mlEstimate.exams) && mlEstimate.exams.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {mlEstimate.exams.map((item) => (
+                <span
+                  key={item.subject}
+                  style={{
+                    fontSize: 11,
+                    color: THEME.orangeDark,
+                    background: THEME.paperSoft,
+                    border: `1px solid ${THEME.border}`,
+                    borderRadius: 999,
+                    padding: '4px 9px',
+                  }}
+                >
+                  {item.subject}: {item.predicted_hours}h
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Exam timeline */}
       <div style={{

@@ -18,6 +18,9 @@ const pageTitles = {
   "/profile": "My Profile",
   "/lecture-profile": "Lecture Profile",
   "/software-hub": "Software Hub",
+  "/kuppi-sessions": "Kuppi Sessions",
+  "/admin/kuppi-details": "Kuppi Details",
+  "/admin/create-kuppi": "Create Kuppi",
   "/lecturer/module-quiz": "Module Quiz Manager",
   "/lecturer/module-selfcheck": "Module Self Check",
   "/progress-tracker": "Progress Tracker",
@@ -67,6 +70,21 @@ function Topbar({ onMenuClick }) {
     loadNotifications();
     const timer = window.setInterval(loadNotifications, 30000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (notificationOpen) {
+      loadNotifications();
+    }
+  }, [notificationOpen]);
+
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      loadNotifications();
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    return () => window.removeEventListener("focus", handleWindowFocus);
   }, []);
 
   useEffect(() => {

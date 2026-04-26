@@ -1,0 +1,205 @@
+.relaxation-page {
+  min-height: 100vh;
+  background: #f5f7fa;
+  padding: 2rem;
+}
+
+.relaxation-back-btn {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #e5e7eb;
+  background: white;
+  border-radius: 12px;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  transition: all 0.25s ease;
+}
+
+.relaxation-back-btn:hover {
+  border-color: #f97316;
+  color: #f97316;
+  transform: translateY(-2px);
+}
+
+.relaxation-panel {
+  position: relative;
+  overflow: hidden;
+  width: min(720px, 100%);
+  min-height: 620px;
+  margin: 0 auto;
+  border-radius: 28px;
+  padding: 3rem;
+  color: white;
+  text-align: center;
+  box-shadow: 0 24px 70px rgba(31, 41, 55, 0.18);
+}
+
+.relaxation-panel::before {
+  content: '';
+  position: absolute;
+  width: 340px;
+  height: 340px;
+  top: -110px;
+  right: -90px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.relaxation-orb {
+  position: relative;
+  z-index: 1;
+  width: 180px;
+  height: 180px;
+  margin: 1rem auto 2rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.18);
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  box-shadow: inset 0 0 40px rgba(255, 255, 255, 0.16);
+  transition: transform 4s ease-in-out;
+}
+
+.relaxation-orb span {
+  font-size: 5rem;
+}
+
+.relaxation-kicker {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  opacity: 0.86;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.relaxation-panel h1 {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 3rem;
+  font-weight: 800;
+}
+
+.relaxation-phase {
+  position: relative;
+  z-index: 1;
+  margin-top: 1.5rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.relaxation-time {
+  position: relative;
+  z-index: 1;
+  margin: 0.5rem 0 1.5rem;
+  font-family: 'Courier New', monospace;
+  font-size: 4rem;
+  font-weight: 800;
+}
+
+.relaxation-progress {
+  position: relative;
+  z-index: 1;
+  height: 8px;
+  width: min(420px, 100%);
+  margin: 0 auto 1.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.relaxation-progress div {
+  height: 100%;
+  border-radius: inherit;
+  background: white;
+  transition: width 0.3s ease;
+}
+
+.relaxation-steps {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin: 0 auto 2rem;
+  max-width: 600px;
+}
+
+.relaxation-steps span {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.75rem;
+  font-weight: 700;
+}
+
+.relaxation-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.relaxation-actions button {
+  min-width: 120px;
+  padding: 0.95rem 1.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  color: white;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 800;
+  transition: all 0.25s ease;
+}
+
+.relaxation-actions button:hover {
+  background: rgba(255, 255, 255, 0.24);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 640px) {
+  .relaxation-page {
+    padding: 1.25rem;
+  }
+
+  .relaxation-panel {
+    min-height: auto;
+    padding: 2rem 1.25rem;
+  }
+
+  .relaxation-orb {
+    width: 140px;
+    height: 140px;
+  }
+
+  .relaxation-orb span {
+    font-size: 4rem;
+  }
+
+  .relaxation-panel h1 {
+    font-size: 2.2rem;
+  }
+
+  .relaxation-time {
+    font-size: 3rem;
+  }
+
+  .relaxation-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .relaxation-actions {
+    flex-direction: column;
+  }
+}

@@ -18,6 +18,7 @@ import GPACalculator from './pages/GPACalculator'
 import MBTIMeasure from './pages/MBTIMeasure'
 import GetBreak from './pages/GetBreak'
 import MusicPlayer from './pages/MusicPlayer'
+import RelaxationExercise from './pages/RelaxationExercise'
 import MemoryGame from './pages/MemoryGame'
 import Game2048 from './pages/Game2048'
 import PuzzleGame from './pages/PuzzleGame'
@@ -66,6 +67,7 @@ function App() {
           <Route path="mbti-measure" element={<MBTIMeasure />} />
           <Route path="get-break" element={<GetBreak />} />
           <Route path="music-player" element={<MusicPlayer />} />
+          <Route path="relaxation/:exerciseSlug" element={<RelaxationExercise />} />
           <Route path="memory-game" element={<MemoryGame />} />
           <Route path="2048-game" element={<Game2048 />} />
           <Route path="puzzle-game" element={<PuzzleGame />} />

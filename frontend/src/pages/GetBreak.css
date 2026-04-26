@@ -294,6 +294,13 @@
   font-weight: 500;
 }
 
+.timer-count {
+  margin-top: 1.5rem;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .get-break-container {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './GetBreak.css'
 
@@ -28,10 +28,10 @@ const GetBreak = () => {
   ]
 
   const relaxationTools = [
-    { id: 1, name: 'Breathing', subtitle: 'Meditation', emoji: '🫁', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
-    { id: 2, name: 'Meditation', subtitle: 'Mindfulness', emoji: '🧘', gradient: 'linear-gradient(135deg, #0093E9 0%, #80D0C7 100%)' },
-    { id: 3, name: 'Eye Rest', subtitle: 'Visual Care', emoji: '👁️', gradient: 'linear-gradient(135deg, #FA8BFF 0%, #F78CE0 100%)' },
-    { id: 4, name: 'Progressive Relax', subtitle: 'Body Relax', emoji: '🌬️', gradient: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)' },
+    { id: 1, name: 'Breathing', subtitle: 'Meditation', emoji: '🫁', slug: 'breathing', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+    { id: 2, name: 'Meditation', subtitle: 'Mindfulness', emoji: '🧘', slug: 'meditation', gradient: 'linear-gradient(135deg, #0093E9 0%, #80D0C7 100%)' },
+    { id: 3, name: 'Eye Rest', subtitle: 'Visual Care', emoji: '👁️', slug: 'eye-rest', gradient: 'linear-gradient(135deg, #FA8BFF 0%, #F78CE0 100%)' },
+    { id: 4, name: 'Progressive Relax', subtitle: 'Body Relax', emoji: '🌬️', slug: 'progressive-relax', gradient: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)' },
   ]
 
   const formatTime = (seconds) => {
@@ -49,13 +49,8 @@ const GetBreak = () => {
     setCurrentTime(pomodoroMode === 'study' ? pomodoroStudyTime : pomodoroBreakTime)
   }
 
-  const startBreathingExerciseTimer = () => {
-    alert('Breathing Exercise Timer:\nFocus for 5 minutes on your breathing pattern.')
-  }
-
-  // Pomodoro Timer Effect
   useEffect(() => {
-    if (!timerRunning) return
+    if (!timerRunning) return undefined
 
     timerIntervalRef.current = setInterval(() => {
       setCurrentTime((prev) => {
@@ -64,16 +59,14 @@ const GetBreak = () => {
           setTimerRunning(false)
 
           if (pomodoroMode === 'study') {
-            alert(
-              '📚 Study session complete! Time for a break! \n\n✨ Great work! Take a 5-minute break to recharge.'
-            )
+            alert('📚 Study session complete! Time for a break!\n\n✨ Great work! Take a 5-minute break to recharge.')
             setPomodoroMode('break')
             setCurrentTime(pomodoroBreakTime)
           } else {
             alert('⏰ Break time over! Ready to study again?')
             setPomodoroMode('study')
             setCurrentTime(pomodoroStudyTime)
-            setBreaksElapsed((prev) => prev + 1)
+            setBreaksElapsed((prevBreaks) => prevBreaks + 1)
           }
           return prev
         }
@@ -86,13 +79,11 @@ const GetBreak = () => {
 
   return (
     <div className="get-break-container">
-      {/* Header */}
       <div className="header-section">
         <h1>Take a Break</h1>
         <p>Recharge your mind with relaxing activities</p>
       </div>
 
-      {/* Tab Navigation */}
       <div className="tab-navigation">
         <button
           className={`tab-btn ${activeTab === 'music' ? 'active' : ''}`}
@@ -120,9 +111,7 @@ const GetBreak = () => {
         </button>
       </div>
 
-      {/* Content */}
       <div className="content-wrapper">
-        {/* Music Tab */}
         {activeTab === 'music' && (
           <div className="cards-container">
             <div className="cards-grid">
@@ -145,7 +134,6 @@ const GetBreak = () => {
           </div>
         )}
 
-        {/* Games Tab */}
         {activeTab === 'games' && (
           <div className="cards-container">
             <div className="cards-grid">
@@ -173,7 +161,6 @@ const GetBreak = () => {
           </div>
         )}
 
-        {/* Relaxation Tab */}
         {activeTab === 'relaxation' && (
           <div className="cards-container">
             <div className="cards-grid">
@@ -182,7 +169,7 @@ const GetBreak = () => {
                   key={tool.id}
                   className="premium-card"
                   style={{ background: tool.gradient }}
-                  onClick={() => alert(`${tool.name} coming soon!`)}
+                  onClick={() => navigate(`/relaxation/${tool.slug}`)}
                 >
                   <div className="card-circle"></div>
                   <div className="card-text">
@@ -196,7 +183,6 @@ const GetBreak = () => {
           </div>
         )}
 
-        {/* Timer Tab */}
         {activeTab === 'timer' && (
           <div className="timer-wrapper">
             <div className="timer-card">
@@ -241,6 +227,7 @@ const GetBreak = () => {
                   <span>min</span>
                 </div>
               </div>
+              <p className="timer-count">Breaks completed: {breaksElapsed}</p>
             </div>
           </div>
         )}

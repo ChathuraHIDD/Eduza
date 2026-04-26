@@ -5,7 +5,16 @@ import BrandLogo from './BrandLogo'
 
 function Sidebar({ open, onClose }) {
   return (
-    <>
+    <div
+      style={{
+        width: open ? '260px' : '0px',
+        minWidth: open ? '260px' : '0px',
+        transition: 'width 0.3s ease, min-width 0.3s ease',
+        overflow: 'hidden',
+        flexShrink: 0,
+      }}
+      aria-hidden={!open}
+    >
       <aside
         style={{
           width: '260px',
@@ -15,37 +24,17 @@ function Sidebar({ open, onClose }) {
           display: 'flex',
           flexDirection: 'column',
           height: '100vh',
-          position: 'relative',
-          zIndex: 50,
-          transition: 'transform 0.3s ease',
-          transform: open ? 'translateX(0)' : undefined,
-        }}
-        className="hidden lg:flex"
-      >
-        <SidebarContent onClose={onClose} />
-      </aside>
-
-      <aside
-        style={{
-          width: '260px',
-          minWidth: '260px',
-          background: '#f3f3f5',
-          borderRight: '1px solid #e2e3e8',
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100vh',
-          position: 'fixed',
+          position: 'sticky',
           top: 0,
-          left: 0,
-          zIndex: 50,
-          transition: 'transform 0.3s ease',
-          transform: open ? 'translateX(0)' : 'translateX(-100%)',
+          zIndex: 30,
+          transition: 'opacity 0.2s ease',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
         }}
-        className="lg:hidden"
       >
         <SidebarContent onClose={onClose} />
       </aside>
-    </>
+    </div>
   )
 }
 
@@ -111,6 +100,11 @@ function SidebarContent({ onClose }) {
       icon: aiNotesIcon,
     },
     {
+      label: 'MBTI Measure',
+      path: '/mbti-measure',
+      icon: mbtiIcon,
+    },
+    {
       label: 'Progress Tracker',
       path: '/progress-tracker',
       icon: aiNotesIcon,
@@ -119,6 +113,11 @@ function SidebarContent({ onClose }) {
       label: 'GPA Calculator',
       path: '/gpa-calculator',
       icon: gpaCalculatorIcon,
+    },
+    {
+      label: 'Get Break',
+      path: '/get-break',
+      icon: breakIcon,
     },
 
   ]
@@ -157,6 +156,16 @@ function SidebarContent({ onClose }) {
       path: '/admin/module-requests',
       icon: aiNotesIcon,
     },
+    {
+      label: 'Kuppi Details',
+      path: '/admin/kuppi-details',
+      icon: kuppiIcon,
+    },
+    {
+      label: 'Create Kuppi',
+      path: '/admin/create-kuppi',
+      icon: kuppiIcon,
+    },
  
     {
       label: 'Group Chat',
@@ -190,6 +199,11 @@ function SidebarContent({ onClose }) {
       label: 'AI Notes',
       path: '/ai-notes',
       icon: aiNotesIcon,
+    },
+    {
+      label: 'MBTI Measure',
+      path: '/mbti-measure',
+      icon: mbtiIcon,
     },
   ]
 
@@ -299,53 +313,30 @@ function SidebarContent({ onClose }) {
           }}
         >
           Navigation
-        </span>
-      </div>
-
-      <nav style={{ padding: '0 0.75rem', flex: 1 }}>
-        <NavLink
-          to={homePath}
-          end
-          onClick={onClose}
-          style={({ isActive }) => ({
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '10px 12px',
-            borderRadius: '10px',
-            textDecoration: 'none',
-            fontSize: '14.5px',
-            fontWeight: isActive ? 600 : 500,
-            color: isActive ? '#f97316' : '#6f7688',
-            background: isActive ? '#efe2da' : 'transparent',
-            marginBottom: 2,
-            transition: 'all 0.15s ease',
-          })}
-        >
-          {homeIcon}
-          Home
-        </NavLink>
-
-        <div style={{ height: 1, background: '#dddfe6', margin: '10px 4px' }} />
-
-        <div style={{ padding: '4px 12px 8px' }}>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: '#b0b5c4',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-            }}
-          >
-            Menu
           </span>
         </div>
 
-        {navItems.map((item) => (
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <nav
+          style={{
+            padding: '0 0.75rem 1rem',
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            overscrollBehavior: 'contain',
+          }}
+        >
           <NavLink
-            key={item.path}
-            to={item.path}
+            to={homePath}
+            end
             onClick={onClose}
             style={({ isActive }) => ({
               display: 'flex',
@@ -362,11 +353,52 @@ function SidebarContent({ onClose }) {
               transition: 'all 0.15s ease',
             })}
           >
-            {item.icon}
-            {item.label}
+            {homeIcon}
+            Home
           </NavLink>
-        ))}
-      </nav>
+
+          <div style={{ height: 1, background: '#dddfe6', margin: '10px 4px' }} />
+
+          <div style={{ padding: '4px 12px 8px' }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#b0b5c4',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Menu
+            </span>
+          </div>
+
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={onClose}
+              style={({ isActive }) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '10px 12px',
+                borderRadius: '10px',
+                textDecoration: 'none',
+                fontSize: '14.5px',
+                fontWeight: isActive ? 600 : 500,
+                color: isActive ? '#f97316' : '#6f7688',
+                background: isActive ? '#efe2da' : 'transparent',
+                marginBottom: 2,
+                transition: 'all 0.15s ease',
+              })}
+            >
+              {item.icon}
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+      </div>
 
       <div
         ref={menuRef}
@@ -518,6 +550,16 @@ const calendarIcon = (
   </svg>
 )
 
+const mbtiIcon = (
+  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+    <path d="M12 3a3 3 0 0 1 3 3c0 .74-.27 1.41-.72 1.92A4.5 4.5 0 0 1 18.5 12v1.5" />
+    <path d="M12 3a3 3 0 0 0-3 3c0 .74.27 1.41.72 1.92A4.5 4.5 0 0 0 5.5 12v1.5" />
+    <path d="M8 21v-2.5A2.5 2.5 0 0 1 10.5 16H12" />
+    <path d="M16 21v-2.5a2.5 2.5 0 0 0-2.5-2.5H12" />
+    <circle cx="12" cy="12" r="2.25" />
+  </svg>
+)
+
 const stressIcon = (
   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
     <path d="M12 21s-7-4.35-7-10a7 7 0 0 1 14 0c0 5.65-7 10-7 10z" />
@@ -590,6 +632,15 @@ const gpaCalculatorIcon = (
     <line x1="8" y1="11" x2="16" y2="11" />
     <line x1="8" y1="15" x2="16" y2="15" />
     <line x1="8" y1="19" x2="16" y2="19" />
+  </svg>
+)
+
+const breakIcon = (
+  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="1" />
+    <path d="M12 7v5" />
+    <path d="M12 17v.01" />
+    <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
   </svg>
 )
 

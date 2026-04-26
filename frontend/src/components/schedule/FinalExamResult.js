@@ -8,6 +8,18 @@ const PREP_LABELS     = { 1: "Haven't Started", 2: 'Just Started', 3: 'Getting T
 const ACCENT = '#f97316'
 const ACCENT_DARK = '#c2410c'
 const ACCENT_RGBA = (a) => `rgba(249,115,22,${a})`
+const THEME = {
+  page: '#fffaf5',
+  paper: '#ffffff',
+  paperSoft: '#fff7ed',
+  border: '#fed7aa',
+  text: '#1f2937',
+  textSoft: '#6b7280',
+  textFaint: '#9ca3af',
+  orange: '#f97316',
+  orangeDark: '#c2410c',
+  orangeDeep: '#9a3412',
+}
 
 function FinalExamResult({ data, onBack }) {
   const [expandedDay, setExpandedDay] = useState(0)
@@ -18,6 +30,7 @@ function FinalExamResult({ data, onBack }) {
   }
 
   const { exams, totalDays, hoursPerDay, studyTime, targetLabel, totalHours, days } = data
+  const mlEstimate = data?.ml
   const plannedMinutesToday = Math.max(0, Math.round((hoursPerDay || 0) * 60))
 
   const filteredDays = activeSubject
@@ -25,13 +38,13 @@ function FinalExamResult({ data, onBack }) {
     : days
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+    <div style={{ maxWidth: 960, margin: '0 auto', background: THEME.page, borderRadius: 22, padding: '1rem', border: `1px solid ${THEME.border}` }}>
 
       {/* Back + header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
         <button onClick={onBack} style={{
-          background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 10,
-          padding: '8px 14px', cursor: 'pointer', color: '#aaa', fontSize: 13, fontWeight: 500,
+          background: THEME.paper, border: `1px solid ${THEME.border}`, borderRadius: 10,
+          padding: '8px 14px', cursor: 'pointer', color: THEME.orangeDark, fontSize: 13, fontWeight: 700,
           display: 'flex', alignItems: 'center', gap: 6,
         }}>
           <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -40,10 +53,10 @@ function FinalExamResult({ data, onBack }) {
           Back
         </button>
         <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#f5f5f5', letterSpacing: '-0.4px' }}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: THEME.text, letterSpacing: '-0.4px' }}>
             Final Exam Study Plan
           </h2>
-          <p style={{ margin: 0, fontSize: 12, color: '#555' }}>Priority-driven · personalised to your exam dates</p>
+          <p style={{ margin: 0, fontSize: 12, color: THEME.textSoft }}>Priority-driven · personalised to your exam dates</p>
         </div>
       </div>
 
@@ -57,8 +70,8 @@ function FinalExamResult({ data, onBack }) {
 
       {/* Summary banner */}
       <div style={{
-        background: 'linear-gradient(135deg, #1a0d0d 0%, #160f0f 100%)',
-        border: '1px solid #2a1a1a',
+        background: `linear-gradient(135deg, ${THEME.orangeDeep} 0%, ${THEME.orangeDark} 55%, ${THEME.orange} 100%)`,
+        border: `1px solid ${THEME.orangeDark}`,
         borderRadius: 18, padding: '1.5rem 2rem',
         marginBottom: '1.25rem',
         position: 'relative', overflow: 'hidden',
@@ -70,14 +83,14 @@ function FinalExamResult({ data, onBack }) {
         }} />
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: ACCENT, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
               Semester Final Exams
             </div>
-            <h3 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: '#f5f5f5', letterSpacing: '-0.4px' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-0.4px' }}>
               {exams.length} Exam{exams.length > 1 ? 's' : ''} · {totalDays} Day Plan
             </h3>
-            <p style={{ margin: 0, fontSize: 13, color: '#555' }}>
-              Study time: <span style={{ color: ACCENT, fontWeight: 600 }}>
+            <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.88)' }}>
+              Study time: <span style={{ color: '#fff', fontWeight: 700 }}>
                 {studyTime === 'morning' ? '🌅 Morning sessions' : '🌙 Night sessions'}
               </span>
             </p>
@@ -90,28 +103,64 @@ function FinalExamResult({ data, onBack }) {
               { label: 'Target', value: targetLabel },
             ].map((s) => (
               <div key={s.label} style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: 'rgba(255,255,255,0.14)',
+                border: '1px solid rgba(255,255,255,0.22)',
                 borderRadius: 12, padding: '10px 16px', textAlign: 'center', minWidth: 70,
               }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: ACCENT, letterSpacing: '-0.5px' }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>{s.value}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.86)', marginTop: 2 }}>{s.label}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
+      {mlEstimate?.predicted_minutes > 0 && (
+        <div style={{
+          background: THEME.paper,
+          border: `1px solid ${THEME.border}`,
+          borderRadius: 16,
+          padding: '1rem 1.25rem',
+          marginBottom: '1.25rem',
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: THEME.text, marginBottom: 6 }}>AI Time Estimate</div>
+          <div style={{ fontSize: 13, color: THEME.textSoft, marginBottom: 8 }}>
+            Estimated study effort for your final exams: <span style={{ color: THEME.orangeDark, fontWeight: 700 }}>{mlEstimate.predicted_hours}h</span>
+            {' '}({mlEstimate.predicted_minutes} mins)
+            {Number.isFinite(mlEstimate.predicted_days) && mlEstimate.predicted_days > 0 ? ` ~ ${mlEstimate.predicted_days} day(s)` : ''}
+          </div>
+          {Array.isArray(mlEstimate.exams) && mlEstimate.exams.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {mlEstimate.exams.map((item) => (
+                <span
+                  key={item.subject}
+                  style={{
+                    fontSize: 11,
+                    color: THEME.orangeDark,
+                    background: THEME.paperSoft,
+                    border: `1px solid ${THEME.border}`,
+                    borderRadius: 999,
+                    padding: '4px 9px',
+                  }}
+                >
+                  {item.subject}: {item.predicted_hours}h
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Exam timeline */}
       <div style={{
-        background: '#1a1a1a', border: '1px solid #242424',
+        background: THEME.paper, border: `1px solid ${THEME.border}`,
         borderRadius: 16, padding: '1.25rem 1.5rem', marginBottom: '1.25rem',
       }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f0', marginBottom: '1rem' }}>Exam Timeline</div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: THEME.text, marginBottom: '1rem' }}>Exam Timeline</div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           {exams.map((exam) => (
             <div key={exam.subject} style={{
-              background: `${exam.color}10`,
+              background: THEME.paperSoft,
               border: `1.5px solid ${exam.color}33`,
               borderLeft: `4px solid ${exam.color}`,
               borderRadius: 12, padding: '0.75rem 1rem',
@@ -131,18 +180,18 @@ function FinalExamResult({ data, onBack }) {
                   {exam.daysFromToday <= 3 ? 'URGENT' : exam.daysFromToday <= 7 ? 'SOON' : `${exam.daysFromToday}d`}
                 </span>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f0', marginBottom: 2 }}>{exam.subject}</div>
-              <div style={{ fontSize: 11, color: '#666' }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: THEME.text, marginBottom: 2 }}>{exam.subject}</div>
+              <div style={{ fontSize: 11, color: THEME.textSoft }}>
                 {exam.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
               </div>
               <div style={{ display: 'flex', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
                 <span style={{
                   fontSize: 10, padding: '1px 7px', borderRadius: 20,
-                  background: 'rgba(255,255,255,0.05)', color: '#666',
+                  background: '#fff', color: THEME.orangeDark,
                 }}>{WEAKNESS_LABELS[exam.weakness]}</span>
                 <span style={{
                   fontSize: 10, padding: '1px 7px', borderRadius: 20,
-                  background: 'rgba(255,255,255,0.05)', color: '#666',
+                  background: '#fff', color: THEME.orangeDark,
                 }}>{PREP_LABELS[exam.prep]}</span>
               </div>
             </div>
@@ -154,7 +203,7 @@ function FinalExamResult({ data, onBack }) {
       <div style={{
         display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem', alignItems: 'center',
       }}>
-        <span style={{ fontSize: 12, color: '#555', marginRight: 4 }}>Filter:</span>
+        <span style={{ fontSize: 12, color: THEME.textSoft, marginRight: 4 }}>Filter:</span>
         <button
           onClick={() => setActiveSubject(null)}
           style={filterBtn(activeSubject === null, ACCENT)}
@@ -180,26 +229,26 @@ function FinalExamResult({ data, onBack }) {
           if (day.isExamDay) {
             return (
               <div key={globalIdx} style={{
-                background: 'rgba(239,68,68,0.06)',
-                border: '1px solid rgba(239,68,68,0.25)',
-                borderLeft: '4px solid #ef4444',
+                background: THEME.paper,
+                border: `1px solid ${THEME.border}`,
+                borderLeft: `4px solid ${THEME.orangeDark}`,
                 borderRadius: 14, padding: '0.9rem 1.25rem',
                 display: 'flex', alignItems: 'center', gap: '1rem',
               }}>
                 <div style={{
                   width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-                  background: 'rgba(239,68,68,0.12)',
-                  border: '1.5px solid rgba(239,68,68,0.3)',
+                  background: THEME.paperSoft,
+                  border: `1.5px solid ${THEME.border}`,
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: 10, color: '#ef4444', fontWeight: 600 }}>
+                  <span style={{ fontSize: 10, color: THEME.orangeDark, fontWeight: 700 }}>
                     {day.date.toLocaleDateString('en-US', { month: 'short' })}
                   </span>
-                  <span style={{ fontSize: 16, fontWeight: 800, color: '#ef4444' }}>{day.date.getDate()}</span>
+                  <span style={{ fontSize: 16, fontWeight: 800, color: THEME.orangeDark }}>{day.date.getDate()}</span>
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: '#ef4444' }}>🎓 Exam Day</span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: THEME.orangeDark }}>🎓 Exam Day</span>
                     {day.examSubjects.map((s) => (
                       <span key={s.subject} style={{
                         fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 20,
@@ -207,9 +256,9 @@ function FinalExamResult({ data, onBack }) {
                       }}>{s.subject}</span>
                     ))}
                   </div>
-                  <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: THEME.textSoft, marginTop: 2 }}>
                     {day.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                    {' · '}<span style={{ color: '#ef4444', fontWeight: 500 }}>No study planned — rest and be fresh!</span>
+                    {' · '}<span style={{ color: THEME.orangeDark, fontWeight: 600 }}>No study planned — rest and be fresh!</span>
                   </div>
                 </div>
               </div>
@@ -218,9 +267,9 @@ function FinalExamResult({ data, onBack }) {
 
           return (
             <div key={globalIdx} style={{
-              background: '#1a1a1a',
-              border: isOpen ? `1px solid ${day.subjectColor}44` : '1px solid #222',
-              borderLeft: `4px solid ${isOpen ? day.subjectColor : '#2a2a2a'}`,
+              background: THEME.paper,
+              border: isOpen ? `1px solid ${day.subjectColor}44` : `1px solid ${THEME.border}`,
+              borderLeft: `4px solid ${isOpen ? day.subjectColor : THEME.border}`,
               borderRadius: 14, overflow: 'hidden', transition: 'border-color 0.2s',
             }}>
               <button
@@ -234,14 +283,14 @@ function FinalExamResult({ data, onBack }) {
                 {/* Date circle */}
                 <div style={{
                   width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-                  background: isOpen ? `${day.subjectColor}15` : '#1e1e1e',
-                  border: `1.5px solid ${isOpen ? day.subjectColor + '55' : '#2a2a2a'}`,
+                  background: isOpen ? `${day.subjectColor}15` : THEME.paperSoft,
+                  border: `1.5px solid ${isOpen ? day.subjectColor + '55' : THEME.border}`,
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: 10, color: isOpen ? day.subjectColor : '#555', fontWeight: 600, lineHeight: 1 }}>
+                  <span style={{ fontSize: 10, color: isOpen ? day.subjectColor : THEME.textSoft, fontWeight: 700, lineHeight: 1 }}>
                     {day.date.toLocaleDateString('en-US', { month: 'short' })}
                   </span>
-                  <span style={{ fontSize: 16, fontWeight: 800, color: isOpen ? day.subjectColor : '#888', lineHeight: 1 }}>
+                  <span style={{ fontSize: 16, fontWeight: 800, color: isOpen ? day.subjectColor : THEME.text, lineHeight: 1 }}>
                     {day.date.getDate()}
                   </span>
                 </div>
@@ -249,7 +298,7 @@ function FinalExamResult({ data, onBack }) {
                 {/* Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: '#f0f0f0' }}>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: THEME.text }}>
                       Day {day.dayNumber}
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -279,7 +328,7 @@ function FinalExamResult({ data, onBack }) {
                       }}>🎓 {day.examsTodayList[0].subject} exam today</span>
                     )}
                   </div>
-                  <div style={{ fontSize: 11, color: '#555' }}>
+                  <div style={{ fontSize: 11, color: THEME.textSoft }}>
                     {day.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                     {' · '}{day.sessions.length} session{day.sessions.length !== 1 ? 's' : ''}
                     {' · '}{day.hoursPlanned}h
@@ -287,7 +336,7 @@ function FinalExamResult({ data, onBack }) {
                   </div>
                 </div>
 
-                <svg width="16" height="16" fill="none" stroke="#555" strokeWidth="2" viewBox="0 0 24 24"
+                <svg width="16" height="16" fill="none" stroke={THEME.textFaint} strokeWidth="2" viewBox="0 0 24 24"
                   style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}>
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
@@ -334,7 +383,7 @@ function FinalExamResult({ data, onBack }) {
                     {day.sessions.map((s, si) => (
                       <div key={si} style={{
                         display: 'flex', alignItems: 'flex-start', gap: '1rem',
-                        background: '#111', borderRadius: 10, padding: '10px 14px',
+                        background: THEME.paperSoft, borderRadius: 10, padding: '10px 14px',
                       }}>
                         <div style={{
                           width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
@@ -343,13 +392,13 @@ function FinalExamResult({ data, onBack }) {
                           fontSize: 11, fontWeight: 700, color: day.subjectColor, marginTop: 1,
                         }}>{si + 1}</div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#f0f0f0', marginBottom: 3 }}>{s.task}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: THEME.text, marginBottom: 3 }}>{s.task}</div>
                           <div style={{ display: 'flex', gap: 12 }}>
-                            <span style={{ fontSize: 11, color: '#555' }}>🕐 {s.time}</span>
-                            <span style={{ fontSize: 11, color: '#555' }}>⏱ {s.duration}h</span>
+                            <span style={{ fontSize: 11, color: THEME.textSoft }}>🕐 {s.time}</span>
+                            <span style={{ fontSize: 11, color: THEME.textSoft }}>⏱ {s.duration}h</span>
                           </div>
                         </div>
-                        <div style={{ width: 20, height: 20, borderRadius: 6, border: '1.5px solid #333', flexShrink: 0, marginTop: 2 }} />
+                        <div style={{ width: 20, height: 20, borderRadius: 6, border: `1.5px solid ${THEME.border}`, flexShrink: 0, marginTop: 2 }} />
                       </div>
                     ))}
                   </div>
@@ -365,7 +414,7 @@ function FinalExamResult({ data, onBack }) {
                       <line x1="12" y1="8" x2="12" y2="12" />
                       <line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
-                    <span style={{ fontSize: 11, color: '#777', lineHeight: 1.6 }}>
+                    <span style={{ fontSize: 11, color: THEME.textSoft, lineHeight: 1.6 }}>
                       {examTip(day.phase, day.daysToExam, day.subject)}
                     </span>
                   </div>
@@ -378,15 +427,15 @@ function FinalExamResult({ data, onBack }) {
 
       {/* Footer */}
       <div style={{
-        marginTop: '1.5rem', background: '#1a1a1a', border: '1px solid #242424',
+        marginTop: '1.5rem', background: THEME.paper, border: `1px solid ${THEME.border}`,
         borderRadius: 14, padding: '1.25rem 1.5rem',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap',
       }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#f0f0f0', marginBottom: 3 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: THEME.text, marginBottom: 3 }}>
             Final Exam Plan Ready ✓
           </div>
-          <div style={{ fontSize: 12, color: '#555' }}>
+          <div style={{ fontSize: 12, color: THEME.textSoft }}>
             {exams.length} exams tracked · Target: {targetLabel}
           </div>
         </div>
@@ -418,10 +467,10 @@ function FinalExamResult({ data, onBack }) {
 function filterBtn(active, color) {
   return {
     padding: '5px 12px', borderRadius: 20,
-    border: active ? `1px solid ${color}55` : '1px solid #222',
-    background: active ? `${color}22` : '#1a1a1a',
-    color: active ? color : '#666',
-    fontSize: 12, fontWeight: active ? 600 : 400,
+    border: active ? `1px solid ${color}55` : `1px solid ${THEME.border}`,
+    background: active ? `${color}22` : THEME.paper,
+    color: active ? color : THEME.textSoft,
+    fontSize: 12, fontWeight: active ? 700 : 500,
     cursor: 'pointer', transition: 'all 0.15s',
     display: 'flex', alignItems: 'center',
   }

@@ -58,6 +58,15 @@ const kuppiConductorApplicationSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+    createdSessionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "KuppiSession",
+      default: null,
+    },
+    sessionCreatedAt: {
+      type: Date,
+      default: null,
+    },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],

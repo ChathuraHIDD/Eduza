@@ -5,7 +5,16 @@ import BrandLogo from './BrandLogo'
 
 function Sidebar({ open, onClose }) {
   return (
-    <>
+    <div
+      style={{
+        width: open ? '260px' : '0px',
+        minWidth: open ? '260px' : '0px',
+        transition: 'width 0.3s ease, min-width 0.3s ease',
+        overflow: 'hidden',
+        flexShrink: 0,
+      }}
+      aria-hidden={!open}
+    >
       <aside
         style={{
           width: '260px',
@@ -15,37 +24,17 @@ function Sidebar({ open, onClose }) {
           display: 'flex',
           flexDirection: 'column',
           height: '100vh',
-          position: 'relative',
-          zIndex: 50,
-          transition: 'transform 0.3s ease',
-          transform: open ? 'translateX(0)' : undefined,
-        }}
-        className="hidden lg:flex"
-      >
-        <SidebarContent onClose={onClose} />
-      </aside>
-
-      <aside
-        style={{
-          width: '260px',
-          minWidth: '260px',
-          background: '#f3f3f5',
-          borderRight: '1px solid #e2e3e8',
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100vh',
-          position: 'fixed',
+          position: 'sticky',
           top: 0,
-          left: 0,
-          zIndex: 50,
-          transition: 'transform 0.3s ease',
-          transform: open ? 'translateX(0)' : 'translateX(-100%)',
+          zIndex: 30,
+          transition: 'opacity 0.2s ease',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
         }}
-        className="lg:hidden"
       >
         <SidebarContent onClose={onClose} />
       </aside>
-    </>
+    </div>
   )
 }
 
@@ -166,6 +155,16 @@ function SidebarContent({ onClose }) {
       label: 'Module Requests',
       path: '/admin/module-requests',
       icon: aiNotesIcon,
+    },
+    {
+      label: 'Kuppi Details',
+      path: '/admin/kuppi-details',
+      icon: kuppiIcon,
+    },
+    {
+      label: 'Create Kuppi',
+      path: '/admin/create-kuppi',
+      icon: kuppiIcon,
     },
  
     {
@@ -314,53 +313,30 @@ function SidebarContent({ onClose }) {
           }}
         >
           Navigation
-        </span>
-      </div>
-
-      <nav style={{ padding: '0 0.75rem', flex: 1 }}>
-        <NavLink
-          to={homePath}
-          end
-          onClick={onClose}
-          style={({ isActive }) => ({
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '10px 12px',
-            borderRadius: '10px',
-            textDecoration: 'none',
-            fontSize: '14.5px',
-            fontWeight: isActive ? 600 : 500,
-            color: isActive ? '#f97316' : '#6f7688',
-            background: isActive ? '#efe2da' : 'transparent',
-            marginBottom: 2,
-            transition: 'all 0.15s ease',
-          })}
-        >
-          {homeIcon}
-          Home
-        </NavLink>
-
-        <div style={{ height: 1, background: '#dddfe6', margin: '10px 4px' }} />
-
-        <div style={{ padding: '4px 12px 8px' }}>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: '#b0b5c4',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-            }}
-          >
-            Menu
           </span>
         </div>
 
-        {navItems.map((item) => (
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <nav
+          style={{
+            padding: '0 0.75rem 1rem',
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            overscrollBehavior: 'contain',
+          }}
+        >
           <NavLink
-            key={item.path}
-            to={item.path}
+            to={homePath}
+            end
             onClick={onClose}
             style={({ isActive }) => ({
               display: 'flex',
@@ -377,11 +353,52 @@ function SidebarContent({ onClose }) {
               transition: 'all 0.15s ease',
             })}
           >
-            {item.icon}
-            {item.label}
+            {homeIcon}
+            Home
           </NavLink>
-        ))}
-      </nav>
+
+          <div style={{ height: 1, background: '#dddfe6', margin: '10px 4px' }} />
+
+          <div style={{ padding: '4px 12px 8px' }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#b0b5c4',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Menu
+            </span>
+          </div>
+
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={onClose}
+              style={({ isActive }) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '10px 12px',
+                borderRadius: '10px',
+                textDecoration: 'none',
+                fontSize: '14.5px',
+                fontWeight: isActive ? 600 : 500,
+                color: isActive ? '#f97316' : '#6f7688',
+                background: isActive ? '#efe2da' : 'transparent',
+                marginBottom: 2,
+                transition: 'all 0.15s ease',
+              })}
+            >
+              {item.icon}
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+      </div>
 
       <div
         ref={menuRef}

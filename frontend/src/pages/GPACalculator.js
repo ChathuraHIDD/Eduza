@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { jsPDF } from 'jspdf'
+import { drawEduzaLogo } from '../utils/pdfBranding'
 import { getGpaProfile, saveGpaProfile } from '../utils/progressTrackerApi'
 
 const GRADING_SCALE = [
@@ -262,41 +264,160 @@ function GPACalculator() {
     setReportGenerated(true)
   }
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = async () => {
     if (!reportGenerated) {
       alert('Please generate the report first.')
       return
     }
 
     const reportDate = new Date().toLocaleString()
-    const moduleLines = validModules
-      .map(
-        (module, index) =>
-          `${index + 1}. ${module.moduleName} | Credits: ${module.credits} | Grade: ${module.grade} | Grade Point: ${getGradePoint(module.grade)}`
-      )
-      .join('\n')
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 48
+    let y = 52
 
-    const strongLines =
+    const addPageIfNeeded = (neededHeight = 40) => {
+      if (y + neededHeight <= pageHeight - margin) return
+      doc.addPage()
+      y = margin
+    }
+
+    const addWrappedText = (text, x, maxWidth, options = {}) => {
+      const lines = doc.splitTextToSize(text, maxWidth)
+      const lineHeight = options.lineHeight || 16
+      addPageIfNeeded(lines.length * lineHeight)
+      doc.text(lines, x, y)
+      y += lines.length * lineHeight
+    }
+
+    const drawSectionTitle = (title) => {
+      addPageIfNeeded(34)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(13)
+      doc.setTextColor(17, 24, 39)
+      doc.text(title, margin, y)
+      y += 18
+      doc.setDrawColor(249, 115, 22)
+      doc.line(margin, y, pageWidth - margin, y)
+      y += 18
+    }
+
+    doc.setFillColor(249, 115, 22)
+    doc.roundedRect(margin, y, pageWidth - margin * 2, 92, 16, 16, 'F')
+    await drawEduzaLogo(doc, margin + 18, y + 20, 54, 34)
+
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(22)
+    doc.text('EDUZA GPA REPORT', margin + 88, y + 38)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text(`Generated On: ${reportDate}`, margin + 88, y + 60)
+    y += 122
+
+    doc.setFillColor(255, 251, 235)
+    doc.roundedRect(margin, y, pageWidth - margin * 2, 78, 14, 14, 'F')
+    doc.setTextColor(71, 85, 105)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text('TOTAL MODULES', margin + 18, y + 24)
+    doc.text('TOTAL CREDITS', margin + 174, y + 24)
+    doc.text('GPA', margin + 330, y + 24)
+    doc.text('PERFORMANCE', margin + 430, y + 24)
+
+    doc.setTextColor(17, 24, 39)
+    doc.setFontSize(20)
+    doc.text(String(summary.totalModules), margin + 18, y + 56)
+    doc.text(String(summary.totalCredits), margin + 174, y + 56)
+    doc.text(String(summary.gpa), margin + 330, y + 56)
+    doc.setFontSize(13)
+    doc.text(getGpaLabel(summary.gpa), margin + 430, y + 54)
+    y += 110
+
+    drawSectionTitle('Selected Mode')
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(11)
+    doc.setTextColor(71, 85, 105)
+    addWrappedText(selectedMode, margin, pageWidth - margin * 2)
+    y += 10
+
+    drawSectionTitle('Module Details')
+    const tableTop = y
+    const colWidths = [248, 82, 82, 92]
+    const rowHeight = 28
+    const columns = ['Module Name', 'Credits', 'Grade', 'Grade Point']
+
+    doc.setFillColor(248, 240, 255)
+    doc.rect(margin, tableTop, pageWidth - margin * 2, rowHeight, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(91, 33, 182)
+
+    let x = margin + 10
+    columns.forEach((column, index) => {
+      doc.text(column, x, tableTop + 18)
+      x += colWidths[index]
+    })
+    y += rowHeight
+
+    validModules.forEach((module, index) => {
+      addPageIfNeeded(rowHeight)
+      doc.setFillColor(index % 2 === 0 ? 255 : 250, index % 2 === 0 ? 255 : 245, 255)
+      doc.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F')
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.setTextColor(17, 24, 39)
+      doc.text(doc.splitTextToSize(module.moduleName, 220)[0] || '-', margin + 10, y + 18)
+      doc.text(String(module.credits), margin + 258, y + 18)
+      doc.text(module.grade, margin + 340, y + 18)
+      doc.text(getGradePoint(module.grade).toFixed(1), margin + 422, y + 18)
+      y += rowHeight
+    })
+    y += 18
+
+    drawSectionTitle('Performance Report')
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(11)
+    doc.setTextColor(71, 85, 105)
+    addWrappedText(getReportMessage(summary.gpa), margin, pageWidth - margin * 2, {
+      lineHeight: 17,
+    })
+    y += 12
+
+    drawSectionTitle('Strong Modules')
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(11)
+    doc.setTextColor(71, 85, 105)
+    const strongText =
       getStrengthModules().length > 0
         ? getStrengthModules().map((m) => `- ${m.moduleName} (${m.grade})`).join('\n')
         : 'None'
+    addWrappedText(strongText, margin, pageWidth - margin * 2)
+    y += 12
 
-    const weakLines =
+    drawSectionTitle('Modules That Need Improvement')
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(11)
+    doc.setTextColor(71, 85, 105)
+    const weakText =
       getWeakModules().length > 0
         ? getWeakModules().map((m) => `- ${m.moduleName} (${m.grade})`).join('\n')
         : 'None'
+    addWrappedText(weakText, margin, pageWidth - margin * 2)
+    y += 12
 
-    const reportText = `EDUZA GPA REPORT\n==============================\n\nGenerated On:\n${reportDate}\n\nSelected Mode:\n${selectedMode}\n\nOverall Summary:\n- Total Modules: ${summary.totalModules}\n- Total Credits: ${summary.totalCredits}\n- GPA: ${summary.gpa}\n- Performance Level: ${getGpaLabel(summary.gpa)}\n\nModule Details:\n${moduleLines}\n\nPerformance Report:\n${getReportMessage(summary.gpa)}\n\nStrong Modules:\n${strongLines}\n\nModules That Need Improvement:\n${weakLines}\n\nSuggestions:\n- Focus on low-grade modules first\n- Improve time management and revision planning\n- Practice quizzes and past papers\n- Stay consistent with weekly study goals\n`;
+    drawSectionTitle('Suggestions')
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(11)
+    doc.setTextColor(71, 85, 105)
+    addWrappedText(
+      '- Focus on low-grade modules first\n- Improve time management and revision planning\n- Practice quizzes and past papers\n- Stay consistent with weekly study goals',
+      margin,
+      pageWidth - margin * 2,
+    )
 
-    const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'gpa-report.txt'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    doc.save('gpa-report.pdf')
   }
 
   return (
